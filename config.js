@@ -1,6 +1,6 @@
 // ===== الإعدادات =====
 // الصقي هنا رابط الـ Web App بعد النشر (ينتهي بـ /exec)
-const API_URL = 'ضع_رابط_Web_App_هنا';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzk_3Aeid0BUZfnLe_WqpE64u2xjXUivaBwDqpfPwkCPOK8O0Cs-mxJHlQU-7CFwXW_vA/exec';
 
 const PW_KEY = 'mush_pw';
 const getPw = () => sessionStorage.getItem(PW_KEY) || '';
