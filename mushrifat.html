@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مشرفات — منظومة مشرفات مكتب إشراف الداخل</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="topbar">
+  <img class="logo" alt="شعار فرقان">
+  <h1>مشرفات</h1>
+  <p>وحدة الإشراف التربوي</p>
+</div>
+
+<div class="wrap">
+
+  <!-- تسجيل الدخول -->
+  <div id="loginView" class="card" style="max-width:420px;margin:30px auto">
+    <h2>تسجيل الدخول</h2>
+    <label for="pw">كلمة المرور</label>
+    <div class="pw-wrap">
+      <input id="pw" type="password" autocomplete="current-password" placeholder="أدخلي كلمة المرور">
+      <button type="button" class="pw-toggle" onclick="togglePassword('pw', this)">👁️</button>
+    </div>
+    <button id="loginBtn" class="btn block" onclick="doLogin()">دخول</button>
+    <p style="margin-top:12px;text-align:center"><a class="lnk" href="index.html">الرئيسية</a></p>
+  </div>
+
+  <!-- القائمة الرئيسية -->
+  <div id="homeView" class="hidden">
+    <div class="grid">
+      <button class="tile" onclick="show('visitsView'); loadVisits()"><span class="ico">📝</span><b>كشف الخروج</b></button>
+      <button class="tile" onclick="show('filesView'); loadFiles()"><span class="ico">📎</span><b>المرفقات</b></button>
+    </div>
+    <p style="text-align:center;margin-top:22px"><button class="btn light" onclick="logout()">تسجيل الخروج</button></p>
+  </div>
+
+  <!-- كشف الخروج -->
+  <div id="visitsView" class="hidden">
+    <button class="back" onclick="show('homeView')">← رجوع</button>
+
+    <div class="stats">
+      <div class="stat"><b id="stDays">0</b><span>إجمالي أيام الزيارات</span></div>
+      <div class="stat"><b id="stCenters">0</b><span>عدد المراكز المزارة</span></div>
+    </div>
+
+    <div class="card">
+      <h2>تسجيل زيارة جديدة</h2>
+
+      <label for="vCenter">اسم المركز</label>
+      <select id="vCenter"><option value="">جارِ التحميل...</option></select>
+
+      <label for="vType">نوع الزيارة</label>
+      <select id="vType"><option value="">جارِ التحميل...</option></select>
+
+      <div class="row2">
+        <div>
+          <label for="vDate">التاريخ</label>
+          <input id="vDate" type="date" onchange="onDateChange()">
+        </div>
+        <div>
+          <label for="vDay">اليوم</label>
+          <input id="vDay" readonly>
+        </div>
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin-top:6px">الموافق: <span id="vHijri">—</span></div>
+
+      <label class="check">
+        <input type="checkbox" id="vAbsent" onchange="onAbsentChange()">
+        <span>تمت زيارة المركز والمديرة متغيبة</span>
+      </label>
+
+      <div id="sigSection">
+        <label>توقيع المديرة</label>
+        <div class="sig-box"><canvas id="sigCanvas"></canvas></div>
+        <div class="sig-tools">
+          <span>وقّعي داخل المربع بالإصبع أو الماوس</span>
+          <button type="button" class="btn light" style="padding:6px 14px;font-size:13px" onclick="sigClear()">مسح التوقيع</button>
+        </div>
+      </div>
+      <p id="absentNote" class="hidden" style="margin-top:12px;font-size:14px;color:var(--muted)">التوقيع غير مطلوب في هذه الحالة، وتُحسب الزيارة يوماً واحداً.</p>
+
+      <button id="saveVisitBtn" class="btn block" onclick="saveVisit()">حفظ الزيارة</button>
+    </div>
+
+    <div class="card">
+      <h2>سجل الزيارات</h2>
+      <label for="fCenter" style="margin-top:0">تصفية حسب المركز</label>
+      <select id="fCenter" onchange="renderVisits()"><option value="">كل المراكز</option></select>
+      <div id="perCenter" style="margin:14px 0"></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>م</th><th>المركز</th><th>نوع الزيارة</th><th>التاريخ</th><th>اليوم</th><th>الحالة</th><th>التوقيع</th><th></th></tr></thead>
+          <tbody id="vBody"><tr><td colspan="8" class="empty">جارِ التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- المرفقات -->
+  <div id="filesView" class="hidden">
+    <button class="back" onclick="show('homeView')">← رجوع</button>
+    <div class="card">
+      <h2>رفع مرفق جديد</h2>
+      <label for="fTitle">عنوان المرفق</label>
+      <input id="fTitle" placeholder="مثال: نموذج متابعة">
+      <label for="fFile">الملف</label>
+      <input id="fFile" type="file">
+      <div style="font-size:13px;color:var(--muted);margin-top:6px">الحد الأقصى 10 ميجابايت.</div>
+      <button id="saveFileBtn" class="btn block" onclick="saveFile()">رفع المرفق</button>
+    </div>
+    <div class="card">
+      <h2>المرفقات</h2>
+      <div class="tbl-wrap">
+        <table style="min-width:520px">
+          <thead><tr><th>العنوان</th><th>اسم الملف</th><th>التاريخ</th><th></th></tr></thead>
+          <tbody id="fBody"><tr><td colspan="4" class="empty">جارِ التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="logo-config.js"></script>
+<script src="config.js"></script>
+<script>
+const DAYS = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+let LISTS = { centers: [], types: [] };
+let VISITS = [];
+
+/* ---------- التنقل ---------- */
+function show(id) {
+  ['loginView','homeView','visitsView','filesView'].forEach(v => document.getElementById(v).classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+  window.scrollTo(0, 0);
+}
+
+/* ---------- الدخول ---------- */
+async function doLogin() {
+  const pw = document.getElementById('pw').value.trim();
+  if (!pw) return toast('أدخلي كلمة المرور', false);
+  const btn = document.getElementById('loginBtn');
+  sessionStorage.setItem(PW_KEY, pw);
+  setBtnBusy(btn, true, 'جارِ التحقق...');
+  try {
+    await api('login');
+    show('homeView');
+    preload();
+  } catch (e) {
+    sessionStorage.removeItem(PW_KEY);
+    toast(e.message, false);
+  } finally { setBtnBusy(btn, false); }
+}
+document.getElementById('pw').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+function logout() {
+  sessionStorage.removeItem(PW_KEY);
+  document.getElementById('pw').value = '';
+  show('loginView');
+}
+
+async function preload() {
+  try {
+    const out = await api('getLists');
+    LISTS = out.data;
+    fillSelect('vCenter', LISTS.centers, 'اختاري المركز');
+    fillSelect('vType', LISTS.types, 'اختاري نوع الزيارة');
+    fillSelect('fCenter', LISTS.centers, 'كل المراكز');
+  } catch (e) { toast(e.message, false); }
+}
+function fillSelect(id, arr, placeholder) {
+  const el = document.getElementById(id);
+  el.innerHTML = '<option value="">' + esc(placeholder) + '</option>' +
+    arr.map(x => '<option>' + esc(x) + '</option>').join('');
+}
+
+/* ---------- التاريخ واليوم ---------- */
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function onDateChange() {
+  const v = document.getElementById('vDate').value;
+  if (!v) { document.getElementById('vDay').value = ''; document.getElementById('vHijri').textContent = '—'; return; }
+  const p = v.split('-');
+  const d = new Date(+p[0], +p[1] - 1, +p[2]);
+  document.getElementById('vDay').value = DAYS[d.getDay()];
+  try {
+    document.getElementById('vHijri').textContent =
+      new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', { day: 'numeric', month: 'long', year: 'numeric' }).format(d);
+  } catch (e) { document.getElementById('vHijri').textContent = '—'; }
+}
+document.getElementById('vDate').value = todayStr();
+onDateChange();
+
+/* ---------- لوحة التوقيع ---------- */
+const canvas = document.getElementById('sigCanvas');
+const ctx = canvas.getContext('2d');
+let drawing = false, hasSig = false;
+
+function sizeCanvas() {
+  const r = canvas.getBoundingClientRect();
+  const ratio = window.devicePixelRatio || 1;
+  if (!r.width) return;
+  canvas.width = r.width * ratio;
+  canvas.height = r.height * ratio;
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#1b1b1b';
+  hasSig = false;
+}
+function pos(e) {
+  const r = canvas.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+canvas.addEventListener('pointerdown', e => {
+  drawing = true; canvas.setPointerCapture(e.pointerId);
+  const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y);
+});
+canvas.addEventListener('pointermove', e => {
+  if (!drawing) return;
+  const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); hasSig = true;
+});
+['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => canvas.addEventListener(ev, () => drawing = false));
+function sigClear() { ctx.clearRect(0, 0, canvas.width, canvas.height); hasSig = false; }
+window.addEventListener('resize', () => { if (!document.getElementById('visitsView').classList.contains('hidden') && !hasSig) sizeCanvas(); });
+
+function onAbsentChange() {
+  const absent = document.getElementById('vAbsent').checked;
+  document.getElementById('sigSection').classList.toggle('hidden', absent);
+  document.getElementById('absentNote').classList.toggle('hidden', !absent);
+  if (!absent) setTimeout(sizeCanvas, 30);
+}
+
+/* ---------- كشف الخروج ---------- */
+async function loadVisits() {
+  setTimeout(sizeCanvas, 50);
+  try {
+    const out = await api('getVisits');
+    VISITS = out.data;
+    renderVisits();
+  } catch (e) { toast(e.message, false); }
+}
+
+function renderVisits() {
+  const f = document.getElementById('fCenter').value;
+
+  // الإحصائيات (على كل السجلات)
+  const counted = VISITS.filter(v => v.counted);
+  const per = {};
+  counted.forEach(v => per[v.center] = (per[v.center] || 0) + 1);
+  document.getElementById('stDays').textContent = counted.length;
+  document.getElementById('stCenters').textContent = Object.keys(per).length;
+
+  document.getElementById('perCenter').innerHTML = Object.keys(per).length
+    ? Object.keys(per).sort().map(c =>
+        '<span class="tag warn" style="margin:3px">' + esc(c) + ': ' + per[c] + ' يوم</span>').join('')
+    : '';
+
+  const rows = VISITS.filter(v => !f || v.center === f);
+  const body = document.getElementById('vBody');
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="8" class="empty">لا توجد زيارات</td></tr>'; return; }
+  body.innerHTML = rows.map((v, i) => '<tr>' +
+    '<td>' + (i + 1) + '</td>' +
+    '<td>' + esc(v.center) + '</td>' +
+    '<td>' + esc(v.type) + '</td>' +
+    '<td>' + esc(v.date) + '</td>' +
+    '<td>' + esc(v.day) + '</td>' +
+    '<td>' + (v.absent ? '<span class="tag warn">المديرة متغيبة</span>' : '<span class="tag ok">تمت الزيارة</span>') + '</td>' +
+    '<td>' + (v.signature ? '<a class="lnk" target="_blank" rel="noopener" href="' + esc(v.signature) + '">عرض</a>' : '—') + '</td>' +
+    '<td><button class="btn danger" onclick="delVisit(\'' + esc(v.id) + '\')">حذف</button></td>' +
+    '</tr>').join('');
+}
+
+async function saveVisit() {
+  const center = document.getElementById('vCenter').value;
+  const type = document.getElementById('vType').value;
+  const date = document.getElementById('vDate').value;
+  const absent = document.getElementById('vAbsent').checked;
+
+  if (!center) return toast('اختاري اسم المركز', false);
+  if (!type) return toast('اختاري نوع الزيارة', false);
+  if (!date) return toast('اختاري التاريخ', false);
+  if (!absent && !hasSig) return toast('توقيع المديرة مطلوب، أو حدّدي «المديرة متغيبة»', false);
+
+  const btn = document.getElementById('saveVisitBtn');
+  setBtnBusy(btn, true);
+  try {
+    await api('addVisit', {
+      center, type, date, absent,
+      hijri: document.getElementById('vHijri').textContent,
+      signature: (!absent || hasSig) && hasSig ? canvas.toDataURL('image/png') : ''
+    });
+    toast('تم حفظ الزيارة ✅');
+    document.getElementById('vCenter').value = '';
+    document.getElementById('vType').value = '';
+    document.getElementById('vAbsent').checked = false;
+    onAbsentChange();
+    sigClear();
+    await loadVisits();
+  } catch (e) { toast(e.message, false); }
+  finally { setBtnBusy(btn, false); }
+}
+
+async function delVisit(id) {
+  if (!confirm('هل تريدين حذف هذه الزيارة؟')) return;
+  try { await api('deleteVisit', { id }); toast('تم الحذف'); await loadVisits(); }
+  catch (e) { toast(e.message, false); }
+}
+
+/* ---------- المرفقات ---------- */
+async function loadFiles() {
+  try {
+    const out = await api('getFiles');
+    const body = document.getElementById('fBody');
+    if (!out.data.length) { body.innerHTML = '<tr><td colspan="4" class="empty">لا توجد مرفقات</td></tr>'; return; }
+    body.innerHTML = out.data.map(f => '<tr>' +
+      '<td><a class="lnk" target="_blank" rel="noopener" href="' + esc(f.url) + '">' + esc(f.title) + '</a></td>' +
+      '<td>' + esc(f.name) + '</td>' +
+      '<td>' + esc(f.at.split(' ')[0]) + '</td>' +
+      '<td><button class="btn danger" onclick="delFile(\'' + esc(f.id) + '\')">حذف</button></td>' +
+      '</tr>').join('');
+  } catch (e) { toast(e.message, false); }
+}
+
+function readB64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(',')[1]);
+    r.onerror = () => rej(new Error('تعذّرت قراءة الملف'));
+    r.readAsDataURL(file);
+  });
+}
+
+async function saveFile() {
+  const title = document.getElementById('fTitle').value.trim();
+  const file = document.getElementById('fFile').files[0];
+  if (!title) return toast('اكتبي عنوان المرفق', false);
+  if (!file) return toast('اختاري ملفاً', false);
+  if (file.size > 10 * 1024 * 1024) return toast('حجم الملف أكبر من 10 ميجابايت', false);
+  const btn = document.getElementById('saveFileBtn');
+  setBtnBusy(btn, true, 'جارِ الرفع...');
+  try {
+    const data = await readB64(file);
+    await api('addFile', { title, name: file.name, mime: file.type, data });
+    toast('تم رفع المرفق ✅');
+    document.getElementById('fTitle').value = '';
+    document.getElementById('fFile').value = '';
+    await loadFiles();
+  } catch (e) { toast(e.message, false); }
+  finally { setBtnBusy(btn, false); }
+}
+
+async function delFile(id) {
+  if (!confirm('هل تريدين حذف هذا المرفق؟')) return;
+  try { await api('deleteFile', { id }); toast('تم الحذف'); await loadFiles(); }
+  catch (e) { toast(e.message, false); }
+}
+
+/* ---------- استعادة الجلسة ---------- */
+(async function init() {
+  if (!getPw()) return;
+  try { await api('login'); show('homeView'); preload(); }
+  catch (e) { sessionStorage.removeItem(PW_KEY); }
+})();
+</script>
+</body>
+</html>
