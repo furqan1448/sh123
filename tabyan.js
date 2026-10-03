@@ -85,9 +85,6 @@ function tbCalc() {
   document.getElementById('tbTotalBig').textContent = tbFmt(sum);
   const gShow = filled ? g : '—';
   setGrade(document.getElementById('tbGrade'), gShow);
-  document.getElementById('tbBarW').textContent = tbFmt(sum);
-  setGrade(document.getElementById('tbBarG'), gShow);
-  document.getElementById('tbBarN').textContent = filled + '/' + TB.items.length;
   document.getElementById('tbC').textContent = filled;
   return { sum, grade: g, filled };
 }

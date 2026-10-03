@@ -134,14 +134,11 @@ function evCalc() {
     const has = [...el.querySelectorAll('.ev-more select')].some(s => s.value && s.dataset.f !== 'e' ? true : (s.dataset.f === 'e' && s.value));
     el.querySelector('.ev-tg').classList.toggle('has', has);
   });
-  const bn = document.getElementById('evBarN'); if (bn) bn.textContent = filledAll + '/' + totalAll;
   const g = evGrade(wTotal);
   document.getElementById('evRaw').textContent = evFmt(rawTotal);
   document.getElementById('evWeighted').textContent = evFmt(wTotal);
   const gShow = filledAll ? g : '—';
   setGrade(document.getElementById('evGrade'), gShow);
-  document.getElementById('evBarW').textContent = evFmt(wTotal);
-  setGrade(document.getElementById('evBarG'), gShow);
   return { rawTotal, wTotal, grade: g };
 }
 
@@ -311,10 +308,21 @@ function evRender() {
     '<td><button class="btn danger" onclick="evDelete(\'' + esc(r.id) + '\')">حذف</button></td></tr>').join('');
 }
 
+// استمارات حُفظت قبل تحديث Apps Script تُسجَّل «بدون تعدد»؛ نعرف نوعها الحقيقي من عدد البنود
+function evFixType(r) {
+  if (r.formType === 'tabyan' || String(r.formType).indexOf('tj_') === 0) return;
+  let n = 0;
+  try { n = JSON.parse(r.items || '[]').length; } catch (e) {}
+  if (n === 15) r.formType = 'tabyan';
+  else if (n === 16) r.formType = 'tj_multi';
+  else if (n === 18) r.formType = 'tj_single';
+}
+
 async function evLoadList() {
   try {
     const out = await api('getEvals');
     evRows = out.data;
+    evRows.forEach(evFixType);
     evFillTeacherList();
     evRender();
   } catch (e) { toast(e.message, false); }

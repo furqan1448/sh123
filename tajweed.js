@@ -106,9 +106,6 @@ function tjCalc() {
   document.getElementById('tjTotalBig').textContent = tjFmt(sum);
   const gShow = filled ? g : '—';
   setGrade(document.getElementById('tjGrade'), gShow);
-  document.getElementById('tjBarW').textContent = tjFmt(sum);
-  setGrade(document.getElementById('tjBarG'), gShow);
-  document.getElementById('tjBarN').textContent = filled + '/' + TJ_ITEMS.length;
   document.getElementById('tjC').textContent = filled;
   return { sum, grade: g, filled };
 }
