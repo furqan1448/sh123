@@ -104,12 +104,23 @@
   <div id="filesView" class="hidden">
     <button class="back" onclick="show('homeView')">← رجوع</button>
     <div class="card">
-      <h2>رفع مرفق جديد</h2>
+      <h2>إضافة مرفق جديد</h2>
+      <div class="ev-tabs" id="fMode">
+        <button type="button" class="on" data-m="file" onclick="fSetMode('file')">رفع ملف</button>
+        <button type="button" data-m="link" onclick="fSetMode('link')">إرفاق رابط</button>
+      </div>
       <label for="fTitle">عنوان المرفق</label>
       <input id="fTitle" placeholder="مثال: نموذج متابعة">
-      <label for="fFile">الملف</label>
-      <input id="fFile" type="file">
-      <div style="font-size:13px;color:var(--muted);margin-top:6px">الحد الأقصى 10 ميجابايت.</div>
+      <div id="fFileBox">
+        <label for="fFile">الملف</label>
+        <input id="fFile" type="file">
+        <div style="font-size:13px;color:var(--muted);margin-top:6px">الحد الأقصى 10 ميجابايت.</div>
+      </div>
+      <div id="fLinkBox" class="hidden">
+        <label for="fUrl">الرابط</label>
+        <input id="fUrl" type="url" dir="ltr" inputmode="url" autocapitalize="none" autocomplete="off" placeholder="https://">
+        <div style="font-size:13px;color:var(--muted);margin-top:6px">أي رابط (درايف، يوتيوب، موقع...) يفتح عند الضغط على عنوان المرفق.</div>
+      </div>
       <button id="saveFileBtn" class="btn block" onclick="saveFile()">رفع المرفق</button>
     </div>
     <div class="card">
@@ -151,7 +162,7 @@
         <button data-tab="tajweed" onclick="evSetTab('tajweed')">التجويد</button>
         <button data-tab="teachers" onclick="evSetTab('teachers')">سجل المعلمات</button>
       </div>
-      <div class="ex-bar">
+      <div class="ex-bar hidden" id="evListBar">
         <button class="btn light" onclick="exList('xlsx', this)">تحميل الجدول Excel</button>
         <button class="btn light" onclick="exList('pdf', this)">تحميل الجدول PDF</button>
       </div>
@@ -177,7 +188,7 @@
         <div><label for="evDate">التاريخ</label><input id="evDate" type="date" onchange="evDateChange()"></div>
       </div>
       <details class="ev-extra">
-        <summary>بيانات إضافية (اختياري)</summary>
+        <summary>بيانات إضافية</summary>
         <div class="row2">
           <div><label for="evDay">اليوم</label><select id="evDay"></select></div>
           <div><label for="evVisitNo">رقم الزيارة</label><input id="evVisitNo" inputmode="numeric"></div>
@@ -242,7 +253,7 @@
         <div><label for="tbDate">التاريخ</label><input id="tbDate" type="date" onchange="tbDateChange()"></div>
       </div>
       <details class="ev-extra">
-        <summary>بيانات إضافية (اختياري)</summary>
+        <summary>بيانات إضافية</summary>
         <div class="row2">
           <div><label for="tbDay">اليوم</label><select id="tbDay"></select></div>
           <div><label for="tbKind">نوعها</label><input id="tbKind"></div>
@@ -317,7 +328,7 @@
         <div><label for="tjDate">التاريخ</label><input id="tjDate" type="date" onchange="tjDateChange()"></div>
       </div>
       <details class="ev-extra">
-        <summary>بيانات إضافية (اختياري)</summary>
+        <summary>بيانات إضافية</summary>
         <div class="row2">
           <div><label for="tjDay">اليوم</label><select id="tjDay"></select></div>
           <div><label for="tjKind">نوعها</label><input id="tjKind"></div>
@@ -408,6 +419,7 @@ function show(id) {
   document.getElementById(id).classList.remove('hidden');
   if (id !== 'loginView') localStorage.setItem('mush_view', id);
   window.scrollTo(0, 0);
+  if (['evalFormView', 'tbFormView', 'tjFormView'].indexOf(id) < 0) clearEdit();   // الخروج من نموذج الاستمارة يُنهي وضع التعديل
 }
 
 /* ---------- الدخول ---------- */
@@ -589,14 +601,25 @@ async function delVisit(id) {
 }
 
 /* ---------- المرفقات ---------- */
+const LINK_MARK = 'رابط';   // يُحفظ في عمود «اسم الملف» للمرفقات من نوع رابط
+let fMode = 'file';
+function fSetMode(m) {
+  fMode = m === 'link' ? 'link' : 'file';
+  document.querySelectorAll('#fMode button').forEach(b => b.classList.toggle('on', b.dataset.m === fMode));
+  document.getElementById('fFileBox').classList.toggle('hidden', fMode !== 'file');
+  document.getElementById('fLinkBox').classList.toggle('hidden', fMode !== 'link');
+  document.getElementById('saveFileBtn').textContent = fMode === 'link' ? 'حفظ الرابط' : 'رفع المرفق';
+}
+const safeHref = u => /^https?:\/\//i.test(String(u || '').trim()) ? String(u).trim() : '#';
+
 async function loadFiles() {
   try {
     const out = await api('getFiles');
     const body = document.getElementById('fBody');
     if (!out.data.length) { body.innerHTML = '<tr><td colspan="4" class="empty">لا توجد مرفقات</td></tr>'; return; }
     body.innerHTML = out.data.map(f => '<tr>' +
-      '<td><a class="lnk" target="_blank" rel="noopener" href="' + esc(f.url) + '">' + esc(f.title) + '</a></td>' +
-      '<td>' + esc(f.name) + '</td>' +
+      '<td><a class="lnk" target="_blank" rel="noopener noreferrer" href="' + esc(safeHref(f.url)) + '">' + esc(f.title) + '</a></td>' +
+      '<td>' + (f.name === LINK_MARK ? '<span class="tag warn">رابط</span>' : esc(f.name)) + '</td>' +
       '<td>' + esc(f.at.split(' ')[0]) + '</td>' +
       '<td><button class="btn danger" onclick="delFile(\'' + esc(f.id) + '\')">حذف</button></td>' +
       '</tr>').join('');
@@ -614,11 +637,29 @@ function readB64(file) {
 
 async function saveFile() {
   const title = document.getElementById('fTitle').value.trim();
-  const file = document.getElementById('fFile').files[0];
   if (!title) return toast('اكتبي عنوان المرفق', false);
+  const btn = document.getElementById('saveFileBtn');
+
+  if (fMode === 'link') {
+    let url = document.getElementById('fUrl').value.trim();
+    if (!url) return toast('الصقي الرابط', false);
+    if (!/^[a-z][a-z0-9+.-]*:/i.test(url)) url = 'https://' + url;       // بدون http نضيف https تلقائياً
+    if (!/^https?:\/\/[^\s]+\.[^\s]+$/i.test(url)) return toast('الرابط غير صحيح', false);
+    setBtnBusy(btn, true, 'جارِ الحفظ...');
+    try {
+      await api('addFile', { title, url });
+      toast('تم حفظ الرابط');
+      document.getElementById('fTitle').value = '';
+      document.getElementById('fUrl').value = '';
+      await loadFiles();
+    } catch (e) { toast(e.message, false); }
+    finally { setBtnBusy(btn, false); }
+    return;
+  }
+
+  const file = document.getElementById('fFile').files[0];
   if (!file) return toast('اختاري ملفاً', false);
   if (file.size > 10 * 1024 * 1024) return toast('حجم الملف أكبر من 10 ميجابايت', false);
-  const btn = document.getElementById('saveFileBtn');
   setBtnBusy(btn, true, 'جارِ الرفع...');
   try {
     const data = await readB64(file);

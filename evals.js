@@ -20,6 +20,33 @@ let evType = 'single', evTypeBuilt = '';
 function evD() { return evType === 'multi' ? EV2 : EV; }
 
 const EV_EXEC = ['نفذ', 'لم ينفذ', 'نوعاً ما'];
+
+/* ---------- وضع التعديل (استمارة محفوظة تُفتح للتعديل) ---------- */
+let EDIT = null;   // { id, sig } أثناء تعديل استمارة محفوظة، وإلا null
+const EV_FORM_BTNS = { evalFormView: 'evSaveBtn', tbFormView: 'tbSaveBtn', tjFormView: 'tjSaveBtn' };
+const EV_PENCIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+function evSetVal(id, v) { const el = document.getElementById(id); if (el) el.value = v == null ? '' : v; }
+function evSetSel(id, v) {   // يضيف الخيار إن لم يكن في القائمة (قيم قديمة) ثم يحدده
+  const el = typeof id === 'string' ? document.getElementById(id) : id; if (!el) return;
+  v = v == null ? '' : String(v);
+  if (v && ![...el.options].some(o => o.value === v)) { const o = document.createElement('option'); o.textContent = v; o.value = v; el.appendChild(o); }
+  el.value = v;
+}
+function evJson(t, d) { try { const x = JSON.parse(t || ''); return x == null ? d : x; } catch (e) { return d; } }
+function evSetEditUI(viewId, r) {
+  EDIT = { id: r.id, sig: r.signature || '' };
+  const view = document.getElementById(viewId);
+  let note = view.querySelector('.edit-note');
+  if (!note) { note = document.createElement('div'); note.className = 'edit-note'; view.insertBefore(note, view.children[1] || null); }
+  note.textContent = 'وضع التعديل: ستُحدَّث هذه الاستمارة المحفوظة عند الضغط على «حفظ التعديلات».' +
+    (EDIT.sig ? ' التوقيع السابق يبقى كما هو إلا إذا رسمتِ توقيعاً جديداً.' : '');
+  const b = document.getElementById(EV_FORM_BTNS[viewId]); if (b) b.textContent = 'حفظ التعديلات';
+}
+function clearEdit() {
+  EDIT = null;
+  document.querySelectorAll('.edit-note').forEach(n => n.remove());
+  Object.keys(EV_FORM_BTNS).forEach(k => { const b = document.getElementById(EV_FORM_BTNS[k]); if (b) { b.textContent = 'حفظ الاستمارة'; b.dataset.t = ''; } });
+}
 let evBuilt = false, evPad = null, evRows = [];
 
 function evFmt(x) { return String(Math.round(x * 1000) / 1000); }
@@ -159,6 +186,7 @@ function evOpenForm(type) {
     evBuilt = true;
   }
   document.getElementById('evCenter').innerHTML = evOpts(LISTS.centers, 'اختاري المركز');
+  evSetVal('evSupervisor', getUser());   // اسم المشرفة تلقائياً من حساب الدخول
   evFillTeacherList();
   if (!document.getElementById('evDate').value) { document.getElementById('evDate').value = todayStr(); evDateChange(); }
   evCalc();
@@ -201,7 +229,9 @@ async function evSave() {
   const calc = evCalc();
   setBtnBusy(btn, true);
   try {
-    await api('addEval', {
+    const editing = EDIT;
+    await api(editing ? 'updateEval' : 'addEval', {
+      id: editing ? editing.id : undefined,
       center, period, teacher, date, items, formType: evType,
       raw: evFmt(calc.rawTotal), weighted: evFmt(calc.wTotal), grade: calc.grade,
       qual: val('evQual'), cat: val('evCat'), day: val('evDay'), lesson: val('evLesson'),
@@ -209,7 +239,7 @@ async function evSave() {
       supervisor: val('evSupervisor'), notes: val('evNotes'), recs: val('evRecs'),
       signature: evPad.has() ? evPad.data() : ''
     });
-    toast('تم حفظ الاستمارة');
+    toast(editing ? 'تم تحديث الاستمارة' : 'تم حفظ الاستمارة');
     evReset();
     show('evalsView');
     evLoadList();
@@ -224,6 +254,27 @@ function evReset() {
   document.querySelectorAll('#evSections select, #evSections input').forEach(el => el.value = '');
   if (evPad) evPad.clear();
   evCalc();
+}
+
+/* ---------- تعديل استمارة محفوظة ---------- */
+function evEdit(i) {
+  const r = evRows[i]; if (!r) return;
+  const ft = String(r.formType);
+  if (ft === 'tabyan') return tbEdit(r);
+  if (ft.indexOf('tj_') === 0) return tjEdit(r);
+  evOpenForm(ft === 'multi' ? 'multi' : 'single');
+  evReset();
+  evSetSel('evCenter', r.center); evSetSel('evPeriod', r.period); evSetVal('evTeacher', r.teacher); evSetVal('evDate', r.date);
+  evSetSel('evDay', r.day); evSetVal('evVisitNo', r.visitNo); evSetSel('evQual', r.qual); evSetSel('evCat', r.cat);
+  evSetVal('evLesson', r.lesson); evSetVal('evYears', r.years); evSetVal('evSupervisor', r.supervisor);
+  evSetVal('evTotalN', r.total); evSetVal('evPresent', r.present); evSetVal('evNotes', r.notes); evSetVal('evRecs', r.recs);
+  evJson(r.items, []).forEach((x, k) => {
+    const q = f => document.querySelector('#evSections [data-i="' + k + '"][data-f="' + f + '"]');
+    if (q('s')) q('s').value = x.s == null ? '' : x.s;
+    ['e', 'c', 'n'].forEach(f => { const el = q(f); if (el) evSetSel(el, x[f]); });
+  });
+  evCalc();
+  evSetEditUI('evalFormView', r);
 }
 
 /* ---------- السجل (قرآن لحاله، تبيان لحاله، وسجل موحّد للمعلمة) ---------- */
@@ -263,26 +314,35 @@ function evSetTab(t) {
 
 function evGradeTag(g) { return gradeTag(g); }
 
+// تجميع الاستمارات حسب المعلمة: آخر استمارة لكل مادة (يستخدمها العرض وتحميل سجل المعلمات)
+function evTeacherGroups() {
+  const map = {};
+  evRows.forEach((r, i) => {
+    const k = evNameKey(r.teacher); if (!k) return;
+    const m = map[k] || (map[k] = { name: r.teacher, last: {} });
+    EV_SUBJECTS.forEach(sub => {
+      if (!sub.match(r)) return;
+      const cur = m.last[sub.key];
+      if (cur === undefined || String(r.date) > String(evRows[cur].date)) m.last[sub.key] = i;   // أحدث تاريخ
+    });
+    // الاسم المعروض: من أحدث استمارة
+    if (String(r.date) >= String(m.nameDate || '')) { m.name = r.teacher; m.nameDate = r.date; }
+  });
+  return Object.keys(map).map(k => map[k]).sort((x, y) => x.name.localeCompare(y.name, 'ar'));
+}
+
 function evRender() {
   const head = document.getElementById('evHead'), body = document.getElementById('evBody');
   if (!head || !body) return;
   const btnView = i => '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="evView(' + i + ')">عرض</button>';
+  const btnDl = i => '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="dlMenu(event, this, ' + i + ')">تحميل ▾</button>';
+  const btnEdit = i => '<button class="btn light ico-btn" title="تعديل" aria-label="تعديل" onclick="evEdit(' + i + ')">' + EV_PENCIL + '</button>';
+  const bar = document.getElementById('evListBar');   // تحميل الجدول كاملاً: في «سجل المعلمات» فقط
+  if (bar) bar.classList.toggle('hidden', evTab !== 'teachers');
 
   if (evTab === 'teachers') {
     head.innerHTML = '<tr><th>المعلمة</th>' + EV_SUBJECTS.map(x => '<th>' + x.label + '</th>').join('') + '</tr>';
-    const map = {};
-    evRows.forEach((r, i) => {
-      const k = evNameKey(r.teacher); if (!k) return;
-      const m = map[k] || (map[k] = { name: r.teacher, last: {} });
-      EV_SUBJECTS.forEach(sub => {
-        if (!sub.match(r)) return;
-        const cur = m.last[sub.key];
-        if (!cur || String(r.date) > String(evRows[cur].date)) m.last[sub.key] = i;   // أحدث تاريخ
-      });
-      // الاسم المعروض: من أحدث استمارة
-      if (String(r.date) >= String(m.nameDate || '')) { m.name = r.teacher; m.nameDate = r.date; }
-    });
-    const list = Object.keys(map).map(k => map[k]).sort((x, y) => x.name.localeCompare(y.name, 'ar'));
+    const list = evTeacherGroups();
     if (!list.length) { body.innerHTML = '<tr><td colspan="' + (EV_SUBJECTS.length + 1) + '" class="empty">لا توجد استمارات</td></tr>'; return; }
     body.innerHTML = list.map(m => '<tr><td><b>' + esc(m.name) + '</b></td>' + EV_SUBJECTS.map(sub => {
       const i = m.last[sub.key];
@@ -304,8 +364,8 @@ function evRender() {
   body.innerHTML = rows.map(([r, i]) => '<tr><td>' + esc(r.date) + '</td><td>' + esc(r.center) + '</td><td>' + esc(r.teacher) +
     (r.formType === 'multi' || r.formType === 'tj_multi' ? ' <span class="tag">تعدد المجموعات</span>' : '') + '</td>' +
     '<td>' + esc(r.raw) + '</td>' + (sub.weighted ? '<td>' + esc(r.weighted) + '</td>' : '') +
-    '<td>' + evGradeTag(r.grade) + '</td><td>' + btnView(i) + '</td>' +
-    '<td><button class="btn danger" onclick="evDelete(\'' + esc(r.id) + '\')">حذف</button></td></tr>').join('');
+    '<td>' + evGradeTag(r.grade) + '</td><td><div class="act">' + btnView(i) + btnDl(i) + '</div></td>' +
+    '<td><div class="act">' + btnEdit(i) + '<button class="btn danger" onclick="evDelete(\'' + esc(r.id) + '\')">حذف</button></div></td></tr>').join('');
 }
 
 // استمارات حُفظت قبل تحديث Apps Script تُسجَّل «بدون تعدد»؛ نعرف نوعها الحقيقي من عدد البنود

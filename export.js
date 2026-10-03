@@ -4,7 +4,10 @@ const EX_LETTERHEAD = 'letterhead.jpg';
 const EX_LETTER_RATIO = 351 / 2000; // ارتفاع/عرض الكليشة
 const EX_LIBS = {
   xlsx: 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js',
-  pdf: 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'
+  pdf: [
+    'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+  ]
 };
 const EX_GRADE_COLORS = { 'gr-top': '0A5C32', 'gr-ex': '1B8F4E', 'gr-vg': '1F8A8A', 'gr-g': '2A73B8', 'gr-p': 'C98A0A', 'gr-w': 'E0531F', 'gr-f': 'B71C1C' };
 const EX_PRIMARY = '7A1F2B';
@@ -16,15 +19,21 @@ function exNum(v) { const n = parseFloat(v); return (v !== '' && v != null && !i
 function exSafe(s) { return String(s || '').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, '_').slice(0, 60); }
 
 /* ---------- تحميل المكتبات عند أول استخدام ---------- */
-function exLoad(kind) {
-  if ((kind === 'xlsx' && window.ExcelJS) || (kind === 'pdf' && window.html2pdf)) return Promise.resolve();
-  if (exLoading[kind]) return exLoading[kind];
-  exLoading[kind] = new Promise((res, rej) => {
+function exLoadScript(src) {
+  return new Promise((res, rej) => {
     const s = document.createElement('script');
-    s.src = EX_LIBS[kind];
+    s.src = src;
     s.onload = () => res();
-    s.onerror = () => { exLoading[kind] = null; rej(new Error('تعذّر تحميل أداة التصدير، تأكدي من الاتصال بالإنترنت')); };
+    s.onerror = () => rej(new Error('x'));
     document.head.appendChild(s);
+  });
+}
+function exLoad(kind) {
+  if ((kind === 'xlsx' && window.ExcelJS) || (kind === 'pdf' && window.html2canvas && window.jspdf)) return Promise.resolve();
+  if (exLoading[kind]) return exLoading[kind];
+  exLoading[kind] = Promise.all([].concat(EX_LIBS[kind]).map(exLoadScript)).catch(() => {
+    exLoading[kind] = null;
+    throw new Error('تعذّر تحميل أداة التصدير، تأكدي من الاتصال بالإنترنت');
   });
   return exLoading[kind];
 }
@@ -212,78 +221,165 @@ async function exBuildXlsx(m, imgBuf, ExcelJS) {
   return wb.xlsx.writeBuffer();
 }
 
-/* ---------- PDF (يُرسم كصفحة HTML ثم يُحوَّل، فيظهر العربي سليماً) ---------- */
-function exPdfHtml(m, W) {
-  const e = esc, td = (v, st) => '<td style="' + (st || '') + '">' + e(v) + '</td>';
-  const gp = g => {
-    const c = exGradeColor(g);
-    return c ? '<span style="display:inline-block;background:#' + c + ';color:#fff;font-weight:700;padding:3px 16px;border-radius:14px">' + e(g) + '</span>' : e(g);
-  };
-  let h = '<style>.exp{direction:rtl;font-family:\'Tajawal\',\'Cairo\',\'Segoe UI\',Tahoma,sans-serif;color:#222;background:#fff;font-size:13px;line-height:1.7}' +
-    '.exp table{width:100%;border-collapse:collapse;margin-bottom:12px}.exp td,.exp th{border:1px solid #d9c7c0;padding:5px 8px;vertical-align:middle}' +
-    '.exp th{background:#7a1f2b;color:#fff;font-weight:700;text-align:center}.exp .lb{background:#f6f0f2;font-weight:700;width:16%}' +
-    '.exp .sec td{background:#f3e3e6;color:#7a1f2b;font-weight:700}.exp tr{page-break-inside:avoid}</style>' +
-    '<div class="exp" style="width:' + W + 'px">' +
-    '<img id="exPdfLetter" src="' + EX_LETTERHEAD + '" style="width:100%;display:block;margin-bottom:10px">' +
-    '<div style="background:#7a1f2b;color:#fff;text-align:center;font-weight:700;font-size:17px;padding:8px;border-radius:6px;margin-bottom:10px">' + e(m.title) + '</div>';
-
-  if (m.info.length) {
-    h += '<table>';
-    for (let i = 0; i < m.info.length; i += 2) {
-      const a = m.info[i], b = m.info[i + 1];
-      h += '<tr><td class="lb">' + e(a[0]) + '</td>' + td(a[1], b ? 'width:34%' : '') + (b ? '<td class="lb">' + e(b[0]) + '</td>' + td(b[1], 'width:34%') : '<td class="lb"></td><td></td>') + '</tr>';
-    }
-    h += '</table>';
-  }
-
-  const center = (i, v) => (typeof v === 'number' || m.widths[i] <= 30) && !(i < 3 && m.rows && typeof v !== 'number') ? 'text-align:center' : 'text-align:right';
-  if (m.rows) {
-    h += '<table><thead><tr>' + m.cols.map(c => '<th>' + e(c) + '</th>').join('') + '</tr></thead><tbody>';
-    m.rows.forEach((rw, ri) => {
-      h += '<tr style="' + (ri % 2 ? 'background:#faf7f8' : '') + '">' + rw.map((v, i) => {
-        const isG = (m.gradeCols || []).indexOf(i) > -1 && v;
-        return '<td style="' + (isG ? 'text-align:center' : center(i, v)) + '">' + (isG ? gp(v) : e(v)) + '</td>';
-      }).join('') + '</tr>';
+/* ---------- PDF ----------
+   كل صفحة A4 تُبنى لحالها وتُقسَّم بين الصفوف (لا يُقطع صف في المنتصف)،
+   وترويسة الجدول تتكرر في كل صفحة، والكليشة في الصفحة الأولى فقط، ثم تُرسم كصورة داخل ملف PDF
+   فيظهر العربي سليماً. */
+let exLetterDataUrl = null;
+async function exLetterData() {
+  if (exLetterDataUrl) return exLetterDataUrl;
+  try {
+    const resp = await fetch(EX_LETTERHEAD);
+    if (!resp.ok) throw new Error('x');
+    const blob = await resp.blob();
+    exLetterDataUrl = await new Promise((res, rej) => {
+      const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob);
     });
-    if (!m.rows.length) h += '<tr><td colspan="' + m.cols.length + '" style="text-align:center">لا توجد بيانات</td></tr>';
-    h += '</tbody></table>';
-  } else {
-    h += '<table><thead><tr>' + m.cols.map(c => '<th>' + e(c) + '</th>').join('') + '</tr></thead><tbody>';
-    m.sections.forEach(sec => {
-      if (sec.title) h += '<tr class="sec"><td colspan="' + m.cols.length + '">' + e(sec.title) + '</td></tr>';
-      sec.rows.forEach((rw, ri) => {
-        h += '<tr style="' + (ri % 2 ? 'background:#faf7f8' : '') + '">' + rw.map((v, i) => '<td style="' + (m.widths[i] > 30 ? 'text-align:right' : 'text-align:center') + (i === 0 ? ';width:5%' : '') + '">' + e(v) + '</td>').join('') + '</tr>';
-      });
-    });
-    h += '</tbody></table>';
-    h += '<table>' + m.totals.map(([l, v]) => '<tr><td class="lb" style="width:40%">' + e(l) + '</td><td style="text-align:center;font-weight:700;font-size:15px">' + (l === 'التقدير' ? gp(v) : e(v)) + '</td></tr>').join('') + '</table>';
-    if (m.notes.length) h += '<table>' + m.notes.map(([l, v]) => '<tr><td class="lb">' + e(l) + '</td><td>' + e(v) + '</td></tr>').join('') + '</table>';
-  }
-  return h + '</div>';
+  } catch (e) { throw new Error('تعذّر تحميل الكليشة (letterhead.jpg)'); }
+  return exLetterDataUrl;
 }
 
-async function exPdf(m) {
-  const W = m.landscape ? 1100 : 780;
-  const box = document.createElement('div');
-  box.style.cssText = 'position:fixed;top:0;left:-12000px;background:#fff;z-index:-1';
-  box.innerHTML = exPdfHtml(m, W);
-  document.body.appendChild(box);
-  try {
-    const img = box.querySelector('#exPdfLetter');
-    await new Promise((res, rej) => {
-      if (img.complete && img.naturalWidth) return res();
-      img.onload = () => res(); img.onerror = () => rej(new Error('تعذّر تحميل الكليشة (letterhead.jpg)'));
+// يجزّئ الاستمارة/السجل إلى: رأس + ترويسة جدول + صفوف + ذيل (المجاميع والملاحظات)
+function exPdfParts(m, inner, letter) {
+  const e = esc;
+  const gp = g => {
+    const c = exGradeColor(g);
+    return c ? '<span class="gp" style="background:#' + c + '">' + e(g) + '</span>' : e(g);
+  };
+  const css = '<style>' +
+    '.exp{direction:rtl;font-family:\'Tajawal\',\'Cairo\',\'Segoe UI\',Tahoma,Arial,sans-serif;color:#222;background:#fff;font-size:12.5px;line-height:1.6}' +
+    '.exp *{box-sizing:border-box}' +
+    '.exp table{width:100%;border-collapse:collapse;table-layout:fixed}' +
+    '.exp td,.exp th{border:1px solid #d9c7c0;padding:5px 7px;vertical-align:middle;word-wrap:break-word;overflow-wrap:anywhere}' +
+    '.exp th{background:#7a1f2b;color:#fff;font-weight:700;text-align:center}' +
+    '.exp .lb{background:#f6f0f2;font-weight:700}' +
+    '.exp .sec td{background:#f3e3e6;color:#7a1f2b;font-weight:700}' +
+    '.exp .ttl{background:#7a1f2b;color:#fff;text-align:center;font-weight:700;font-size:16px;padding:8px;border-radius:6px}' +
+    '.exp .hd{padding-bottom:10px}.exp .tl{padding-top:12px}.exp .gap{height:8px}' +
+    '.exp .gp{display:inline-block;color:#fff;font-weight:700;padding:2px 14px;border-radius:14px}' +
+    '.exp.pg{position:relative;overflow:hidden;background:#fff}' +
+    '.exp .ft{position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:11px;color:#8a7d80}' +
+    '</style>';
+
+  const imgH = Math.round(inner * EX_LETTER_RATIO);
+  let head = '<img src="' + letter + '" style="display:block;width:' + inner + 'px;height:' + imgH + 'px;margin-bottom:10px">' +
+    '<div class="ttl">' + e(m.title) + '</div>';
+  if (m.info.length) {
+    head += '<div class="gap"></div><table><colgroup><col style="width:16%"><col style="width:34%"><col style="width:16%"><col style="width:34%"></colgroup>';
+    for (let i = 0; i < m.info.length; i += 2) {
+      const a = m.info[i], b = m.info[i + 1];
+      head += '<tr><td class="lb">' + e(a[0]) + '</td><td>' + e(a[1]) + '</td>' +
+        (b ? '<td class="lb">' + e(b[0]) + '</td><td>' + e(b[1]) + '</td>' : '<td class="lb"></td><td></td>') + '</tr>';
+    }
+    head += '</table>';
+  }
+
+  const tot = m.widths.reduce((a, w) => a + w, 0);
+  const colgroup = '<colgroup>' + m.widths.map(w => '<col style="width:' + (w * 100 / tot).toFixed(2) + '%">').join('') + '</colgroup>';
+  const thead = '<thead><tr>' + m.cols.map(c => '<th>' + e(c) + '</th>').join('') + '</tr></thead>';
+  const rows = [];
+  let tail = '';
+
+  if (m.rows) {
+    const center = (i, v) => (typeof v === 'number' || m.widths[i] <= 30) && !(i < 3 && typeof v !== 'number') ? 'text-align:center' : 'text-align:right';
+    m.rows.forEach((rw, ri) => {
+      rows.push('<tr style="' + (ri % 2 ? 'background:#faf7f8' : '') + '">' + rw.map((v, i) => {
+        const isG = (m.gradeCols || []).indexOf(i) > -1 && v;
+        return '<td style="' + (isG ? 'text-align:center' : center(i, v)) + '">' + (isG ? gp(v) : e(v)) + '</td>';
+      }).join('') + '</tr>');
     });
+    if (!m.rows.length) rows.push('<tr><td colspan="' + m.cols.length + '" style="text-align:center">لا توجد بيانات</td></tr>');
+  } else {
+    m.sections.forEach(sec => {
+      if (sec.title) rows.push('<tr class="sec"><td colspan="' + m.cols.length + '">' + e(sec.title) + '</td></tr>');
+      sec.rows.forEach((rw, ri) => {
+        rows.push('<tr style="' + (ri % 2 ? 'background:#faf7f8' : '') + '">' + rw.map((v, i) =>
+          '<td style="' + (m.widths[i] > 30 ? 'text-align:right' : 'text-align:center') + '">' + e(v) + '</td>').join('') + '</tr>');
+      });
+    });
+    tail = '<table><colgroup><col style="width:40%"><col style="width:60%"></colgroup>' +
+      m.totals.map(([l, v]) => '<tr><td class="lb">' + e(l) + '</td><td style="text-align:center;font-weight:700;font-size:14px">' + (l === 'التقدير' ? gp(v) : e(v)) + '</td></tr>').join('') + '</table>';
+    if (m.notes.length) tail += '<div class="gap"></div><table><colgroup><col style="width:16%"><col style="width:84%"></colgroup>' +
+      m.notes.map(([l, v]) => '<tr><td class="lb">' + e(l) + '</td><td>' + e(v) + '</td></tr>').join('') + '</table>';
+  }
+  return { css, head, colgroup, thead, rows, tail };
+}
+
+const exTick = ms => new Promise(r => setTimeout(r, ms || 30));
+
+async function exPdf(m) {
+  const land = !!m.landscape;
+  const PW = land ? 1123 : 794, PH = land ? 794 : 1123;   // مقاس A4 بالبكسل (96dpi)
+  const PAD = 30, FOOT = 26;
+  const inner = PW - PAD * 2, maxH = PH - PAD * 2 - FOOT;
+  const letter = await exLetterData();
+  const P = exPdfParts(m, inner, letter);
+
+  // 1) قياس ارتفاع كل جزء بنفس العرض الفعلي للصفحة
+  const meas = document.createElement('div');
+  meas.style.cssText = 'position:absolute;left:-20000px;top:0;width:' + inner + 'px;visibility:hidden';
+  meas.innerHTML = P.css + '<div class="exp" style="width:' + inner + 'px"><div id="mHead" class="hd">' + P.head + '</div>' +
+    '<table id="mTbl">' + P.colgroup + P.thead + '<tbody>' + P.rows.join('') + '</tbody></table>' +
+    '<div id="mTail" class="tl">' + (P.tail || '') + '</div></div>';
+  document.body.appendChild(meas);
+  let headH, theadH, rowH, tailH;
+  try {
     if (document.fonts && document.fonts.ready) await document.fonts.ready;
-    await window.html2pdf().set({
-      margin: [6, 6, 8, 6],
-      filename: m.file + '.pdf',
-      image: { type: 'jpeg', quality: 0.96 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: W },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: m.landscape ? 'landscape' : 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', 'img'] }
-    }).from(box.firstElementChild.nextElementSibling || box).save();
-  } finally { box.remove(); }
+    const hh = el => el.getBoundingClientRect().height;
+    headH = hh(meas.querySelector('#mHead'));
+    theadH = hh(meas.querySelector('#mTbl thead'));
+    rowH = [...meas.querySelectorAll('#mTbl tbody tr')].map(hh);
+    tailH = P.tail ? hh(meas.querySelector('#mTail')) : 0;
+  } finally { meas.remove(); }
+
+  // 2) توزيع الصفوف على الصفحات
+  const pages = [];
+  let cur = { head: true, rows: [], tail: false }, used = headH + theadH;
+  rowH.forEach((h, i) => {
+    if (cur.rows.length && used + h > maxH) { pages.push(cur); cur = { head: false, rows: [], tail: false }; used = theadH; }
+    cur.rows.push(i); used += h;
+  });
+  if (tailH) {
+    if (used + tailH > maxH && cur.rows.length) { pages.push(cur); cur = { head: false, rows: [], tail: true }; }
+    else cur.tail = true;
+  }
+  pages.push(cur);
+
+  const pageHtml = (pg, idx) =>
+    '<div class="exp pg" style="width:' + PW + 'px;height:' + PH + 'px;padding:' + PAD + 'px">' +
+    (pg.head ? '<div class="hd">' + P.head + '</div>' : '') +
+    (pg.rows.length ? '<table>' + P.colgroup + P.thead + '<tbody>' + pg.rows.map(i => P.rows[i]).join('') + '</tbody></table>' : '') +
+    (pg.tail ? '<div class="tl">' + P.tail + '</div>' : '') +
+    '<div class="ft">صفحة ' + (idx + 1) + ' من ' + pages.length + '</div></div>';
+
+  // 3) رسم كل صفحة ثم إضافتها للملف
+  const cover = document.createElement('div');
+  cover.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#fff;display:flex;align-items:center;justify-content:center;font:700 16px Tahoma,Arial,sans-serif;color:#7a1f2b;direction:rtl';
+  cover.textContent = 'جارِ تجهيز ملف PDF...';
+  const stage = document.createElement('div');
+  stage.style.cssText = 'position:fixed;left:0;top:0;width:' + PW + 'px;height:' + PH + 'px;z-index:99998;background:#fff;overflow:hidden';
+  document.body.appendChild(stage);
+  document.body.appendChild(cover);
+  try {
+    const { jsPDF } = window.jspdf;
+    const orient = land ? 'landscape' : 'portrait';
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: orient, compress: true });
+    const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
+    for (let i = 0; i < pages.length; i++) {
+      stage.innerHTML = P.css + pageHtml(pages[i], i);
+      const el = stage.querySelector('.pg');
+      await Promise.all([...stage.querySelectorAll('img')].map(im => im.decode ? im.decode().catch(() => {}) : Promise.resolve()));
+      await exTick(40);
+      const canvas = await window.html2canvas(el, {
+        scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false,
+        width: PW, height: PH, windowWidth: PW, windowHeight: PH, scrollX: 0, scrollY: 0
+      });
+      if (i) pdf.addPage('a4', orient);
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pw, ph);
+      canvas.width = canvas.height = 0;
+    }
+    pdf.save(m.file + '.pdf');
+  } finally { cover.remove(); stage.remove(); }
 }
 
 /* ---------- التنفيذ ---------- */
@@ -323,3 +419,36 @@ function exAttach(r) {
   bar.innerHTML = '<button class="btn light" onclick="exForm(\'pdf\', this)">تحميل PDF</button><button class="btn light" onclick="exForm(\'xlsx\', this)">تحميل Excel</button>';
   box.insertBefore(bar, box.firstChild);
 }
+
+
+/* ---------- تحميل استمارة واحدة من السجل (قائمة: PDF / Excel) ---------- */
+function exRow(i, kind) {
+  const r = evRows[i];
+  if (!r) return;
+  toast('جارِ تجهيز الملف...');
+  exRun(kind, exFormModel(r), null);
+}
+function closeDlMenu() { const m = document.getElementById('dlMenu'); if (m) m.remove(); }
+function dlMenu(ev, btn, i) {
+  ev.stopPropagation();
+  const old = document.getElementById('dlMenu');
+  if (old) { const same = old.dataset.for === String(i); old.remove(); if (same) return; }
+  const m = document.createElement('div');
+  m.id = 'dlMenu'; m.className = 'dl-menu'; m.dataset.for = String(i);
+  m.innerHTML = '<button type="button" data-k="pdf">PDF</button><button type="button" data-k="xlsx">Excel</button>';
+  m.addEventListener('click', e => {
+    e.stopPropagation();
+    const k = e.target.dataset && e.target.dataset.k;
+    if (!k) return;
+    closeDlMenu(); exRow(i, k);
+  });
+  document.body.appendChild(m);
+  const r = btn.getBoundingClientRect(), w = m.offsetWidth, h = m.offsetHeight;
+  let left = Math.min(Math.max(8, r.right - w), window.innerWidth - w - 8);
+  let top = r.bottom + 4;
+  if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 4);
+  m.style.left = left + 'px'; m.style.top = top + 'px';
+}
+document.addEventListener('click', closeDlMenu);
+window.addEventListener('scroll', closeDlMenu, true);
+window.addEventListener('resize', closeDlMenu);

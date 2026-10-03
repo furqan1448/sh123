@@ -182,3 +182,13 @@ a.lnk{color:var(--primary);font-weight:700}
 /* ===== أزرار التحميل ===== */
 .ex-bar{display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap}
 .ex-bar .btn{flex:1;min-width:130px;padding:9px 10px;font-size:14px}
+
+/* ===== أزرار الإجراءات في السجل + قائمة التحميل + وضع التعديل ===== */
+.act{display:flex;gap:6px;align-items:center;white-space:nowrap}
+.btn.ico-btn{padding:6px 9px;font-size:13px}
+.btn.ico-btn svg{width:16px;height:16px;display:block}
+.dl-menu{position:fixed;z-index:60;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,.18);padding:6px;display:flex;flex-direction:column;gap:4px;min-width:120px}
+.dl-menu button{border:0;background:#f3e9e4;color:var(--primary);font:inherit;font-weight:700;font-size:14px;padding:9px 14px;border-radius:8px;cursor:pointer;text-align:center}
+.dl-menu button:hover{background:#ead9d2}
+.edit-note{background:#fff7e6;border:1px solid #f0d9a6;color:#7a5a12;border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:14px;font-weight:600;line-height:1.6}
+#filesView .ev-tabs{margin-top:0}

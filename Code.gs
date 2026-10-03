@@ -25,6 +25,7 @@ const EVAL_URL_COL = 21; // عمود التوقيع (رابط ملف في الد
 
 const DAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 const DRIVE_FOLDER_NAME = 'منظومة مشرفات - الملفات';
+const LINK_MARK = 'رابط'; // يُكتب في عمود «اسم الملف» للمرفقات من نوع رابط (لا يوجد ملف في الدرايف ليُحذف)
 
 /* ============ الإعداد الأولي (شغّليه مرة واحدة) ============ */
 function setup() {
@@ -132,9 +133,10 @@ function route_(r) {
     case 'deleteVisit': return withLock_(() => deleteById_(SHEET.VISITS, r.id));
     case 'getFiles': return { ok: true, data: getFiles_() };
     case 'addFile': return withLock_(() => addFile_(r));
-    case 'deleteFile': return withLock_(() => deleteById_(SHEET.FILES, r.id, true));
+    case 'deleteFile': return withLock_(() => deleteFile_(r.id));
     case 'getEvals': return { ok: true, data: getEvals_() };
     case 'addEval': return withLock_(() => addEval_(r));
+    case 'updateEval': return withLock_(() => updateEval_(r));
     case 'deleteEval': return withLock_(() => deleteById_(SHEET.EVALS, r.id, true, EVAL_URL_COL));
     default: throw new Error('إجراء غير معروف');
   }
@@ -235,6 +237,15 @@ function getFiles_() {
 function addFile_(r) {
   const title = String(r.title || '').trim();
   if (!title) throw new Error('اكتبي عنوان المرفق');
+  const link = String(r.url || '').trim();
+  if (link) {   // إرفاق رابط بدل ملف
+    if (link.length > 2000 || !/^https?:\/\/[^\s]+$/i.test(link)) throw new Error('الرابط غير صحيح، يجب أن يبدأ بـ http أو https');
+    ss_().getSheetByName(SHEET.FILES).appendRow([
+      Utilities.getUuid(), title, LINK_MARK, link,
+      Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm')
+    ]);
+    return { ok: true };
+  }
   if (!r.data) throw new Error('اختاري ملفاً');
   const blob = Utilities.newBlob(Utilities.base64Decode(r.data), r.mime || 'application/octet-stream', r.name || 'ملف');
   const f = folder_().createFile(blob);
@@ -245,6 +256,20 @@ function addFile_(r) {
     Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm')
   ]);
   return { ok: true };
+}
+
+/* ============ حذف مرفق (الرابط لا يُحذف له ملف من الدرايف) ============ */
+function deleteFile_(id) {
+  const sh = ss_().getSheetByName(SHEET.FILES);
+  const last = sh.getLastRow();
+  let isLink = false;
+  if (last > 1) {
+    const rows = sh.getRange(1, 1, last, 3).getValues();
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][0]) === String(id)) { isLink = String(rows[i][2]) === LINK_MARK; break; }
+    }
+  }
+  return deleteById_(SHEET.FILES, id, !isLink);
 }
 
 /* ============ حذف صف بالرقم ============ */
@@ -278,7 +303,8 @@ function getEvals_() {
   })).reverse();
 }
 
-function addEval_(r) {
+// تحقق وتجهيز بيانات الاستمارة (مشترك بين الإضافة والتعديل)
+function evalCommon_(r) {
   const s = v => String(v == null ? '' : v).trim();
   const center = s(r.center), period = s(r.period), teacher = s(r.teacher), date = s(r.date);
   if (!center) throw new Error('اختاري اسم المركز');
@@ -292,27 +318,69 @@ function addEval_(r) {
 
   // نحفظ البنود بمفاتيح مختصرة (s=الدرجة e=التنفيذ c=المعيار n=الملاحظة) كما تقرؤها شاشة العرض
   const items = r.items.map(x => ({ s: s(x.score), e: s(x.exec), c: s(x.crit), n: s(x.note) }));
+  return { s: s, center: center, period: period, teacher: teacher, date: date, items: items };
+}
 
-  let sigUrl = '';
-  if (r.signature) {
-    const b64 = String(r.signature).split(',')[1];
-    const blob = Utilities.newBlob(Utilities.base64Decode(b64), 'image/png', 'توقيع-استمارة-' + teacher + '-' + date + '.png');
-    const f = folder_().createFile(blob);
-    f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    sigUrl = f.getUrl();
-  }
+function evalSig_(r, teacher, date) {
+  if (!r.signature) return '';
+  const b64 = String(r.signature).split(',')[1];
+  const blob = Utilities.newBlob(Utilities.base64Decode(b64), 'image/png', 'توقيع-استمارة-' + teacher + '-' + date + '.png');
+  const f = folder_().createFile(blob);
+  f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return f.getUrl();
+}
 
+function evalTypeLabel_(ft) {
+  return ({ multi: 'تعدد المجموعات', tabyan: 'التبيان', tj_multi: 'التجويد - تعدد المجموعات', tj_single: 'التجويد - بدون تعدد' })[ft] || 'بدون تعدد';
+}
+
+function evalRow_(r, c, id, sigUrl, at, typeLabel) {
+  const s = c.s;
+  return [
+    id, c.center, c.period, c.teacher, s(r.qual), s(r.cat), s(r.day), c.date,
+    s(r.lesson), s(r.years), s(r.total), s(r.present), s(r.visitNo), s(r.supervisor),
+    s(r.raw), s(r.weighted), s(r.grade), JSON.stringify(c.items), s(r.notes), s(r.recs), sigUrl,
+    at, typeLabel, s(r.extra).slice(0, 2000)
+  ];
+}
+
+function nowStr_() { return Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm'); }
+
+function addEval_(r) {
+  const c = evalCommon_(r);
+  const sigUrl = evalSig_(r, c.teacher, c.date);
   const sh = ss_().getSheetByName(SHEET.EVALS);
   if (!sh) throw new Error('شغّلي setup() مرة أخرى لإنشاء ورقة الاستمارات');
   const row = sh.getLastRow() + 1;
-  const vals = [[
-    Utilities.getUuid(), center, period, teacher, s(r.qual), s(r.cat), s(r.day), date,
-    s(r.lesson), s(r.years), s(r.total), s(r.present), s(r.visitNo), s(r.supervisor),
-    s(r.raw), s(r.weighted), s(r.grade), JSON.stringify(items), s(r.notes), s(r.recs), sigUrl,
-    Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm'),
-    ({ multi: 'تعدد المجموعات', tabyan: 'التبيان', tj_multi: 'التجويد - تعدد المجموعات', tj_single: 'التجويد - بدون تعدد' })[s(r.formType)] || 'بدون تعدد',
-    s(r.extra).slice(0, 2000)
-  ]];
+  const vals = [evalRow_(r, c, Utilities.getUuid(), sigUrl, nowStr_(), evalTypeLabel_(c.s(r.formType)))];
+  sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
+  return { ok: true };
+}
+
+// تعديل استمارة محفوظة: يبقى رقمها ونوعها ووقت تسجيلها، والتوقيع القديم يبقى إلا إذا وصل توقيع جديد
+function updateEval_(r) {
+  const id = String(r.id || '');
+  if (!id) throw new Error('السجل غير موجود');
+  const c = evalCommon_(r);
+  const sh = ss_().getSheetByName(SHEET.EVALS);
+  if (!sh) throw new Error('شغّلي setup() مرة أخرى لإنشاء ورقة الاستمارات');
+  const last = sh.getLastRow();
+  let row = 0;
+  if (last > 1) {
+    const ids = sh.getRange(1, 1, last, 1).getValues();
+    for (let i = 1; i < ids.length; i++) if (String(ids[i][0]) === id) { row = i + 1; break; }
+  }
+  if (!row) throw new Error('السجل غير موجود');
+
+  const old = sh.getRange(row, 1, 1, EVAL_HEADERS.length).getDisplayValues()[0];
+  let sigUrl = String(old[EVAL_URL_COL - 1] || '');
+  if (r.signature) {
+    const newUrl = evalSig_(r, c.teacher, c.date);
+    const m = sigUrl.match(/[-\w]{25,}/);
+    if (m) { try { DriveApp.getFileById(m[0]).setTrashed(true); } catch (e) {} }
+    sigUrl = newUrl;
+  }
+  const vals = [evalRow_(r, c, id, sigUrl, String(old[21] || nowStr_()), String(old[22] || evalTypeLabel_(c.s(r.formType))))];
   sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
   return { ok: true };
 }

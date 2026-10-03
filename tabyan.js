@@ -103,6 +103,7 @@ function tbOpenForm() {
     tbBuilt = true;
   }
   document.getElementById('tbCenter').innerHTML = evOpts(LISTS.centers, 'اختاري المركز');
+  evSetVal('tbSupervisor', getUser());   // اسم المشرفة تلقائياً من حساب الدخول
   evFillTeacherList();
   if (!document.getElementById('tbDate').value) { document.getElementById('tbDate').value = todayStr(); tbDateChange(); }
   tbCalc();
@@ -141,7 +142,9 @@ async function tbSave() {
   };
   setBtnBusy(btn, true);
   try {
-    await api('addEval', {
+    const editing = EDIT;
+    await api(editing ? 'updateEval' : 'addEval', {
+      id: editing ? editing.id : undefined,
       center, period, teacher, date, items, formType: 'tabyan',
       raw: tbFmt(calc.sum), weighted: '', grade: calc.grade,
       qual: val('tbQual'), cat: val('tbCat'), day: val('tbDay'), lesson: val('tbLesson'),
@@ -150,7 +153,7 @@ async function tbSave() {
       extra: JSON.stringify(extra),
       signature: tbPad.has() ? tbPad.data() : ''
     });
-    toast('تم حفظ الاستمارة');
+    toast(editing ? 'تم تحديث الاستمارة' : 'تم حفظ الاستمارة');
     tbReset();
     show('evalsView');
     evLoadList();
@@ -190,4 +193,19 @@ function tbView(r) {
     f('التوصيات', r.recs) +
     (r.signature ? '<div style="margin-top:10px"><a class="lnk" target="_blank" rel="noopener" href="' + esc(r.signature) + '">عرض التوقيع</a></div>' : '');
   document.getElementById('evModal').classList.remove('hidden');
+}
+
+// تعديل استمارة محفوظة (يُستدعى من evEdit)
+function tbEdit(r) {
+  tbOpenForm(); tbReset();
+  const ex = evJson(r.extra, {});
+  evSetSel('tbCenter', r.center); evSetSel('tbPeriod', r.period); evSetVal('tbTeacher', r.teacher); evSetVal('tbDate', r.date);
+  evSetSel('tbDay', r.day); evSetVal('tbKind', ex.kind); evSetSel('tbQual', r.qual); evSetVal('tbYears', r.years);
+  evSetSel('tbCat', r.cat); evSetVal('tbGroups', ex.groups); evSetVal('tbTotalN', r.total); evSetVal('tbPresent', r.present);
+  evSetSel('tbCat2', ex.cat2); evSetVal('tbSupervisor', r.supervisor); evSetVal('tbTotal2', ex.total2); evSetVal('tbPresent2', ex.present2);
+  evSetVal('tbLesson', r.lesson); evSetVal('tbRecs', r.recs);
+  const ins = document.querySelectorAll('#tbItems input');
+  evJson(r.items, []).forEach((x, k) => { if (ins[k]) ins[k].value = x.s == null ? '' : x.s; });
+  tbCalc();
+  evSetEditUI('tbFormView', r);
 }

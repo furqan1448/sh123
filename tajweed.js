@@ -132,6 +132,7 @@ function tjOpenForm(type) {
     tjBuilt = true;
   }
   document.getElementById('tjCenter').innerHTML = evOpts(LISTS.centers, 'اختاري المركز');
+  evSetVal('tjSupervisor', getUser());   // اسم المشرفة تلقائياً من حساب الدخول
   evFillTeacherList();
   if (!document.getElementById('tjDate').value) { document.getElementById('tjDate').value = todayStr(); tjDateChange(); }
   tjCalc();
@@ -170,7 +171,9 @@ async function tjSave() {
   };
   setBtnBusy(btn, true);
   try {
-    await api('addEval', {
+    const editing = EDIT;
+    await api(editing ? 'updateEval' : 'addEval', {
+      id: editing ? editing.id : undefined,
       center, period, teacher, date, items, formType: 'tj_' + tjType,
       raw: tjFmt(calc.sum), weighted: '', grade: calc.grade,
       qual: val('tjQual'), cat: val('tjCat'), day: val('tjDay'), lesson: val('tjLesson'),
@@ -179,7 +182,7 @@ async function tjSave() {
       extra: JSON.stringify(extra),
       signature: tjPad.has() ? tjPad.data() : ''
     });
-    toast('تم حفظ الاستمارة');
+    toast(editing ? 'تم تحديث الاستمارة' : 'تم حفظ الاستمارة');
     tjReset();
     show('evalsView');
     evLoadList();
@@ -220,4 +223,19 @@ function tjView(r) {
     f('التوصيات', r.recs) +
     (r.signature ? '<div style="margin-top:10px"><a class="lnk" target="_blank" rel="noopener" href="' + esc(r.signature) + '">عرض التوقيع</a></div>' : '');
   document.getElementById('evModal').classList.remove('hidden');
+}
+
+// تعديل استمارة محفوظة (يُستدعى من evEdit)
+function tjEdit(r) {
+  tjOpenForm(r.formType === 'tj_single' ? 'single' : 'multi'); tjReset();
+  const ex = evJson(r.extra, {});
+  evSetSel('tjCenter', r.center); evSetSel('tjPeriod', r.period); evSetVal('tjTeacher', r.teacher); evSetVal('tjDate', r.date);
+  evSetSel('tjDay', r.day); evSetVal('tjKind', ex.kind); evSetSel('tjQual', r.qual); evSetVal('tjYears', r.years);
+  evSetSel('tjCat', r.cat); evSetVal('tjGroups', ex.groups); evSetVal('tjTotalN', r.total); evSetVal('tjPresent', r.present);
+  evSetSel('tjCat2', ex.cat2); evSetVal('tjSupervisor', r.supervisor); evSetVal('tjTotal2', ex.total2); evSetVal('tjPresent2', ex.present2);
+  evSetVal('tjLesson', r.lesson); evSetVal('tjRecs', r.recs);
+  const ins = document.querySelectorAll('#tjItems input');
+  evJson(r.items, []).forEach((x, k) => { if (ins[k]) ins[k].value = x.s == null ? '' : x.s; });
+  tjCalc();
+  evSetEditUI('tjFormView', r);
 }
