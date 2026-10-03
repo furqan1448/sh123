@@ -3,8 +3,12 @@
  * الصقيه في Apps Script المرتبط بقوقل شيت، ثم شغّلي setup() مرة واحدة، ثم انشري كـ Web App.
  */
 
+// إن كان الـ Apps Script غير مرتبط بالشيت تلقائياً: ضعي هنا رقم الشيت (ID) من رابطه، وإلا اتركيه فارغاً
+const SPREADSHEET_ID = '';
+function ss_() { return SPREADSHEET_ID ? SpreadsheetApp.openById(SPREADSHEET_ID) : SpreadsheetApp.getActive(); }
+
 const SHEET = {
-  SETTINGS: 'الإعدادات',
+  USERS: 'المستخدمات',
   LISTS: 'القوائم',
   VISITS: 'كشف الخروج',
   FILES: 'المرفقات'
@@ -19,16 +23,17 @@ const DRIVE_FOLDER_NAME = 'منظومة مشرفات - الملفات';
 
 /* ============ الإعداد الأولي (شغّليه مرة واحدة) ============ */
 function setup() {
-  const ss = SpreadsheetApp.getActive();
+  const ss = ss_();
 
-  // الإعدادات
-  const st = getOrCreate_(ss, SHEET.SETTINGS);
-  if (st.getLastRow() === 0) {
-    st.getRange(1, 1, 1, 2).setValues([['المفتاح', 'القيمة']]);
-    st.getRange(2, 1, 1, 2).setValues([['كلمة مرور مشرفات', '1234']]);
+  // المستخدمات (اسم المستخدم + كلمة المرور)
+  const us = getOrCreate_(ss, SHEET.USERS);
+  if (us.getLastRow() === 0) {
+    us.getRange(1, 1, 1, 2).setValues([['اسم المستخدم', 'كلمة المرور']]);
+    us.getRange(2, 1, 1, 2).setNumberFormat('@').setValues([['مشرفة1', '1234']]);
   }
-  styleHeader_(st, 2);
-  st.setColumnWidth(1, 200); st.setColumnWidth(2, 200);
+  styleHeader_(us, 2);
+  us.getRange('A2:B500').setNumberFormat('@');
+  us.setColumnWidth(1, 200); us.setColumnWidth(2, 200);
 
   // القوائم (المصدر للقوائم المنسدلة)
   const ls = getOrCreate_(ss, SHEET.LISTS);
@@ -89,8 +94,8 @@ function doPost(e) {
   let out;
   try {
     const req = JSON.parse(e.postData.contents);
-    if (!checkPw_(req.password)) {
-      out = { ok: false, error: 'كلمة المرور غير صحيحة' };
+    if (!checkAuth_(req.username, req.password)) {
+      out = { ok: false, error: 'اسم المستخدم أو كلمة المرور غير صحيحة' };
     } else {
       out = route_(req);
     }
@@ -124,27 +129,26 @@ function withLock_(fn) {
   try { return fn(); } finally { lock.releaseLock(); }
 }
 
-/* ============ كلمة المرور من الشيت ============ */
+/* ============ المستخدمات من الشيت ============ */
 function norm_(s) {
   return String(s == null ? '' : s).trim()
     .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
 }
-function checkPw_(pw) {
-  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET.SETTINGS);
+function checkAuth_(user, pw) {
+  const sh = ss_().getSheetByName(SHEET.USERS);
   if (!sh) throw new Error('شغّلي setup() أولاً');
+  const u = norm_(user).toLowerCase(), p = norm_(pw);
+  if (!u || !p) return false;
   const rows = sh.getDataRange().getDisplayValues();
   for (let i = 1; i < rows.length; i++) {
-    if (norm_(rows[i][0]) === 'كلمة مرور مشرفات') {
-      const real = norm_(rows[i][1]);
-      return real !== '' && real === norm_(pw);
-    }
+    if (norm_(rows[i][0]).toLowerCase() === u && norm_(rows[i][1]) === p) return true;
   }
   return false;
 }
 
 /* ============ القوائم ============ */
 function getLists_() {
-  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET.LISTS);
+  const sh = ss_().getSheetByName(SHEET.LISTS);
   const rows = sh.getDataRange().getDisplayValues().slice(1);
   const centers = [], types = [];
   rows.forEach(r => {
@@ -156,7 +160,7 @@ function getLists_() {
 
 /* ============ كشف الخروج ============ */
 function getVisits_() {
-  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET.VISITS);
+  const sh = ss_().getSheetByName(SHEET.VISITS);
   const rows = sh.getDataRange().getDisplayValues().slice(1);
   return rows.filter(r => r[0]).map(r => ({
     id: r[0], center: r[1], type: r[2], date: r[3], hijri: r[4], day: r[5],
@@ -190,7 +194,7 @@ function addVisit_(r) {
     sigUrl = f.getUrl();
   }
 
-  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET.VISITS);
+  const sh = ss_().getSheetByName(SHEET.VISITS);
   const row = sh.getLastRow() + 1;
   const vals = [[
     Utilities.getUuid(), center, type, date, String(r.hijri || ''), day,
@@ -203,7 +207,7 @@ function addVisit_(r) {
 
 /* ============ المرفقات ============ */
 function getFiles_() {
-  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET.FILES);
+  const sh = ss_().getSheetByName(SHEET.FILES);
   const rows = sh.getDataRange().getDisplayValues().slice(1);
   return rows.filter(r => r[0]).map(r => ({
     id: r[0], title: r[1], name: r[2], url: r[3], at: r[4]
@@ -217,7 +221,7 @@ function addFile_(r) {
   const blob = Utilities.newBlob(Utilities.base64Decode(r.data), r.mime || 'application/octet-stream', r.name || 'ملف');
   const f = folder_().createFile(blob);
   f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET.FILES);
+  const sh = ss_().getSheetByName(SHEET.FILES);
   sh.appendRow([
     Utilities.getUuid(), title, r.name || '', f.getUrl(),
     Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm')
@@ -227,7 +231,7 @@ function addFile_(r) {
 
 /* ============ حذف صف بالرقم ============ */
 function deleteById_(sheetName, id, trashFile) {
-  const sh = SpreadsheetApp.getActive().getSheetByName(sheetName);
+  const sh = ss_().getSheetByName(sheetName);
   const ids = sh.getRange(1, 1, sh.getLastRow(), 1).getValues();
   for (let i = 1; i < ids.length; i++) {
     if (String(ids[i][0]) === String(id)) {

@@ -1,13 +1,15 @@
 // ===== الإعدادات =====
 // الصقي هنا رابط الـ Web App بعد النشر (ينتهي بـ /exec)
-const API_URL = 'https://script.google.com/macros/s/AKfycbzk_3Aeid0BUZfnLe_WqpE64u2xjXUivaBwDqpfPwkCPOK8O0Cs-mxJHlQU-7CFwXW_vA/exec';
+const API_URL = 'ضع_رابط_Web_App_هنا';
 
 const PW_KEY = 'mush_pw';
+const USER_KEY = 'mush_user';
 const getPw = () => sessionStorage.getItem(PW_KEY) || '';
+const getUser = () => sessionStorage.getItem(USER_KEY) || '';
 
 // استدعاء الـ API (POST بنوع text/plain لتفادي مشاكل CORS) مع إعادة محاولة تلقائية
 async function api(action, data = {}) {
-  const body = JSON.stringify({ action, password: getPw(), ...data });
+  const body = JSON.stringify({ action, username: getUser(), password: getPw(), ...data });
   let lastErr;
   for (let i = 0; i < 3; i++) {
     const ctrl = new AbortController();

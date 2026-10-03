@@ -18,6 +18,8 @@
   <!-- تسجيل الدخول -->
   <div id="loginView" class="card" style="max-width:420px;margin:30px auto">
     <h2>تسجيل الدخول</h2>
+    <label for="un">اسم المستخدم</label>
+    <input id="un" type="text" autocomplete="username" autocapitalize="none" placeholder="أدخلي اسم المستخدم">
     <label for="pw">كلمة المرور</label>
     <div class="pw-wrap">
       <input id="pw" type="password" autocomplete="current-password" placeholder="أدخلي كلمة المرور">
@@ -139,9 +141,12 @@ function show(id) {
 
 /* ---------- الدخول ---------- */
 async function doLogin() {
+  const un = document.getElementById('un').value.trim();
   const pw = document.getElementById('pw').value.trim();
+  if (!un) return toast('أدخلي اسم المستخدم', false);
   if (!pw) return toast('أدخلي كلمة المرور', false);
   const btn = document.getElementById('loginBtn');
+  sessionStorage.setItem(USER_KEY, un);
   sessionStorage.setItem(PW_KEY, pw);
   setBtnBusy(btn, true, 'جارِ التحقق...');
   try {
@@ -150,13 +155,16 @@ async function doLogin() {
     preload();
   } catch (e) {
     sessionStorage.removeItem(PW_KEY);
+    sessionStorage.removeItem(USER_KEY);
     toast(e.message, false);
   } finally { setBtnBusy(btn, false); }
 }
-document.getElementById('pw').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+['un','pw'].forEach(id => document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); }));
 
 function logout() {
   sessionStorage.removeItem(PW_KEY);
+  sessionStorage.removeItem(USER_KEY);
+  document.getElementById('un').value = '';
   document.getElementById('pw').value = '';
   show('loginView');
 }
@@ -360,9 +368,9 @@ async function delFile(id) {
 
 /* ---------- استعادة الجلسة ---------- */
 (async function init() {
-  if (!getPw()) return;
+  if (!getPw() || !getUser()) return;
   try { await api('login'); show('homeView'); preload(); }
-  catch (e) { sessionStorage.removeItem(PW_KEY); }
+  catch (e) { sessionStorage.removeItem(PW_KEY); sessionStorage.removeItem(USER_KEY); }
 })();
 </script>
 </body>
