@@ -140,9 +140,14 @@
     </div>
     <div class="card">
       <h2>سجل الاستمارات</h2>
+      <div class="ev-tabs" id="evTabs">
+        <button class="on" data-tab="quran" onclick="evSetTab('quran')">القرآن الكريم</button>
+        <button data-tab="tabyan" onclick="evSetTab('tabyan')">التبيان</button>
+        <button data-tab="teachers" onclick="evSetTab('teachers')">سجل المعلمات</button>
+      </div>
       <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>التاريخ</th><th>المركز</th><th>المعلمة</th><th>الدرجة من 100</th><th>الدرجة الموزونة</th><th>التقدير</th><th></th><th></th></tr></thead>
+        <table style="min-width:560px">
+          <thead id="evHead"></thead>
           <tbody id="evBody"><tr><td colspan="8" class="empty">جارِ التحميل...</td></tr></tbody>
         </table>
       </div>
@@ -158,7 +163,7 @@
       <div class="ev-top">
         <div><label for="evCenter">اسم المركز</label><select id="evCenter"></select></div>
         <div><label for="evPeriod">الفترة</label><select id="evPeriod"></select></div>
-        <div><label for="evTeacher">اسم المعلمة</label><input id="evTeacher" placeholder="اكتبي اسم المعلمة"></div>
+        <div><label for="evTeacher">اسم المعلمة</label><input id="evTeacher" list="teacherList" autocomplete="off" placeholder="اختاري من القائمة أو اكتبي"></div>
         <div><label for="evDate">التاريخ</label><input id="evDate" type="date" onchange="evDateChange()"></div>
       </div>
       <details class="ev-extra">
@@ -225,7 +230,7 @@
       <div class="ev-top">
         <div><label for="tbCenter">اسم المركز</label><select id="tbCenter"></select></div>
         <div><label for="tbPeriod">الفترة</label><select id="tbPeriod"></select></div>
-        <div><label for="tbTeacher">اسم المعلمة</label><input id="tbTeacher" placeholder="اكتبي اسم المعلمة"></div>
+        <div><label for="tbTeacher">اسم المعلمة</label><input id="tbTeacher" list="teacherList" autocomplete="off" placeholder="اختاري من القائمة أو اكتبي"></div>
         <div><label for="tbDate">التاريخ</label><input id="tbDate" type="date" onchange="tbDateChange()"></div>
       </div>
       <details class="ev-extra">
@@ -293,6 +298,8 @@
     <div class="ev-bar"><span>المجموع: <b id="tbBarW">0</b>/40</span><span>التقدير: <b id="tbBarG">—</b></span><span>المعبأ: <b id="tbBarN">0/15</b></span></div>
   </div>
 
+  <datalist id="teacherList"></datalist>
+
   <!-- نافذة عرض استمارة -->
   <div id="evModal" class="modal hidden" onclick="if (event.target === this) evCloseModal()">
     <div class="modal-box">
@@ -309,7 +316,7 @@
 <script src="tabyan.js"></script>
 <script>
 const DAYS = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
-let LISTS = { centers: [], types: [] };
+let LISTS = { centers: [], types: [], teachers: [] };
 let VISITS = [];
 
 /* ---------- التنقل ---------- */

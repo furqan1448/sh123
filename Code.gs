@@ -46,8 +46,9 @@ function setup() {
     ls.getRange(1, 1, 1, 2).setValues([['أسماء المراكز', 'أنواع الزيارة']]);
     ls.getRange(2, 1, 2, 2).setValues([['مركز تجريبي 1', 'زيارة دورية'], ['مركز تجريبي 2', 'زيارة مفاجئة']]);
   }
-  styleHeader_(ls, 2);
-  ls.setColumnWidth(1, 220); ls.setColumnWidth(2, 220);
+  if (!ls.getRange(1, 3).getValue()) ls.getRange(1, 3).setValue('أسماء المعلمات');
+  styleHeader_(ls, 3);
+  ls.setColumnWidth(1, 220); ls.setColumnWidth(2, 220); ls.setColumnWidth(3, 220);
 
   // كشف الخروج
   const vs = getOrCreate_(ss, SHEET.VISITS);
@@ -166,12 +167,13 @@ function checkAuth_(user, pw) {
 function getLists_() {
   const sh = ss_().getSheetByName(SHEET.LISTS);
   const rows = sh.getDataRange().getDisplayValues().slice(1);
-  const centers = [], types = [];
+  const centers = [], types = [], teachers = [];
   rows.forEach(r => {
     if (String(r[0]).trim()) centers.push(String(r[0]).trim());
     if (String(r[1]).trim()) types.push(String(r[1]).trim());
+    if (r[2] != null && String(r[2]).trim()) teachers.push(String(r[2]).trim());
   });
-  return { centers: centers, types: types };
+  return { centers: centers, types: types, teachers: teachers };
 }
 
 /* ============ كشف الخروج ============ */

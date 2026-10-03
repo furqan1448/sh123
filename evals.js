@@ -161,6 +161,7 @@ function evOpenForm(type) {
     evBuilt = true;
   }
   document.getElementById('evCenter').innerHTML = evOpts(LISTS.centers, 'اختاري المركز');
+  evFillTeacherList();
   if (!document.getElementById('evDate').value) { document.getElementById('evDate').value = todayStr(); evDateChange(); }
   evCalc();
   setTimeout(() => evPad.resize(), 60);
@@ -227,19 +228,97 @@ function evReset() {
   evCalc();
 }
 
-/* ---------- السجل ---------- */
+/* ---------- السجل (قرآن لحاله، تبيان لحاله، وسجل موحّد للمعلمة) ---------- */
+// لإضافة مادة جديدة (التجويد) أضيفي سطراً هنا فقط
+const EV_SUBJECTS = [
+  { key: 'quran',  label: 'القرآن الكريم', match: r => r.formType !== 'tabyan', score: r => esc(r.weighted) + ' من 100' },
+  { key: 'tabyan', label: 'التبيان',        match: r => r.formType === 'tabyan', score: r => esc(r.raw) + ' من 40' }
+];
+let evTab = 'quran';
+
+// توحيد كتابة الاسم لأجل الدمج (الهمزات، التاء المربوطة، الياء، التشكيل، المسافات)
+function evNameKey(n) {
+  return String(n || '').replace(/[\u064B-\u0652\u0640]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي')
+    .replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+// أسماء المعلمات للقائمة: من الشيت + من الاستمارات المحفوظة
+function evTeacherNames() {
+  const seen = {}, out = [];
+  ((LISTS && LISTS.teachers) || []).concat(evRows.map(r => r.teacher)).forEach(n => {
+    const k = evNameKey(n);
+    if (k && !seen[k]) { seen[k] = 1; out.push(String(n).trim()); }
+  });
+  return out.sort((x, y) => x.localeCompare(y, 'ar'));
+}
+function evFillTeacherList() {
+  const dl = document.getElementById('teacherList');
+  if (dl) dl.innerHTML = evTeacherNames().map(n => '<option value="' + esc(n) + '"></option>').join('');
+}
+
+function evSetTab(t) {
+  evTab = t;
+  document.querySelectorAll('#evTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  evRender();
+}
+
+function evGradeTag(g) {
+  return '<span class="tag ' + (g === 'لم تجتاز' || g === 'ضعيف' ? 'warn' : 'ok') + '">' + esc(g) + '</span>';
+}
+
+function evRender() {
+  const head = document.getElementById('evHead'), body = document.getElementById('evBody');
+  if (!head || !body) return;
+  const btnView = i => '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="evView(' + i + ')">عرض</button>';
+
+  if (evTab === 'teachers') {
+    head.innerHTML = '<tr><th>المعلمة</th>' + EV_SUBJECTS.map(x => '<th>' + x.label + '</th>').join('') + '</tr>';
+    const map = {};
+    evRows.forEach((r, i) => {
+      const k = evNameKey(r.teacher); if (!k) return;
+      const m = map[k] || (map[k] = { name: r.teacher, last: {} });
+      EV_SUBJECTS.forEach(sub => {
+        if (!sub.match(r)) return;
+        const cur = m.last[sub.key];
+        if (!cur || String(r.date) > String(evRows[cur].date)) m.last[sub.key] = i;   // أحدث تاريخ
+      });
+      // الاسم المعروض: من أحدث استمارة
+      if (String(r.date) >= String(m.nameDate || '')) { m.name = r.teacher; m.nameDate = r.date; }
+    });
+    const list = Object.keys(map).map(k => map[k]).sort((x, y) => x.name.localeCompare(y.name, 'ar'));
+    if (!list.length) { body.innerHTML = '<tr><td colspan="' + (EV_SUBJECTS.length + 1) + '" class="empty">لا توجد استمارات</td></tr>'; return; }
+    body.innerHTML = list.map(m => '<tr><td><b>' + esc(m.name) + '</b></td>' + EV_SUBJECTS.map(sub => {
+      const i = m.last[sub.key];
+      if (i === undefined) return '<td>—</td>';
+      const r = evRows[i];
+      return '<td>' + evGradeTag(r.grade) + '<div style="margin:4px 0;font-size:13px">' + sub.score(r) + '</div>' +
+        '<div style="font-size:12px;color:var(--muted);margin-bottom:4px">' + esc(r.date) + '</div>' + btnView(i) + '</td>';
+    }).join('') + '</tr>').join('');
+    return;
+  }
+
+  const sub = EV_SUBJECTS.find(x => x.key === evTab);
+  const isT = evTab === 'tabyan';
+  head.innerHTML = isT
+    ? '<tr><th>التاريخ</th><th>المركز</th><th>المعلمة</th><th>المجموع من 40</th><th>التقدير</th><th></th><th></th></tr>'
+    : '<tr><th>التاريخ</th><th>المركز</th><th>المعلمة</th><th>الدرجة من 100</th><th>الدرجة الموزونة</th><th>التقدير</th><th></th><th></th></tr>';
+  const cols = isT ? 7 : 8;
+  const rows = [];
+  evRows.forEach((r, i) => { if (sub.match(r)) rows.push([r, i]); });
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="' + cols + '" class="empty">لا توجد استمارات</td></tr>'; return; }
+  body.innerHTML = rows.map(([r, i]) => '<tr><td>' + esc(r.date) + '</td><td>' + esc(r.center) + '</td><td>' + esc(r.teacher) +
+    (r.formType === 'multi' ? ' <span class="tag">تعدد المجموعات</span>' : '') + '</td>' +
+    (isT ? '<td>' + esc(r.raw) + '</td>' : '<td>' + esc(r.raw) + '</td><td>' + esc(r.weighted) + '</td>') +
+    '<td>' + evGradeTag(r.grade) + '</td><td>' + btnView(i) + '</td>' +
+    '<td><button class="btn danger" onclick="evDelete(\'' + esc(r.id) + '\')">حذف</button></td></tr>').join('');
+}
+
 async function evLoadList() {
   try {
     const out = await api('getEvals');
     evRows = out.data;
-    const body = document.getElementById('evBody');
-    if (!evRows.length) { body.innerHTML = '<tr><td colspan="8" class="empty">لا توجد استمارات</td></tr>'; return; }
-    body.innerHTML = evRows.map((r, i) => '<tr>' +
-      '<td>' + esc(r.date) + '</td><td>' + esc(r.center) + '</td><td>' + esc(r.teacher) + (r.formType === 'multi' ? ' <span class="tag">تعدد المجموعات</span>' : '') + (r.formType === 'tabyan' ? ' <span class="tag">التبيان</span>' : '') + '</td>' +
-      '<td>' + (r.formType === 'tabyan' ? esc(r.raw) + ' / 40' : esc(r.raw)) + '</td><td>' + (r.formType === 'tabyan' ? '—' : esc(r.weighted)) + '</td>' +
-      '<td><span class="tag ' + (r.grade === 'لم تجتاز' || r.grade === 'ضعيف' ? 'warn' : 'ok') + '">' + esc(r.grade) + '</span></td>' +
-      '<td><button class="btn light" style="padding:6px 12px;font-size:13px" onclick="evView(' + i + ')">عرض</button></td>' +
-      '<td><button class="btn danger" onclick="evDelete(\'' + esc(r.id) + '\')">حذف</button></td></tr>').join('');
+    evFillTeacherList();
+    evRender();
   } catch (e) { toast(e.message, false); }
 }
 

@@ -105,6 +105,7 @@ function tbOpenForm() {
     tbBuilt = true;
   }
   document.getElementById('tbCenter').innerHTML = evOpts(LISTS.centers, 'اختاري المركز');
+  evFillTeacherList();
   if (!document.getElementById('tbDate').value) { document.getElementById('tbDate').value = todayStr(); tbDateChange(); }
   tbCalc();
   setTimeout(() => tbPad.resize(), 60);
