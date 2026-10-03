@@ -230,7 +230,7 @@ async function evSave() {
   setBtnBusy(btn, true);
   try {
     const editing = EDIT;
-    await api(editing ? 'updateEval' : 'addEval', {
+    const payload = {
       id: editing ? editing.id : undefined,
       center, period, teacher, date, items, formType: evType,
       raw: evFmt(calc.rawTotal), weighted: evFmt(calc.wTotal), grade: calc.grade,
@@ -238,11 +238,12 @@ async function evSave() {
       years: val('evYears'), total: val('evTotalN'), present: val('evPresent'), visitNo: val('evVisitNo'),
       supervisor: val('evSupervisor'), notes: val('evNotes'), recs: val('evRecs'),
       signature: evPad.has() ? evPad.data() : ''
-    });
+    };
+    const res = await api(editing ? 'updateEval' : 'addEval', payload);
     toast(editing ? 'تم تحديث الاستمارة' : 'تم حفظ الاستمارة');
+    evAfterSave(payload, res, editing);
     evReset();
     show('evalsView');
-    evLoadList();
   } catch (e) { toast(e.message, false); }
   finally { setBtnBusy(btn, false); }
 }
@@ -335,7 +336,7 @@ function evRender() {
   const head = document.getElementById('evHead'), body = document.getElementById('evBody');
   if (!head || !body) return;
   const btnView = i => '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="evView(' + i + ')">عرض</button>';
-  const btnDl = i => '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="dlMenu(event, this, ' + i + ')">تحميل ▾</button>';
+  const btnDl = i => '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="exRow(' + i + ', this)">تحميل Excel</button>';
   const btnEdit = i => '<button class="btn light ico-btn" title="تعديل" aria-label="تعديل" onclick="evEdit(' + i + ')">' + EV_PENCIL + '</button>';
   const bar = document.getElementById('evListBar');   // تحميل الجدول كاملاً: في «سجل المعلمات» فقط
   if (bar) bar.classList.toggle('hidden', evTab !== 'teachers');
@@ -378,14 +379,46 @@ function evFixType(r) {
   else if (n === 18) r.formType = 'tj_single';
 }
 
-async function evLoadList() {
+// تحديث القائمة محلياً بعد الحفظ فوراً (دون انتظار جلب كل الاستمارات من جديد) ثم نحدّثها بالخلفية
+function evAfterSave(p, res, editing) {
+  const old = editing ? evRows.find(r => r.id === editing.id) : null;
+  const row = {
+    id: (res && res.id) || (editing && editing.id) || ('tmp' + Date.now()),
+    center: p.center, period: p.period, teacher: p.teacher, qual: p.qual, cat: p.cat, day: p.day, date: p.date,
+    lesson: p.lesson, years: p.years, total: p.total, present: p.present, visitNo: p.visitNo, supervisor: p.supervisor,
+    raw: p.raw, weighted: p.weighted, grade: p.grade,
+    items: JSON.stringify(p.items.map(x => ({ s: String(x.score == null ? '' : x.score), e: x.exec || '', c: x.crit || '', n: x.note || '' }))),
+    notes: p.notes, recs: p.recs,
+    signature: (res && res.signature) || (old && old.signature) || '',
+    at: old ? old.at : '', formType: p.formType, extra: p.extra || ''
+  };
+  evFixType(row);
+  if (editing) { const k = evRows.findIndex(r => r.id === editing.id); if (k > -1) evRows[k] = row; else evRows.unshift(row); }
+  else evRows.unshift(row);
+  cacheSet('evals', evRows);
+  evFillTeacherList(); evRender();
+  evLoadList(true);
+}
+
+let evLoading = false;
+async function evLoadList(bgOnly) {
+  if (!bgOnly) {   // نعرض المحفوظ فوراً
+    const c = cacheGet('evals');
+    if (c && c.length >= 0 && !evRows.length) { evRows = c; evFillTeacherList(); }
+    evRender();
+  }
+  if (evLoading) return;
+  evLoading = true;
   try {
     const out = await api('getEvals');
     evRows = out.data;
     evRows.forEach(evFixType);
+    cacheSet('evals', evRows);
     evFillTeacherList();
     evRender();
+    exPrefetch();
   } catch (e) { toast(e.message, false); }
+  finally { evLoading = false; }
 }
 
 function evView(i) {
@@ -421,6 +454,8 @@ function evCloseModal() { document.getElementById('evModal').classList.add('hidd
 
 async function evDelete(id) {
   if (!confirm('هل تريدين حذف هذه الاستمارة؟')) return;
-  try { await api('deleteEval', { id }); toast('تم الحذف'); evLoadList(); }
-  catch (e) { toast(e.message, false); }
+  evRows = evRows.filter(r => r.id !== id);
+  cacheSet('evals', evRows); evRender();
+  try { await api('deleteEval', { id }); toast('تم الحذف'); }
+  catch (e) { toast(e.message, false); evLoadList(true); }
 }

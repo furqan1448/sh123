@@ -16,7 +16,10 @@ const SHEET = {
 };
 
 const VISIT_HEADERS = ['الرقم', 'اسم المركز', 'نوع الزيارة', 'التاريخ', 'التاريخ الهجري', 'اليوم',
-  'المديرة متغيبة', 'التوقيع', 'تُحسب يوم', 'وقت التسجيل'];
+  'المديرة متغيبة', 'التوقيع', 'تُحسب يوم', 'وقت التسجيل', 'حالة الزيارة'];
+// حالات الزيارة: الأولى تحتاج توقيع المديرة، والباقي بدون توقيع (وكلها تُحسب يوماً واحداً)
+const VISIT_STATUS = ['تمت الزيارة', 'تمت الزيارة والمديرة متغيبة', 'تمت الزيارة وتعذر التوثيق لتعليق الموقع أو الشبكة', 'تمت الزيارة قبل توفر موقع النظام'];
+const VISIT_STATUS_COL = 11;
 const FILE_HEADERS = ['الرقم', 'العنوان', 'اسم الملف', 'الرابط', 'وقت الرفع'];
 const EVAL_HEADERS = ['الرقم', 'اسم المركز', 'الفترة', 'اسم المعلمة', 'المؤهل', 'الفئة', 'اليوم', 'التاريخ',
   'عنوان الدرس', 'سنوات الخبرة', 'العدد الكلي', 'العدد الحاضر', 'رقم الزيارة', 'اسم المشرفة',
@@ -153,20 +156,33 @@ function norm_(s) {
   return String(s == null ? '' : s).trim()
     .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
 }
-function checkAuth_(user, pw) {
+// المستخدمات تُحفظ في كاش قصير (دقيقتان) لتسريع كل طلب؛ وإن لم يطابق الكاش نقرأ الشيت مباشرة (مستخدمة جديدة أو كلمة مرور جديدة تعمل فوراً)
+function usersRows_(fresh) {
+  const cache = CacheService.getScriptCache();
+  if (!fresh) {
+    const hit = cache.get('users_v1');
+    if (hit) { try { return JSON.parse(hit); } catch (e) {} }
+  }
   const sh = ss_().getSheetByName(SHEET.USERS);
   if (!sh) throw new Error('شغّلي setup() أولاً');
+  const rows = sh.getDataRange().getDisplayValues().slice(1).map(r => [norm_(r[0]).toLowerCase(), norm_(r[1])]);
+  try { cache.put('users_v1', JSON.stringify(rows), 120); } catch (e) {}
+  return rows;
+}
+function checkAuth_(user, pw) {
   const u = norm_(user).toLowerCase(), p = norm_(pw);
   if (!u || !p) return false;
-  const rows = sh.getDataRange().getDisplayValues();
-  for (let i = 1; i < rows.length; i++) {
-    if (norm_(rows[i][0]).toLowerCase() === u && norm_(rows[i][1]) === p) return true;
-  }
-  return false;
+  const has = rows => rows.some(r => r[0] === u && r[1] === p);
+  return has(usersRows_(false)) || has(usersRows_(true));
 }
 
 /* ============ القوائم ============ */
-function getLists_() {
+function getLists_(fresh) {
+  const cache = CacheService.getScriptCache();
+  if (!fresh) {
+    const hit = cache.get('lists_v1');
+    if (hit) { try { return JSON.parse(hit); } catch (e) {} }
+  }
   const sh = ss_().getSheetByName(SHEET.LISTS);
   const rows = sh.getDataRange().getDisplayValues().slice(1);
   const centers = [], types = [], teachers = [];
@@ -175,30 +191,39 @@ function getLists_() {
     if (String(r[1]).trim()) types.push(String(r[1]).trim());
     if (r[2] != null && String(r[2]).trim()) teachers.push(String(r[2]).trim());
   });
-  return { centers: centers, types: types, teachers: teachers };
+  const out = { centers: centers, types: types, teachers: teachers };
+  try { cache.put('lists_v1', JSON.stringify(out), 120); } catch (e) {}
+  return out;
 }
 
 /* ============ كشف الخروج ============ */
 function getVisits_() {
   const sh = ss_().getSheetByName(SHEET.VISITS);
   const rows = sh.getDataRange().getDisplayValues().slice(1);
-  return rows.filter(r => r[0]).map(r => ({
-    id: r[0], center: r[1], type: r[2], date: r[3], hijri: r[4], day: r[5],
-    absent: r[6] === 'نعم', signature: r[7], counted: r[8] === 'نعم', at: r[9]
-  })).reverse();
+  return rows.filter(r => r[0]).map(r => {
+    const absent = r[6] === 'نعم';
+    // الصفوف القديمة ما فيها حالة: نستنتجها من عمود «المديرة متغيبة»
+    const status = r[10] || (absent ? VISIT_STATUS[1] : VISIT_STATUS[0]);
+    return { id: r[0], center: r[1], type: r[2], date: r[3], hijri: r[4], day: r[5],
+      absent: absent, status: status, signature: r[7], counted: r[8] === 'نعم', at: r[9] };
+  }).reverse();
 }
 
 function addVisit_(r) {
   const center = String(r.center || '').trim();
   const type = String(r.type || '').trim();
   const date = String(r.date || '').trim();
-  const absent = r.absent === true;
+  // توافق مع النسخة القديمة من الواجهة (absent=true) إن لم تصل «الحالة»
+  const status = String(r.status || (r.absent === true ? VISIT_STATUS[1] : VISIT_STATUS[0])).trim();
   if (!center) throw new Error('اختاري اسم المركز');
   if (!type) throw new Error('اختاري نوع الزيارة');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('التاريخ غير صحيح');
-  if (!absent && !r.signature) throw new Error('توقيع المديرة مطلوب، أو حدّدي «تمت زيارة المركز والمديرة متغيبة»');
+  if (VISIT_STATUS.indexOf(status) < 0) throw new Error('حالة الزيارة غير صحيحة');
+  const needSig = status === VISIT_STATUS[0];
+  if (needSig && !r.signature) throw new Error('توقيع المديرة مطلوب، أو اختاري حالة أخرى للزيارة');
 
-  const lists = getLists_();
+  let lists = getLists_(false);
+  if (lists.centers.indexOf(center) < 0 || lists.types.indexOf(type) < 0) lists = getLists_(true);
   if (lists.centers.indexOf(center) < 0) throw new Error('اسم المركز غير موجود في القائمة');
   if (lists.types.indexOf(type) < 0) throw new Error('نوع الزيارة غير موجود في القائمة');
 
@@ -206,7 +231,7 @@ function addVisit_(r) {
   const day = DAY_NAMES[new Date(+p[0], +p[1] - 1, +p[2]).getDay()];
 
   let sigUrl = '';
-  if (r.signature) {
+  if (needSig && r.signature) {
     const b64 = String(r.signature).split(',')[1];
     const blob = Utilities.newBlob(Utilities.base64Decode(b64), 'image/png', 'توقيع-' + center + '-' + date + '.png');
     const f = folder_().createFile(blob);
@@ -215,14 +240,20 @@ function addVisit_(r) {
   }
 
   const sh = ss_().getSheetByName(SHEET.VISITS);
+  // عمود الحالة الجديد: نكتب ترويسته مرة واحدة إن كانت الورقة قديمة (لا حاجة لتشغيل setup)
+  if (!sh.getRange(1, VISIT_STATUS_COL).getValue()) {
+    sh.getRange(1, VISIT_STATUS_COL).setValue(VISIT_HEADERS[VISIT_STATUS_COL - 1])
+      .setBackground('#7a1f2b').setFontColor('#ffffff').setFontWeight('bold').setHorizontalAlignment('center');
+  }
+  const id = Utilities.getUuid();
   const row = sh.getLastRow() + 1;
   const vals = [[
-    Utilities.getUuid(), center, type, date, String(r.hijri || ''), day,
-    absent ? 'نعم' : 'لا', sigUrl, 'نعم',
-    Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm')
+    id, center, type, date, String(r.hijri || ''), day,
+    status === VISIT_STATUS[1] ? 'نعم' : 'لا', sigUrl, 'نعم',
+    Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm'), status
   ]];
   sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
-  return { ok: true, day: day };
+  return { ok: true, id: id, day: day, signature: sigUrl };
 }
 
 /* ============ المرفقات ============ */
@@ -240,22 +271,24 @@ function addFile_(r) {
   const link = String(r.url || '').trim();
   if (link) {   // إرفاق رابط بدل ملف
     if (link.length > 2000 || !/^https?:\/\/[^\s]+$/i.test(link)) throw new Error('الرابط غير صحيح، يجب أن يبدأ بـ http أو https');
+    const lid = Utilities.getUuid();
     ss_().getSheetByName(SHEET.FILES).appendRow([
-      Utilities.getUuid(), title, LINK_MARK, link,
+      lid, title, LINK_MARK, link,
       Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm')
     ]);
-    return { ok: true };
+    return { ok: true, id: lid, url: link };
   }
   if (!r.data) throw new Error('اختاري ملفاً');
   const blob = Utilities.newBlob(Utilities.base64Decode(r.data), r.mime || 'application/octet-stream', r.name || 'ملف');
   const f = folder_().createFile(blob);
   f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   const sh = ss_().getSheetByName(SHEET.FILES);
+  const fid = Utilities.getUuid();
   sh.appendRow([
-    Utilities.getUuid(), title, r.name || '', f.getUrl(),
+    fid, title, r.name || '', f.getUrl(),
     Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm')
   ]);
-  return { ok: true };
+  return { ok: true, id: fid, url: f.getUrl() };
 }
 
 /* ============ حذف مرفق (الرابط لا يُحذف له ملف من الدرايف) ============ */
@@ -313,7 +346,8 @@ function evalCommon_(r) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('التاريخ غير صحيح');
   if (!Array.isArray(r.items) || !r.items.length || r.items.length > 60) throw new Error('بنود الاستمارة غير مكتملة');
 
-  const lists = getLists_();
+  let lists = getLists_(false);
+  if (lists.centers.indexOf(center) < 0) lists = getLists_(true);
   if (lists.centers.indexOf(center) < 0) throw new Error('اسم المركز غير موجود في القائمة');
 
   // نحفظ البنود بمفاتيح مختصرة (s=الدرجة e=التنفيذ c=المعيار n=الملاحظة) كما تقرؤها شاشة العرض
@@ -352,9 +386,10 @@ function addEval_(r) {
   const sh = ss_().getSheetByName(SHEET.EVALS);
   if (!sh) throw new Error('شغّلي setup() مرة أخرى لإنشاء ورقة الاستمارات');
   const row = sh.getLastRow() + 1;
-  const vals = [evalRow_(r, c, Utilities.getUuid(), sigUrl, nowStr_(), evalTypeLabel_(c.s(r.formType)))];
+  const newId = Utilities.getUuid();
+  const vals = [evalRow_(r, c, newId, sigUrl, nowStr_(), evalTypeLabel_(c.s(r.formType)))];
   sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
-  return { ok: true };
+  return { ok: true, id: newId, signature: sigUrl };
 }
 
 // تعديل استمارة محفوظة: يبقى رقمها ونوعها ووقت تسجيلها، والتوقيع القديم يبقى إلا إذا وصل توقيع جديد
@@ -382,5 +417,5 @@ function updateEval_(r) {
   }
   const vals = [evalRow_(r, c, id, sigUrl, String(old[21] || nowStr_()), String(old[22] || evalTypeLabel_(c.s(r.formType))))];
   sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
-  return { ok: true };
+  return { ok: true, id: id, signature: sigUrl };
 }

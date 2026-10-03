@@ -172,7 +172,7 @@ async function tjSave() {
   setBtnBusy(btn, true);
   try {
     const editing = EDIT;
-    await api(editing ? 'updateEval' : 'addEval', {
+    const payload = {
       id: editing ? editing.id : undefined,
       center, period, teacher, date, items, formType: 'tj_' + tjType,
       raw: tjFmt(calc.sum), weighted: '', grade: calc.grade,
@@ -181,11 +181,12 @@ async function tjSave() {
       supervisor: val('tjSupervisor'), notes: '', recs: val('tjRecs'),
       extra: JSON.stringify(extra),
       signature: tjPad.has() ? tjPad.data() : ''
-    });
+    };
+    const res = await api(editing ? 'updateEval' : 'addEval', payload);
     toast(editing ? 'تم تحديث الاستمارة' : 'تم حفظ الاستمارة');
+    evAfterSave(payload, res, editing);
     tjReset();
     show('evalsView');
-    evLoadList();
   } catch (e) { toast(e.message, false); }
   finally { setBtnBusy(btn, false); }
 }

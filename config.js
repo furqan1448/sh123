@@ -1,11 +1,24 @@
 // ===== الإعدادات =====
 // الصقي هنا رابط الـ Web App بعد النشر (ينتهي بـ /exec)
-const API_URL ="https://script.google.com/macros/s/AKfycbyQ069BYX5PT9Y6X9TVcmTFZGRNxW6wMGRcA3WHA-FK5iwpUZQ4UlKfw06y5CSv8WdKTQ/exec";
+const API_URL ="https://script.google.com/macros/s/AKfycbxM3_QyzlhvBZP2f0bpk7TkiFQnkIFcidr--PSeY4yoqZ-hSEmjjyv2TJ8FBufexIDBPA/exec";
 
 const PW_KEY = 'mush_pw';
 const USER_KEY = 'mush_user';
 const getPw = () => localStorage.getItem(PW_KEY) || '';
 const getUser = () => localStorage.getItem(USER_KEY) || '';
+
+// ===== كاش محلي: نعرض آخر بيانات محفوظة فوراً ثم نحدّثها من الخادم بالخلفية =====
+const CACHE_PFX = 'mush_c_';
+function cacheGet(k) {
+  try { const o = JSON.parse(localStorage.getItem(CACHE_PFX + getUser() + '_' + k)); return o ? o.d : null; } catch (e) { return null; }
+}
+function cacheSet(k, d) {
+  try { localStorage.setItem(CACHE_PFX + getUser() + '_' + k, JSON.stringify({ d })); }
+  catch (e) { cacheClear(); }   // الذاكرة ممتلئة: نمسح الكاش فقط (لا يؤثر على الدخول)
+}
+function cacheClear() {
+  Object.keys(localStorage).filter(k => k.indexOf(CACHE_PFX) === 0).forEach(k => localStorage.removeItem(k));
+}
 
 // استدعاء الـ API (POST بنوع text/plain لتفادي مشاكل CORS) مع إعادة محاولة تلقائية
 async function api(action, data = {}) {

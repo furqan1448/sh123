@@ -143,7 +143,7 @@ async function tbSave() {
   setBtnBusy(btn, true);
   try {
     const editing = EDIT;
-    await api(editing ? 'updateEval' : 'addEval', {
+    const payload = {
       id: editing ? editing.id : undefined,
       center, period, teacher, date, items, formType: 'tabyan',
       raw: tbFmt(calc.sum), weighted: '', grade: calc.grade,
@@ -152,11 +152,12 @@ async function tbSave() {
       supervisor: val('tbSupervisor'), notes: '', recs: val('tbRecs'),
       extra: JSON.stringify(extra),
       signature: tbPad.has() ? tbPad.data() : ''
-    });
+    };
+    const res = await api(editing ? 'updateEval' : 'addEval', payload);
     toast(editing ? 'تم تحديث الاستمارة' : 'تم حفظ الاستمارة');
+    evAfterSave(payload, res, editing);
     tbReset();
     show('evalsView');
-    evLoadList();
   } catch (e) { toast(e.message, false); }
   finally { setBtnBusy(btn, false); }
 }
