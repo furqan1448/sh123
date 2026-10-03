@@ -23,7 +23,7 @@
     <label for="pw">كلمة المرور</label>
     <div class="pw-wrap">
       <input id="pw" type="password" autocomplete="current-password" placeholder="أدخلي كلمة المرور">
-      <button type="button" class="pw-toggle" onclick="togglePassword('pw', this)">👁️</button>
+      <button type="button" class="pw-toggle" onclick="togglePassword('pw', this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
     </div>
     <button id="loginBtn" class="btn block" onclick="doLogin()">دخول</button>
     <p style="margin-top:12px;text-align:center"><a class="lnk" href="index.html">الرئيسية</a></p>
@@ -32,8 +32,8 @@
   <!-- القائمة الرئيسية -->
   <div id="homeView" class="hidden">
     <div class="grid">
-      <button class="tile" onclick="show('visitsView'); loadVisits()"><span class="ico">📝</span><b>كشف الخروج</b></button>
-      <button class="tile" onclick="show('filesView'); loadFiles()"><span class="ico">📎</span><b>المرفقات</b></button>
+      <button class="tile" onclick="show('visitsView'); loadVisits()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4"/><path d="M10 13l2 2 3.5-4"/><path d="M10 18h5"/></svg><b>كشف الخروج</b></button>
+      <button class="tile" onclick="show('filesView'); loadFiles()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5l-8 8a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L9.7 17.2a1.7 1.7 0 0 1-2.4-2.4L15 7"/></svg><b>المرفقات</b></button>
     </div>
     <p style="text-align:center;margin-top:22px"><button class="btn light" onclick="logout()">تسجيل الخروج</button></p>
   </div>
@@ -43,8 +43,7 @@
     <button class="back" onclick="show('homeView')">← رجوع</button>
 
     <div class="stats">
-      <div class="stat"><b id="stDays">0</b><span>إجمالي أيام الزيارات</span></div>
-      <div class="stat"><b id="stCenters">0</b><span>عدد المراكز المزارة</span></div>
+      <div class="stat"><b id="stDays">0</b><span>إجمالي عدد الزيارات</span></div>
     </div>
 
     <div class="card">
@@ -259,7 +258,6 @@ function renderVisits() {
   const per = {};
   counted.forEach(v => per[v.center] = (per[v.center] || 0) + 1);
   document.getElementById('stDays').textContent = counted.length;
-  document.getElementById('stCenters').textContent = Object.keys(per).length;
 
   document.getElementById('perCenter').innerHTML = Object.keys(per).length
     ? Object.keys(per).sort().map(c =>
@@ -300,7 +298,7 @@ async function saveVisit() {
       hijri: document.getElementById('vHijri').textContent,
       signature: (!absent || hasSig) && hasSig ? canvas.toDataURL('image/png') : ''
     });
-    toast('تم حفظ الزيارة ✅');
+    toast('تم حفظ الزيارة');
     document.getElementById('vCenter').value = '';
     document.getElementById('vType').value = '';
     document.getElementById('vAbsent').checked = false;
@@ -352,7 +350,7 @@ async function saveFile() {
   try {
     const data = await readB64(file);
     await api('addFile', { title, name: file.name, mime: file.type, data });
-    toast('تم رفع المرفق ✅');
+    toast('تم رفع المرفق');
     document.getElementById('fTitle').value = '';
     document.getElementById('fFile').value = '';
     await loadFiles();

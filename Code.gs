@@ -64,7 +64,7 @@ function setup() {
   fs.setColumnWidths(1, FILE_HEADERS.length, 160);
 
   folder_(); // ينشئ مجلد الدرايف
-  Logger.log('تم الإعداد بنجاح ✅');
+  Logger.log('تم الإعداد بنجاح');
 }
 
 function getOrCreate_(ss, name) {

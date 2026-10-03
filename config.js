@@ -1,6 +1,6 @@
 // ===== الإعدادات =====
 // الصقي هنا رابط الـ Web App بعد النشر (ينتهي بـ /exec)
-const API_URL = "https://script.google.com/macros/s/AKfycbzbRIVzf86sXqA1DAKx7IF9S1_-xz9rWQu6YJGXKkvowkKA_4QLrh4Q5NSo-lcs-CpnvQ/exec"';
+const API_URL = 'ضع_رابط_Web_App_هنا';
 
 const PW_KEY = 'mush_pw';
 const USER_KEY = 'mush_user';
@@ -56,7 +56,9 @@ function togglePassword(inputId, btn) {
   const i = document.getElementById(inputId);
   const show = i.type === 'password';
   i.type = show ? 'text' : 'password';
-  btn.textContent = show ? '🙈' : '👁️';
+  btn.innerHTML = show
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4"/><path d="M6.6 6.6C3.7 8.4 2 12 2 12s3.6 7 10 7c1.7 0 3.2-.4 4.5-1.1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
 }
 
 // شعار
