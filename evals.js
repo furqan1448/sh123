@@ -153,10 +153,12 @@ async function evSave() {
   if (missing) return toast('بقي ' + missing + ' بند بدون درجة (اكتبي 0 إن لم ينل شيئاً)', false);
 
   const btn = document.getElementById('evSaveBtn');
+  const calc = evCalc();
   setBtnBusy(btn, true);
   try {
     await api('addEval', {
       center, period, teacher, date, items,
+      raw: evFmt(calc.rawTotal), weighted: evFmt(calc.wTotal), grade: calc.grade,
       qual: val('evQual'), cat: val('evCat'), day: val('evDay'), lesson: val('evLesson'),
       years: val('evYears'), total: val('evTotalN'), present: val('evPresent'), visitNo: val('evVisitNo'),
       supervisor: val('evSupervisor'), notes: val('evNotes'), recs: val('evRecs'),

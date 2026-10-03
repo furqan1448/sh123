@@ -34,6 +34,7 @@
     <div class="grid">
       <button class="tile" onclick="show('visitsView'); loadVisits()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4"/><path d="M10 13l2 2 3.5-4"/><path d="M10 18h5"/></svg><b>كشف الخروج</b></button>
       <button class="tile" onclick="show('filesView'); loadFiles()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5l-8 8a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L9.7 17.2a1.7 1.7 0 0 1-2.4-2.4L15 7"/></svg><b>المرفقات</b></button>
+      <button class="tile" onclick="show('evalsView'); evLoadList()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M8.5 12l1.5 1.5 2.5-3"/><path d="M8.5 17.5h7"/></svg><b>استمارات التقييم</b></button>
     </div>
     <p style="text-align:center;margin-top:22px"><button class="btn light" onclick="logout()">تسجيل الخروج</button></p>
   </div>
@@ -122,10 +123,97 @@
     </div>
   </div>
 
+  <!-- استمارات التقييم: السجل -->
+  <div id="evalsView" class="hidden">
+    <button class="back" onclick="show('homeView')">← رجوع</button>
+    <div class="card">
+      <h2>استمارات التقييم الأسبوعية</h2>
+      <p style="font-size:14px;color:var(--muted)">استمارة تقييم القرآن الكريم للمعلمات.</p>
+      <button class="btn block" onclick="evOpenForm()">+ استمارة جديدة</button>
+    </div>
+    <div class="card">
+      <h2>سجل الاستمارات</h2>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>التاريخ</th><th>المركز</th><th>المعلمة</th><th>الدرجة من 100</th><th>الدرجة الموزونة</th><th>التقدير</th><th></th><th></th></tr></thead>
+          <tbody id="evBody"><tr><td colspan="8" class="empty">جارِ التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- استمارات التقييم: نموذج جديد -->
+  <div id="evalFormView" class="hidden">
+    <button class="back" onclick="show('evalsView'); evLoadList()">← رجوع</button>
+
+    <div class="card">
+      <h2>بيانات الزيارة</h2>
+      <label for="evCenter" style="margin-top:0">اسم المركز</label>
+      <select id="evCenter"></select>
+      <div class="row2">
+        <div><label for="evPeriod">الفترة</label><select id="evPeriod"></select></div>
+        <div><label for="evVisitNo">رقم الزيارة</label><input id="evVisitNo" inputmode="numeric" placeholder="مثال: 1"></div>
+      </div>
+      <label for="evTeacher">اسم المعلمة</label>
+      <input id="evTeacher" placeholder="اكتبي اسم المعلمة">
+      <div class="row2">
+        <div><label for="evQual">المؤهل</label><select id="evQual"></select></div>
+        <div><label for="evCat">الفئة</label><select id="evCat"></select></div>
+      </div>
+      <div class="row2">
+        <div><label for="evDate">التاريخ</label><input id="evDate" type="date" onchange="evDateChange()"></div>
+        <div><label for="evDay">اليوم</label><select id="evDay"></select></div>
+      </div>
+      <label for="evLesson">عنوان الدرس</label>
+      <input id="evLesson" placeholder="عنوان الدرس">
+      <div class="row2">
+        <div><label for="evYears">سنوات الخبرة</label><input id="evYears" inputmode="numeric"></div>
+        <div><label for="evSupervisor">اسم المشرفة</label><input id="evSupervisor"></div>
+      </div>
+      <div class="row2">
+        <div><label for="evTotalN">العدد الكلي للدارسات</label><input id="evTotalN" inputmode="numeric"></div>
+        <div><label for="evPresent">العدد الحاضر</label><input id="evPresent" inputmode="numeric"></div>
+      </div>
+    </div>
+
+    <div id="evSections"></div>
+
+    <div class="card">
+      <h2>النتيجة النهائية</h2>
+      <div class="stats">
+        <div class="stat"><b id="evRaw">0</b><span>الدرجة الكلية من 100</span></div>
+        <div class="stat"><b id="evWeighted">0</b><span>الدرجة الموزونة</span></div>
+        <div class="stat"><b id="evGrade">—</b><span>التقدير</span></div>
+      </div>
+      <label for="evNotes">ملاحظات المشرفة</label>
+      <textarea id="evNotes" rows="3"></textarea>
+      <label for="evRecs">توصيات المشرفة</label>
+      <textarea id="evRecs" rows="3"></textarea>
+      <label>التوقيع (اختياري)</label>
+      <div class="sig-box"><canvas id="evSig"></canvas></div>
+      <div class="sig-tools">
+        <span>وقّعي داخل المربع بالإصبع أو الماوس</span>
+        <button type="button" class="btn light" style="padding:6px 14px;font-size:13px" onclick="evPad.clear()">مسح التوقيع</button>
+      </div>
+      <button id="evSaveBtn" class="btn block" onclick="evSave()">حفظ الاستمارة</button>
+    </div>
+
+    <div class="ev-bar"><span>الموزونة: <b id="evBarW">0</b></span><span>التقدير: <b id="evBarG">—</b></span></div>
+  </div>
+
+  <!-- نافذة عرض استمارة -->
+  <div id="evModal" class="modal hidden" onclick="if (event.target === this) evCloseModal()">
+    <div class="modal-box">
+      <button class="btn light" style="margin-bottom:10px" onclick="evCloseModal()">إغلاق ✕</button>
+      <div id="evModalBody"></div>
+    </div>
+  </div>
+
 </div>
 
 <script src="logo-config.js"></script>
 <script src="config.js"></script>
+<script src="evals.js"></script>
 <script>
 const DAYS = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 let LISTS = { centers: [], types: [] };
@@ -133,7 +221,7 @@ let VISITS = [];
 
 /* ---------- التنقل ---------- */
 function show(id) {
-  ['loginView','homeView','visitsView','filesView'].forEach(v => document.getElementById(v).classList.add('hidden'));
+  ['loginView','homeView','visitsView','filesView','evalsView','evalFormView'].forEach(v => document.getElementById(v).classList.add('hidden'));
   document.getElementById(id).classList.remove('hidden');
   if (id !== 'loginView') localStorage.setItem('mush_view', id);
   window.scrollTo(0, 0);
@@ -371,11 +459,12 @@ async function delFile(id) {
   if (!getPw() || !getUser()) return;
   // نعرض آخر صفحة فوراً دون انتظار الخادم
   const last = localStorage.getItem('mush_view');
-  const view = ['homeView', 'visitsView', 'filesView'].indexOf(last) > -1 ? last : 'homeView';
+  const view = last === 'evalFormView' ? 'evalsView' : (['homeView', 'visitsView', 'filesView', 'evalsView'].indexOf(last) > -1 ? last : 'homeView');
   show(view);
   preload();
   if (view === 'visitsView') loadVisits();
   if (view === 'filesView') loadFiles();
+  if (view === 'evalsView') evLoadList();
   // نتحقق بالخلفية: لا نُخرج المستخدمة إلا إذا تغيّرت بياناتها فعلاً (وليس عند ضعف الإنترنت)
   api('login').catch(e => {
     if (e.auth) { toast('انتهت صلاحية الدخول، سجّلي الدخول من جديد', false); logout(); }

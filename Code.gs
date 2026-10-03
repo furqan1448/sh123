@@ -11,12 +11,17 @@ const SHEET = {
   USERS: 'المستخدمات',
   LISTS: 'القوائم',
   VISITS: 'كشف الخروج',
-  FILES: 'المرفقات'
+  FILES: 'المرفقات',
+  EVALS: 'استمارات التقييم'
 };
 
 const VISIT_HEADERS = ['الرقم', 'اسم المركز', 'نوع الزيارة', 'التاريخ', 'التاريخ الهجري', 'اليوم',
   'المديرة متغيبة', 'التوقيع', 'تُحسب يوم', 'وقت التسجيل'];
 const FILE_HEADERS = ['الرقم', 'العنوان', 'اسم الملف', 'الرابط', 'وقت الرفع'];
+const EVAL_HEADERS = ['الرقم', 'اسم المركز', 'الفترة', 'اسم المعلمة', 'المؤهل', 'الفئة', 'اليوم', 'التاريخ',
+  'عنوان الدرس', 'سنوات الخبرة', 'العدد الكلي', 'العدد الحاضر', 'رقم الزيارة', 'اسم المشرفة',
+  'الدرجة الكلية', 'الدرجة الموزونة', 'التقدير', 'البنود', 'ملاحظات المشرفة', 'توصيات المشرفة', 'التوقيع', 'وقت التسجيل'];
+const EVAL_URL_COL = 21; // عمود التوقيع (رابط ملف في الدرايف)
 
 const DAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 const DRIVE_FOLDER_NAME = 'منظومة مشرفات - الملفات';
@@ -62,6 +67,12 @@ function setup() {
   ensureHeaders_(fs, FILE_HEADERS);
   styleHeader_(fs, FILE_HEADERS.length);
   fs.setColumnWidths(1, FILE_HEADERS.length, 160);
+
+  // استمارات التقييم
+  const es = getOrCreate_(ss, SHEET.EVALS);
+  ensureHeaders_(es, EVAL_HEADERS);
+  styleHeader_(es, EVAL_HEADERS.length);
+  es.setColumnWidths(1, EVAL_HEADERS.length, 140);
 
   folder_(); // ينشئ مجلد الدرايف
   Logger.log('تم الإعداد بنجاح');
@@ -119,6 +130,9 @@ function route_(r) {
     case 'getFiles': return { ok: true, data: getFiles_() };
     case 'addFile': return withLock_(() => addFile_(r));
     case 'deleteFile': return withLock_(() => deleteById_(SHEET.FILES, r.id, true));
+    case 'getEvals': return { ok: true, data: getEvals_() };
+    case 'addEval': return withLock_(() => addEval_(r));
+    case 'deleteEval': return withLock_(() => deleteById_(SHEET.EVALS, r.id, true, EVAL_URL_COL));
     default: throw new Error('إجراء غير معروف');
   }
 }
@@ -230,13 +244,13 @@ function addFile_(r) {
 }
 
 /* ============ حذف صف بالرقم ============ */
-function deleteById_(sheetName, id, trashFile) {
+function deleteById_(sheetName, id, trashFile, urlCol) {
   const sh = ss_().getSheetByName(sheetName);
   const ids = sh.getRange(1, 1, sh.getLastRow(), 1).getValues();
   for (let i = 1; i < ids.length; i++) {
     if (String(ids[i][0]) === String(id)) {
       if (trashFile) {
-        const url = String(sh.getRange(i + 1, 4).getValue());
+        const url = String(sh.getRange(i + 1, urlCol || 4).getValue());
         const m = url.match(/[-\w]{25,}/);
         if (m) { try { DriveApp.getFileById(m[0]).setTrashed(true); } catch (e) {} }
       }
@@ -245,4 +259,54 @@ function deleteById_(sheetName, id, trashFile) {
     }
   }
   throw new Error('السجل غير موجود');
+}
+
+/* ============ استمارات التقييم ============ */
+function getEvals_() {
+  const sh = ss_().getSheetByName(SHEET.EVALS);
+  if (!sh) throw new Error('شغّلي setup() مرة أخرى لإنشاء ورقة الاستمارات');
+  const rows = sh.getDataRange().getDisplayValues().slice(1);
+  return rows.filter(r => r[0]).map(r => ({
+    id: r[0], center: r[1], period: r[2], teacher: r[3], qual: r[4], cat: r[5], day: r[6], date: r[7],
+    lesson: r[8], years: r[9], total: r[10], present: r[11], visitNo: r[12], supervisor: r[13],
+    raw: r[14], weighted: r[15], grade: r[16], items: r[17], notes: r[18], recs: r[19],
+    signature: r[20], at: r[21]
+  })).reverse();
+}
+
+function addEval_(r) {
+  const s = v => String(v == null ? '' : v).trim();
+  const center = s(r.center), period = s(r.period), teacher = s(r.teacher), date = s(r.date);
+  if (!center) throw new Error('اختاري اسم المركز');
+  if (!period) throw new Error('اختاري الفترة');
+  if (!teacher) throw new Error('اكتبي اسم المعلمة');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('التاريخ غير صحيح');
+  if (!Array.isArray(r.items) || !r.items.length || r.items.length > 60) throw new Error('بنود الاستمارة غير مكتملة');
+
+  const lists = getLists_();
+  if (lists.centers.indexOf(center) < 0) throw new Error('اسم المركز غير موجود في القائمة');
+
+  // نحفظ البنود بمفاتيح مختصرة (s=الدرجة e=التنفيذ c=المعيار n=الملاحظة) كما تقرؤها شاشة العرض
+  const items = r.items.map(x => ({ s: s(x.score), e: s(x.exec), c: s(x.crit), n: s(x.note) }));
+
+  let sigUrl = '';
+  if (r.signature) {
+    const b64 = String(r.signature).split(',')[1];
+    const blob = Utilities.newBlob(Utilities.base64Decode(b64), 'image/png', 'توقيع-استمارة-' + teacher + '-' + date + '.png');
+    const f = folder_().createFile(blob);
+    f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    sigUrl = f.getUrl();
+  }
+
+  const sh = ss_().getSheetByName(SHEET.EVALS);
+  if (!sh) throw new Error('شغّلي setup() مرة أخرى لإنشاء ورقة الاستمارات');
+  const row = sh.getLastRow() + 1;
+  const vals = [[
+    Utilities.getUuid(), center, period, teacher, s(r.qual), s(r.cat), s(r.day), date,
+    s(r.lesson), s(r.years), s(r.total), s(r.present), s(r.visitNo), s(r.supervisor),
+    s(r.raw), s(r.weighted), s(r.grade), JSON.stringify(items), s(r.notes), s(r.recs), sigUrl,
+    Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm')
+  ]];
+  sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
+  return { ok: true };
 }
