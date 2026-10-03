@@ -47,7 +47,7 @@ function tbBuild() {
     '<span class="ev-sc"><input type="number" inputmode="decimal" min="0" max="' + it[1] + '" step="0.5" data-t="' + i + '" placeholder="0"><small>/' + it[1] + '</small></span></div>'
   ).join('');
   document.getElementById('tbLegend').innerHTML = TB_GRADES.map(g =>
-    '<span class="tag warn" style="margin:3px">' + (g[0] === g[1] ? g[0] : g[1] + ' - ' + g[0]) + ': ' + g[2] + '</span>').join('');
+    gradeTag((g[0] === g[1] ? g[0] : g[1] + ' - ' + g[0]) + ': ' + g[2]).replace(/class="tag[^"]*"/, 'class="tag gr ' + gradeCls(g[2]) + '" style="margin:3px"')).join('');
 }
 
 function tbBind() {
@@ -83,9 +83,10 @@ function tbCalc() {
   const g = tbGrade(sum);
   document.getElementById('tbTotal').textContent = tbFmt(sum);
   document.getElementById('tbTotalBig').textContent = tbFmt(sum);
-  document.getElementById('tbGrade').textContent = g;
+  const gShow = filled ? g : '—';
+  setGrade(document.getElementById('tbGrade'), gShow);
   document.getElementById('tbBarW').textContent = tbFmt(sum);
-  document.getElementById('tbBarG').textContent = g;
+  setGrade(document.getElementById('tbBarG'), gShow);
   document.getElementById('tbBarN').textContent = filled + '/' + TB.items.length;
   document.getElementById('tbC').textContent = filled;
   return { sum, grade: g, filled };
@@ -188,7 +189,7 @@ function tbView(r) {
     f('عدد المجموعات', ex.groups) + f('المؤهل في القرآن', r.qual) + f('سنوات الخبرة', r.years) +
     f('عنوان الدرس', r.lesson) + f('اسم المشرفة', r.supervisor) + '</div>' +
     '<div class="tbl-wrap"><table style="min-width:420px"><thead><tr><th>م</th><th>البند</th><th>الدرجة المكتسبة</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
-    '<div class="stats" style="margin-top:14px"><div class="stat"><b>' + esc(r.raw) + ' / ' + TB_MAX + '</b><span>المجموع الكلي - التقدير: ' + esc(r.grade) + '</span></div></div>' +
+    '<div class="stats" style="margin-top:14px"><div class="stat"><b>' + esc(r.raw) + ' / ' + TB_MAX + '</b><span>المجموع الكلي - التقدير: ' + gradeTag(r.grade) + '</span></div></div>' +
     f('التوصيات', r.recs) +
     (r.signature ? '<div style="margin-top:10px"><a class="lnk" target="_blank" rel="noopener" href="' + esc(r.signature) + '">عرض التوقيع</a></div>' : '');
   document.getElementById('evModal').classList.remove('hidden');

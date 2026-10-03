@@ -138,9 +138,10 @@ function evCalc() {
   const g = evGrade(wTotal);
   document.getElementById('evRaw').textContent = evFmt(rawTotal);
   document.getElementById('evWeighted').textContent = evFmt(wTotal);
-  document.getElementById('evGrade').textContent = g;
+  const gShow = filledAll ? g : '—';
+  setGrade(document.getElementById('evGrade'), gShow);
   document.getElementById('evBarW').textContent = evFmt(wTotal);
-  document.getElementById('evBarG').textContent = g;
+  setGrade(document.getElementById('evBarG'), gShow);
   return { rawTotal, wTotal, grade: g };
 }
 
@@ -263,9 +264,7 @@ function evSetTab(t) {
   evRender();
 }
 
-function evGradeTag(g) {
-  return '<span class="tag ' + (g === 'لم تجتاز' || g === 'ضعيف' ? 'warn' : 'ok') + '">' + esc(g) + '</span>';
-}
+function evGradeTag(g) { return gradeTag(g); }
 
 function evRender() {
   const head = document.getElementById('evHead'), body = document.getElementById('evBody');
@@ -345,7 +344,7 @@ function evView(i) {
     f('رقم الزيارة', r.visitNo) + f('اسم المشرفة', r.supervisor) + '</div>' +
     '<div class="tbl-wrap"><table style="min-width:560px"><thead><tr><th>م</th><th>البند</th><th>التنفيذ</th><th>الدرجة</th><th>المعايير والتوجيه</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
     '<div class="stats" style="margin-top:14px"><div class="stat"><b>' + esc(r.raw) + '</b><span>الدرجة الكلية من 100</span></div></div>' +
-    '<div class="stats"><div class="stat"><b>' + esc(r.weighted) + '</b><span>الدرجة الموزونة - التقدير: ' + esc(r.grade) + '</span></div></div>' +
+    '<div class="stats"><div class="stat"><b>' + esc(r.weighted) + '</b><span>الدرجة الموزونة - التقدير: ' + gradeTag(r.grade) + '</span></div></div>' +
     f('ملاحظات المشرفة', r.notes) + f('توصيات المشرفة', r.recs) +
     (r.signature ? '<div style="margin-top:10px"><a class="lnk" target="_blank" rel="noopener" href="' + esc(r.signature) + '">عرض التوقيع</a></div>' : '');
   document.getElementById('evModal').classList.remove('hidden');

@@ -1,6 +1,6 @@
 // ===== الإعدادات =====
 // الصقي هنا رابط الـ Web App بعد النشر (ينتهي بـ /exec)
-const API_URL ="https://script.google.com/macros/s/AKfycbwm1RkL4-7bS12YHS-O6LrM3oWC2YBlkBmrkuBUBwGrY1b1NGWyMToZ3eqv2kger4anMg/exec";
+const API_URL ="https://script.google.com/macros/s/AKfycbweIy71cXVLkNnr1qMYRmmVQm-wf7FNQAGVSHNa8HetTPQ1zDZXrOKfXxghY_aIdvV7ZQ/exec";
 
 const PW_KEY = 'mush_pw';
 const USER_KEY = 'mush_user';
@@ -69,3 +69,24 @@ function applyLogo() {
   });
 }
 document.addEventListener('DOMContentLoaded', applyLogo);
+
+// ===== لون التقدير حسب النتيجة (يُستخدم في كل الاستمارات والسجلات) =====
+function gradeCls(g) {
+  g = String(g || '');
+  if (!g || g === '—') return '';
+  if (g === 'ممتاز مرتفع') return 'gr-top';
+  if (g.indexOf('ممتاز') === 0) return 'gr-ex';
+  if (g.indexOf('جيد جداً') === 0) return 'gr-vg';
+  if (g.indexOf('جيد') === 0) return 'gr-g';
+  if (g.indexOf('مقبول') === 0) return 'gr-p';
+  if (g === 'ضعيف') return 'gr-w';
+  return 'gr-f';
+}
+function gradeTag(g) { const k = gradeCls(g); return '<span class="tag' + (k ? ' gr ' + k : '') + '">' + esc(g) + '</span>'; }
+function setGrade(el, g) {
+  if (!el) return;
+  el.textContent = g;
+  el.className = el.className.replace(/\bgr(-\w+)?\b/g, '').replace(/\s+/g, ' ').trim();
+  const k = gradeCls(g);
+  if (k) { el.classList.add('gr'); el.classList.add(k); }
+}

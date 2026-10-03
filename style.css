@@ -170,3 +170,10 @@ a.lnk{color:var(--primary);font-weight:700}
 #tjFormView .stat span{font-size:12px}
 @media (min-width:900px){#tjFormView .ev-top{grid-template-columns:1.3fr .8fr 1.3fr 1fr}}
 .ev-new .btn[disabled]{background:#bbb}
+
+/* ===== ألوان التقدير ===== */
+.gr-top{--gc:#0a5c32}.gr-ex{--gc:#1b8f4e}.gr-vg{--gc:#1f8a8a}.gr-g{--gc:#2a73b8}
+.gr-p{--gc:#c98a0a}.gr-w{--gc:#e0531f}.gr-f{--gc:#b71c1c}
+.tag.gr{color:var(--gc);background:#fff;background:color-mix(in srgb,var(--gc) 13%,#fff);border:1px solid var(--gc)}
+.stat b.gr{color:var(--gc)}
+.ev-bar b.gr{background:var(--gc);color:#fff;padding:1px 10px;border-radius:12px}

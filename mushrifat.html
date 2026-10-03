@@ -139,8 +139,8 @@
       </div>
       <h3 class="ev-grp">استمارة مادة التجويد</h3>
       <div class="ev-new">
-        <button class="btn block" onclick="tjOpenForm()">+ استمارة جديدة<small>تعدد المجموعات</small></button>
-        <button class="btn block" disabled style="opacity:.55;cursor:not-allowed">+ استمارة جديدة<small>بدون تعدد (قريباً)</small></button>
+        <button class="btn block" onclick="tjOpenForm('multi')">+ استمارة جديدة<small>تعدد المجموعات</small></button>
+        <button class="btn block" onclick="tjOpenForm('single')">+ استمارة جديدة<small>بدون تعدد</small></button>
       </div>
     </div>
     <div class="card">
@@ -309,7 +309,7 @@
     <button class="back" onclick="show('evalsView'); evLoadList()">← رجوع</button>
 
     <div class="card">
-      <h2>استمارة تقييم مادة التجويد الأسبوعي — تعدد المجموعات</h2>
+      <h2 id="tjTitle">استمارة تقييم مادة التجويد الأسبوعي</h2>
       <div class="ev-top">
         <div><label for="tjCenter">اسم المركز</label><select id="tjCenter"></select></div>
         <div><label for="tjPeriod">الفترة</label><select id="tjPeriod"></select></div>
@@ -350,7 +350,7 @@
     <div style="margin-bottom:12px"><button type="button" class="btn light" style="width:100%" onclick="tjFillMax()">تعبئة البنود الفارغة بالدرجة الكاملة ثم التعديل</button></div>
 
     <div class="card" style="padding:0;overflow:hidden">
-      <div class="tb-head"><span>البنود</span><span class="ev-prog"><b id="tjC">0</b>/16</span></div>
+      <div class="tb-head"><span>البنود</span><span class="ev-prog"><b id="tjC">0</b>/<span id="tjCnt">16</span></span></div>
       <div id="tjItems"></div>
       <div class="ev-sub" style="margin:10px 14px 14px">المجموع الكلي: <b id="tjTotal">0</b> من 100</div>
     </div>

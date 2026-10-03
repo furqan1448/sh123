@@ -1,24 +1,6 @@
 // ===== استمارات التقييم الأسبوعية — استمارة تقييم أداء معلمة التجويد (من 100) =====
 // البنود ودرجاتها وقوائمها مأخوذة من ملف الإكسل (مادة التجويد)
 const TJ = {
-  items: [
-    ['صياغة الأهداف وشمولها', 5],
-    ['التحضير الجيد كتابياً', 5],
-    ['توزيع المنهج والسير وفقه', 3],
-    ['الاهتمام بالتمهيد وأساليبه(مراجعة الدرس سابقاً)', 7],
-    ['قراءة المعلمة للدرس من الكتاب مع التوضيح', 2],
-    ['عرض الدرس بطريقة مناسبة للفئة مع التشويق وتنوع طرق التدريس', 10],
-    ['صحة المادة العلمية', 10],
-    ['تسلسل المادة العلمية والتمكن من إيصالها', 10],
-    ['الإعداد الجيد للوسائل واستخدامها بصورة وظيفية', 5],
-    ['تعيين الواجب كماً وكيفاً', 2],
-    ['استخدام الفصحى و وضوح الصوت', 3],
-    ['الاهتمام بالتطبيق', 20],
-    ['ضبط الفصل', 5],
-    ['مراعاة الفروق الفردية', 3],
-    ['صحة توزيع الزمن عموماً على مراحل الدرس', 2],
-    ['تقدير المسؤولية', 8]
-  ],
   lists: {
     period: ['صباحي', 'مسائي'],
     qual: ['دبلوم عالي', 'دبلوم متوسط', 'دورة تأهيل منتهي بالتوظيف', 'اختبار مكتب'],
@@ -26,7 +8,48 @@ const TJ = {
     cat: ['أمهات', 'متعلمات', 'ناشئة', 'أمهات - متعلمات', 'أمهات - ناشئة', 'متعلمات - ناشئة']
   }
 };
-const TJ_MAX = TJ.items.reduce((a, i) => a + i[1], 0); // 100
+// نوعان: تعدد المجموعات (16 بنداً) / بدون تعدد (18 بنداً)
+const TJ_V = {
+  multi: { label: 'تعدد المجموعات', items: [
+    ['صياغة الأهداف وشمولها', 5],
+  ['التحضير الجيد كتابياً', 5],
+  ['توزيع المنهج والسير وفقه', 3],
+  ['الاهتمام بالتمهيد وأساليبه(مراجعة الدرس سابقاً)', 7],
+  ['قراءة المعلمة للدرس من الكتاب مع التوضيح', 2],
+  ['عرض الدرس بطريقة مناسبة للفئة مع التشويق وتنوع طرق التدريس', 10],
+  ['صحة المادة العلمية', 10],
+  ['تسلسل المادة العلمية والتمكن من إيصالها', 10],
+  ['الإعداد الجيد للوسائل واستخدامها بصورة وظيفية', 5],
+  ['تعيين الواجب كماً وكيفاً', 2],
+  ['استخدام الفصحى و وضوح الصوت', 3],
+  ['الاهتمام بالتطبيق', 20],
+  ['ضبط الفصل', 5],
+  ['مراعاة الفروق الفردية', 3],
+  ['صحة توزيع الزمن عموماً على مراحل الدرس', 2],
+  ['تقدير المسؤولية', 8]
+  ] },
+  single: { label: 'بدون تعدد', items: [
+    ['صياغة الأهداف وشمولها', 5],
+    ['التحضير الجيد كتابياً', 5],
+    ['توزيع المنهج والسير وفقه', 3],
+    ['مراجعة الدرس السابق', 2],
+    ['الاهتمام بالتمهيد وأساليبه', 5],
+    ['قراءة المعلمة للدرس من الكتاب مع التوضيح', 2],
+    ['عرض الدرس بطريقة مناسبة للفئة مع التشويق وتنوع طرق التدريس', 10],
+    ['صحة المادة العلمية', 10],
+    ['تسلسل المادة العلمية والتمكن من إيصالها', 10],
+    ['تحقيق الأهداف التربوية', 10],
+    ['الإعداد الجيد للوسائل واستخدامها بصورة وظيفية', 5],
+    ['تعيين الواجب كماً وكيفاً', 2],
+    ['استخدام الفصحى و وضوح الصوت', 3],
+    ['الاهتمام بالتطبيق', 10],
+    ['ضبط الفصل', 5],
+    ['مراعاة الفروق الفردية', 3],
+    ['صحة توزيع الزمن عموماً على مراحل الدرس', 2],
+    ['تقدير المسؤولية', 8]
+  ] }
+};
+let tjType = 'multi', TJ_ITEMS = TJ_V.multi.items, TJ_MAX = 100;
 
 // التقدير: نفس توزيع استمارة القرآن الكريم (على 100)
 const TJ_GRADES = [[90, 'ممتاز'], [80, 'جيد جداً'], [70, 'جيد'], [60, 'مقبول'], [50, 'ضعيف']];
@@ -39,13 +62,13 @@ let tjBuilt = false, tjPad = null;
 const tjFmt = x => String(Math.round(x * 100) / 100);
 
 function tjBuild() {
-  document.getElementById('tjItems').innerHTML = TJ.items.map((it, i) =>
+  document.getElementById('tjItems').innerHTML = TJ_ITEMS.map((it, i) =>
     '<div class="tb-item"><span class="ev-num">' + (i + 1) + '</span><b>' + esc(it[0]) + '</b>' +
     '<span class="ev-sc"><input type="number" inputmode="decimal" min="0" max="' + it[1] + '" step="0.5" data-t="' + i + '" placeholder="0"><small>/' + it[1] + '</small></span></div>'
   ).join('');
-  const lg = TJ_GRADES.map((g, i) => (i === 0 ? 'من ' + g[0] + ' فأكثر' : 'من ' + g[0] + ' إلى ' + (TJ_GRADES[i - 1][0] - 1)) + ': ' + g[1]);
-  lg.push('أقل من 50: لم تجتاز');
-  document.getElementById('tjLegend').innerHTML = lg.map(x => '<span class="tag warn" style="margin:3px">' + x + '</span>').join('');
+  const lg = TJ_GRADES.map((g, i) => [(i === 0 ? 'من ' + g[0] + ' فأكثر' : 'من ' + g[0] + ' إلى ' + (TJ_GRADES[i - 1][0] - 1)) + ': ' + g[1], g[1]]);
+  lg.push(['أقل من 50: لم تجتاز', 'لم تجتاز']);
+  document.getElementById('tjLegend').innerHTML = lg.map(x => '<span class="tag gr ' + gradeCls(x[1]) + '" style="margin:3px">' + x[0] + '</span>').join('');
 }
 
 function tjBind() {
@@ -76,23 +99,32 @@ function tjCalc() {
   let sum = 0, filled = 0;
   document.querySelectorAll('#tjItems input').forEach((el, i) => {
     const v = parseFloat(el.value);
-    if (!isNaN(v)) { sum += Math.min(Math.max(v, 0), TJ.items[i][1]); filled++; }
+    if (!isNaN(v)) { sum += Math.min(Math.max(v, 0), TJ_ITEMS[i][1]); filled++; }
   });
   const g = tjGrade(sum);
   document.getElementById('tjTotal').textContent = tjFmt(sum);
   document.getElementById('tjTotalBig').textContent = tjFmt(sum);
-  document.getElementById('tjGrade').textContent = g;
+  const gShow = filled ? g : '—';
+  setGrade(document.getElementById('tjGrade'), gShow);
   document.getElementById('tjBarW').textContent = tjFmt(sum);
-  document.getElementById('tjBarG').textContent = g;
-  document.getElementById('tjBarN').textContent = filled + '/' + TJ.items.length;
+  setGrade(document.getElementById('tjBarG'), gShow);
+  document.getElementById('tjBarN').textContent = filled + '/' + TJ_ITEMS.length;
   document.getElementById('tjC').textContent = filled;
   return { sum, grade: g, filled };
 }
 
-function tjOpenForm() {
+function tjOpenForm(type) {
+  type = type === 'single' ? 'single' : 'multi';
   show('tjFormView');
+  if (!tjBuilt || type !== tjType) {
+    tjType = type; TJ_ITEMS = TJ_V[type].items;
+    TJ_MAX = TJ_ITEMS.reduce((a, i) => a + i[1], 0);
+    tjBuild();
+    document.getElementById('tjTitle').textContent = 'استمارة تقييم مادة التجويد الأسبوعي — ' + TJ_V[type].label;
+    document.getElementById('tjCnt').textContent = TJ_ITEMS.length;
+  }
   if (!tjBuilt) {
-    tjBuild(); tjBind();
+    tjBind();
     document.getElementById('tjPeriod').innerHTML = evOpts(TJ.lists.period, 'اختاري الفترة');
     document.getElementById('tjQual').innerHTML = evOpts(TJ.lists.qual, 'اختاري المؤهل');
     document.getElementById('tjDay').innerHTML = evOpts(TJ.lists.day, 'اختاري اليوم');
@@ -142,7 +174,7 @@ async function tjSave() {
   setBtnBusy(btn, true);
   try {
     await api('addEval', {
-      center, period, teacher, date, items, formType: 'tj_multi',
+      center, period, teacher, date, items, formType: 'tj_' + tjType,
       raw: tjFmt(calc.sum), weighted: '', grade: calc.grade,
       qual: val('tjQual'), cat: val('tjCat'), day: val('tjDay'), lesson: val('tjLesson'),
       years: val('tjYears'), total: val('tjTotalN'), present: val('tjPresent'), visitNo: '',
@@ -170,23 +202,24 @@ function tjReset() {
 
 // عرض استمارة محفوظة (يُستدعى من evView)
 function tjView(r) {
+  const vt = r.formType === 'tj_single' ? 'single' : 'multi', TJV = TJ_V[vt].items;
   let items = [], ex = {};
   try { items = JSON.parse(r.items || '[]'); } catch (e) {}
   try { ex = JSON.parse(r.extra || '{}'); } catch (e) {}
-  const rows = TJ.items.map((it, k) => {
+  const rows = TJV.map((it, k) => {
     const x = items[k] || {};
     return '<tr><td>' + (k + 1) + '</td><td style="text-align:right">' + esc(it[0]) + '</td><td>' + esc(x.s) + ' / ' + it[1] + '</td></tr>';
   }).join('');
   const f = (l, v) => v ? '<div><b>' + l + ':</b> ' + esc(v) + '</div>' : '';
   document.getElementById('evModalBody').innerHTML =
     '<h2>' + esc(r.center) + ' - ' + esc(r.teacher) + '</h2>' +
-    '<div class="ev-info">' + f('نوع الاستمارة', 'التجويد - تعدد المجموعات') + f('الفترة', r.period) + f('اليوم', r.day) + f('التاريخ', r.date) +
+    '<div class="ev-info">' + f('نوع الاستمارة', 'التجويد - ' + TJ_V[vt].label) + f('الفترة', r.period) + f('اليوم', r.day) + f('التاريخ', r.date) +
     f('نوعها', ex.kind) + f('الفئة', r.cat) + f('العدد الكلي', r.total) + f('العدد الحاضر', r.present) +
     f('الفئة الثانية', ex.cat2) + f('العدد الكلي (2)', ex.total2) + f('العدد الحاضر (2)', ex.present2) +
     f('عدد المجموعات', ex.groups) + f('المؤهل في القرآن', r.qual) + f('سنوات الخبرة', r.years) +
     f('عنوان الدرس', r.lesson) + f('اسم المشرفة', r.supervisor) + '</div>' +
     '<div class="tbl-wrap"><table style="min-width:420px"><thead><tr><th>م</th><th>البند</th><th>الدرجة المكتسبة</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
-    '<div class="stats" style="margin-top:14px"><div class="stat"><b>' + esc(r.raw) + ' / ' + TJ_MAX + '</b><span>المجموع الكلي - التقدير: ' + esc(r.grade) + '</span></div></div>' +
+    '<div class="stats" style="margin-top:14px"><div class="stat"><b>' + esc(r.raw) + ' / 100</b><span>المجموع الكلي - التقدير: ' + gradeTag(r.grade) + '</span></div></div>' +
     f('التوصيات', r.recs) +
     (r.signature ? '<div style="margin-top:10px"><a class="lnk" target="_blank" rel="noopener" href="' + esc(r.signature) + '">عرض التوقيع</a></div>' : '');
   document.getElementById('evModal').classList.remove('hidden');
