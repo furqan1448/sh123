@@ -274,7 +274,7 @@ function getEvals_() {
     id: r[0], center: r[1], period: r[2], teacher: r[3], qual: r[4], cat: r[5], day: r[6], date: r[7],
     lesson: r[8], years: r[9], total: r[10], present: r[11], visitNo: r[12], supervisor: r[13],
     raw: r[14], weighted: r[15], grade: r[16], items: r[17], notes: r[18], recs: r[19],
-    signature: r[20], at: r[21], formType: r[22] === 'تعدد المجموعات' ? 'multi' : (r[22] === 'التبيان' ? 'tabyan' : 'single'), extra: r[23] || ''
+    signature: r[20], at: r[21], formType: r[22] === 'تعدد المجموعات' ? 'multi' : (r[22] === 'التبيان' ? 'tabyan' : (r[22] === 'التجويد - تعدد المجموعات' ? 'tj_multi' : (r[22] === 'التجويد - بدون تعدد' ? 'tj_single' : 'single'))), extra: r[23] || ''
   })).reverse();
 }
 
@@ -310,7 +310,7 @@ function addEval_(r) {
     s(r.lesson), s(r.years), s(r.total), s(r.present), s(r.visitNo), s(r.supervisor),
     s(r.raw), s(r.weighted), s(r.grade), JSON.stringify(items), s(r.notes), s(r.recs), sigUrl,
     Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm'),
-    s(r.formType) === 'multi' ? 'تعدد المجموعات' : (s(r.formType) === 'tabyan' ? 'التبيان' : 'بدون تعدد'),
+    ({ multi: 'تعدد المجموعات', tabyan: 'التبيان', tj_multi: 'التجويد - تعدد المجموعات', tj_single: 'التجويد - بدون تعدد' })[s(r.formType)] || 'بدون تعدد',
     s(r.extra).slice(0, 2000)
   ]];
   sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);

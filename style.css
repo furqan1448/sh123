@@ -165,3 +165,8 @@ a.lnk{color:var(--primary);font-weight:700}
 .ev-tabs{display:flex;gap:8px;margin:10px 0 14px;flex-wrap:wrap}
 .ev-tabs button{flex:1;min-width:100px;padding:10px 8px;border:1.5px solid var(--line);background:#fff;border-radius:12px;font:inherit;font-size:14px;font-weight:700;color:var(--muted);cursor:pointer}
 .ev-tabs button.on{background:var(--primary);border-color:var(--primary);color:#fff}
+#tjFormView .stats{grid-template-columns:repeat(2,1fr)}
+#tjFormView .stat b{font-size:24px}
+#tjFormView .stat span{font-size:12px}
+@media (min-width:900px){#tjFormView .ev-top{grid-template-columns:1.3fr .8fr 1.3fr 1fr}}
+.ev-new .btn[disabled]{background:#bbb}

@@ -137,12 +137,18 @@
       <div class="ev-new one">
         <button class="btn block" onclick="tbOpenForm()">+ استمارة جديدة<small>مادة التبيان</small></button>
       </div>
+      <h3 class="ev-grp">استمارة مادة التجويد</h3>
+      <div class="ev-new">
+        <button class="btn block" onclick="tjOpenForm()">+ استمارة جديدة<small>تعدد المجموعات</small></button>
+        <button class="btn block" disabled style="opacity:.55;cursor:not-allowed">+ استمارة جديدة<small>بدون تعدد (قريباً)</small></button>
+      </div>
     </div>
     <div class="card">
       <h2>سجل الاستمارات</h2>
       <div class="ev-tabs" id="evTabs">
         <button class="on" data-tab="quran" onclick="evSetTab('quran')">القرآن الكريم</button>
         <button data-tab="tabyan" onclick="evSetTab('tabyan')">التبيان</button>
+        <button data-tab="tajweed" onclick="evSetTab('tajweed')">التجويد</button>
         <button data-tab="teachers" onclick="evSetTab('teachers')">سجل المعلمات</button>
       </div>
       <div class="tbl-wrap">
@@ -298,6 +304,83 @@
     <div class="ev-bar"><span>المجموع: <b id="tbBarW">0</b>/40</span><span>التقدير: <b id="tbBarG">—</b></span><span>المعبأ: <b id="tbBarN">0/15</b></span></div>
   </div>
 
+    <!-- استمارة مادة التجويد -->
+  <div id="tjFormView" class="hidden">
+    <button class="back" onclick="show('evalsView'); evLoadList()">← رجوع</button>
+
+    <div class="card">
+      <h2>استمارة تقييم مادة التجويد الأسبوعي — تعدد المجموعات</h2>
+      <div class="ev-top">
+        <div><label for="tjCenter">اسم المركز</label><select id="tjCenter"></select></div>
+        <div><label for="tjPeriod">الفترة</label><select id="tjPeriod"></select></div>
+        <div><label for="tjTeacher">اسم المعلمة</label><input id="tjTeacher" list="teacherList" autocomplete="off" placeholder="اختاري من القائمة أو اكتبي"></div>
+        <div><label for="tjDate">التاريخ</label><input id="tjDate" type="date" onchange="tjDateChange()"></div>
+      </div>
+      <details class="ev-extra">
+        <summary>بيانات إضافية (اختياري)</summary>
+        <div class="row2">
+          <div><label for="tjDay">اليوم</label><select id="tjDay"></select></div>
+          <div><label for="tjKind">نوعها</label><input id="tjKind"></div>
+        </div>
+        <div class="row2">
+          <div><label for="tjQual">المؤهل في القرآن</label><select id="tjQual"></select></div>
+          <div><label for="tjYears">سنوات الخبرة</label><input id="tjYears" inputmode="numeric"></div>
+        </div>
+        <div class="row2">
+          <div><label for="tjCat">الفئة</label><select id="tjCat"></select></div>
+          <div><label for="tjGroups">عدد المجموعات</label><input id="tjGroups" inputmode="numeric"></div>
+        </div>
+        <div class="row2">
+          <div><label for="tjTotalN">العدد الكلي</label><input id="tjTotalN" inputmode="numeric"></div>
+          <div><label for="tjPresent">العدد الحاضر</label><input id="tjPresent" inputmode="numeric"></div>
+        </div>
+        <div class="row2">
+          <div><label for="tjCat2">الفئة الثانية (إن وُجدت)</label><select id="tjCat2"></select></div>
+          <div><label for="tjSupervisor">اسم المشرفة</label><input id="tjSupervisor"></div>
+        </div>
+        <div class="row2">
+          <div><label for="tjTotal2">العدد الكلي (للفئة الثانية)</label><input id="tjTotal2" inputmode="numeric"></div>
+          <div><label for="tjPresent2">العدد الحاضر (للفئة الثانية)</label><input id="tjPresent2" inputmode="numeric"></div>
+        </div>
+        <label for="tjLesson">عنوان الدرس</label>
+        <input id="tjLesson">
+      </details>
+    </div>
+
+    <div style="margin-bottom:12px"><button type="button" class="btn light" style="width:100%" onclick="tjFillMax()">تعبئة البنود الفارغة بالدرجة الكاملة ثم التعديل</button></div>
+
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="tb-head"><span>البنود</span><span class="ev-prog"><b id="tjC">0</b>/16</span></div>
+      <div id="tjItems"></div>
+      <div class="ev-sub" style="margin:10px 14px 14px">المجموع الكلي: <b id="tjTotal">0</b> من 100</div>
+    </div>
+
+    <div class="card">
+      <h2>النتيجة النهائية</h2>
+      <div class="stats">
+        <div class="stat"><b id="tjTotalBig">0</b><span>المجموع من 100</span></div>
+        <div class="stat"><b id="tjGrade">—</b><span>التقدير</span></div>
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin:6px 0 4px">سلّم التقدير:</div>
+      <div id="tjLegend"></div>
+      <details class="ev-extra">
+        <summary>التوصيات (اختياري)</summary>
+        <textarea id="tjRecs" rows="3"></textarea>
+      </details>
+      <details class="ev-extra" id="tjSigBox">
+        <summary>التوقيع (اختياري)</summary>
+        <div class="sig-box"><canvas id="tjSig"></canvas></div>
+        <div class="sig-tools">
+          <span>وقّعي داخل المربع بالإصبع أو الماوس</span>
+          <button type="button" class="btn light" style="padding:6px 14px;font-size:13px" onclick="tjPad.clear()">مسح التوقيع</button>
+        </div>
+      </details>
+      <button id="tjSaveBtn" class="btn block" onclick="tjSave()">حفظ الاستمارة</button>
+    </div>
+
+    <div class="ev-bar"><span>المجموع: <b id="tjBarW">0</b>/100</span><span>التقدير: <b id="tjBarG">—</b></span><span>المعبأ: <b id="tjBarN">0/16</b></span></div>
+  </div>
+
   <datalist id="teacherList"></datalist>
 
   <!-- نافذة عرض استمارة -->
@@ -314,6 +397,7 @@
 <script src="config.js"></script>
 <script src="evals.js"></script>
 <script src="tabyan.js"></script>
+<script src="tajweed.js"></script>
 <script>
 const DAYS = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 let LISTS = { centers: [], types: [], teachers: [] };
@@ -321,7 +405,7 @@ let VISITS = [];
 
 /* ---------- التنقل ---------- */
 function show(id) {
-  ['loginView','homeView','visitsView','filesView','evalsView','evalFormView','tbFormView'].forEach(v => document.getElementById(v).classList.add('hidden'));
+  ['loginView','homeView','visitsView','filesView','evalsView','evalFormView','tbFormView','tjFormView'].forEach(v => document.getElementById(v).classList.add('hidden'));
   document.getElementById(id).classList.remove('hidden');
   if (id !== 'loginView') localStorage.setItem('mush_view', id);
   window.scrollTo(0, 0);
@@ -559,7 +643,7 @@ async function delFile(id) {
   if (!getPw() || !getUser()) return;
   // نعرض آخر صفحة فوراً دون انتظار الخادم
   const last = localStorage.getItem('mush_view');
-  const view = (last === 'evalFormView' || last === 'tbFormView') ? 'evalsView' : (['homeView', 'visitsView', 'filesView', 'evalsView'].indexOf(last) > -1 ? last : 'homeView');
+  const view = (last === 'evalFormView' || last === 'tbFormView' || last === 'tjFormView') ? 'evalsView' : (['homeView', 'visitsView', 'filesView', 'evalsView'].indexOf(last) > -1 ? last : 'homeView');
   show(view);
   preload();
   if (view === 'visitsView') loadVisits();

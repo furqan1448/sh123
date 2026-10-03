@@ -231,8 +231,9 @@ function evReset() {
 /* ---------- السجل (قرآن لحاله، تبيان لحاله، وسجل موحّد للمعلمة) ---------- */
 // لإضافة مادة جديدة (التجويد) أضيفي سطراً هنا فقط
 const EV_SUBJECTS = [
-  { key: 'quran',  label: 'القرآن الكريم', match: r => r.formType !== 'tabyan', score: r => esc(r.weighted) + ' من 100' },
-  { key: 'tabyan', label: 'التبيان',        match: r => r.formType === 'tabyan', score: r => esc(r.raw) + ' من 40' }
+  { key: 'quran',   label: 'القرآن الكريم', max: 100, weighted: true,  match: r => r.formType === 'single' || r.formType === 'multi', score: r => esc(r.weighted) + ' من 100' },
+  { key: 'tabyan',  label: 'التبيان',        max: 40,  weighted: false, match: r => r.formType === 'tabyan', score: r => esc(r.raw) + ' من 40' },
+  { key: 'tajweed', label: 'التجويد',        max: 100, weighted: false, match: r => String(r.formType).indexOf('tj_') === 0, score: r => esc(r.raw) + ' من 100' }
 ];
 let evTab = 'quran';
 
@@ -298,17 +299,15 @@ function evRender() {
   }
 
   const sub = EV_SUBJECTS.find(x => x.key === evTab);
-  const isT = evTab === 'tabyan';
-  head.innerHTML = isT
-    ? '<tr><th>التاريخ</th><th>المركز</th><th>المعلمة</th><th>المجموع من 40</th><th>التقدير</th><th></th><th></th></tr>'
-    : '<tr><th>التاريخ</th><th>المركز</th><th>المعلمة</th><th>الدرجة من 100</th><th>الدرجة الموزونة</th><th>التقدير</th><th></th><th></th></tr>';
-  const cols = isT ? 7 : 8;
+  head.innerHTML = '<tr><th>التاريخ</th><th>المركز</th><th>المعلمة</th><th>' + (sub.weighted ? 'الدرجة من 100</th><th>الدرجة الموزونة' : 'المجموع من ' + sub.max) +
+    '</th><th>التقدير</th><th></th><th></th></tr>';
+  const cols = sub.weighted ? 8 : 7;
   const rows = [];
   evRows.forEach((r, i) => { if (sub.match(r)) rows.push([r, i]); });
   if (!rows.length) { body.innerHTML = '<tr><td colspan="' + cols + '" class="empty">لا توجد استمارات</td></tr>'; return; }
   body.innerHTML = rows.map(([r, i]) => '<tr><td>' + esc(r.date) + '</td><td>' + esc(r.center) + '</td><td>' + esc(r.teacher) +
-    (r.formType === 'multi' ? ' <span class="tag">تعدد المجموعات</span>' : '') + '</td>' +
-    (isT ? '<td>' + esc(r.raw) + '</td>' : '<td>' + esc(r.raw) + '</td><td>' + esc(r.weighted) + '</td>') +
+    (r.formType === 'multi' || r.formType === 'tj_multi' ? ' <span class="tag">تعدد المجموعات</span>' : '') + '</td>' +
+    '<td>' + esc(r.raw) + '</td>' + (sub.weighted ? '<td>' + esc(r.weighted) + '</td>' : '') +
     '<td>' + evGradeTag(r.grade) + '</td><td>' + btnView(i) + '</td>' +
     '<td><button class="btn danger" onclick="evDelete(\'' + esc(r.id) + '\')">حذف</button></td></tr>').join('');
 }
@@ -325,6 +324,7 @@ async function evLoadList() {
 function evView(i) {
   const r = evRows[i];
   if (r.formType === 'tabyan') return tbView(r);
+  if (String(r.formType).indexOf('tj_') === 0) return tjView(r);
   let items = [];
   try { items = JSON.parse(r.items || '[]'); } catch (e) {}
   let n = 0, rows = '';

@@ -1,0 +1,193 @@
+// ===== استمارات التقييم الأسبوعية — استمارة تقييم أداء معلمة التجويد (من 100) =====
+// البنود ودرجاتها وقوائمها مأخوذة من ملف الإكسل (مادة التجويد)
+const TJ = {
+  items: [
+    ['صياغة الأهداف وشمولها', 5],
+    ['التحضير الجيد كتابياً', 5],
+    ['توزيع المنهج والسير وفقه', 3],
+    ['الاهتمام بالتمهيد وأساليبه(مراجعة الدرس سابقاً)', 7],
+    ['قراءة المعلمة للدرس من الكتاب مع التوضيح', 2],
+    ['عرض الدرس بطريقة مناسبة للفئة مع التشويق وتنوع طرق التدريس', 10],
+    ['صحة المادة العلمية', 10],
+    ['تسلسل المادة العلمية والتمكن من إيصالها', 10],
+    ['الإعداد الجيد للوسائل واستخدامها بصورة وظيفية', 5],
+    ['تعيين الواجب كماً وكيفاً', 2],
+    ['استخدام الفصحى و وضوح الصوت', 3],
+    ['الاهتمام بالتطبيق', 20],
+    ['ضبط الفصل', 5],
+    ['مراعاة الفروق الفردية', 3],
+    ['صحة توزيع الزمن عموماً على مراحل الدرس', 2],
+    ['تقدير المسؤولية', 8]
+  ],
+  lists: {
+    period: ['صباحي', 'مسائي'],
+    qual: ['دبلوم عالي', 'دبلوم متوسط', 'دورة تأهيل منتهي بالتوظيف', 'اختبار مكتب'],
+    day: ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء'],
+    cat: ['أمهات', 'متعلمات', 'ناشئة', 'أمهات - متعلمات', 'أمهات - ناشئة', 'متعلمات - ناشئة']
+  }
+};
+const TJ_MAX = TJ.items.reduce((a, i) => a + i[1], 0); // 100
+
+// التقدير: نفس توزيع استمارة القرآن الكريم (على 100)
+const TJ_GRADES = [[90, 'ممتاز'], [80, 'جيد جداً'], [70, 'جيد'], [60, 'مقبول'], [50, 'ضعيف']];
+function tjGrade(t) {
+  for (let i = 0; i < TJ_GRADES.length; i++) if (t >= TJ_GRADES[i][0]) return TJ_GRADES[i][1];
+  return 'لم تجتاز';
+}
+
+let tjBuilt = false, tjPad = null;
+const tjFmt = x => String(Math.round(x * 100) / 100);
+
+function tjBuild() {
+  document.getElementById('tjItems').innerHTML = TJ.items.map((it, i) =>
+    '<div class="tb-item"><span class="ev-num">' + (i + 1) + '</span><b>' + esc(it[0]) + '</b>' +
+    '<span class="ev-sc"><input type="number" inputmode="decimal" min="0" max="' + it[1] + '" step="0.5" data-t="' + i + '" placeholder="0"><small>/' + it[1] + '</small></span></div>'
+  ).join('');
+  const lg = TJ_GRADES.map((g, i) => (i === 0 ? 'من ' + g[0] + ' فأكثر' : 'من ' + g[0] + ' إلى ' + (TJ_GRADES[i - 1][0] - 1)) + ': ' + g[1]);
+  lg.push('أقل من 50: لم تجتاز');
+  document.getElementById('tjLegend').innerHTML = lg.map(x => '<span class="tag warn" style="margin:3px">' + x + '</span>').join('');
+}
+
+function tjBind() {
+  const box = document.getElementById('tjItems');
+  box.addEventListener('input', tjCalc);
+  box.addEventListener('change', e => {
+    const el = e.target;
+    if (el.dataset.t === undefined) return;
+    const max = +el.max;
+    if (el.value !== '') {
+      let v = parseFloat(el.value);
+      if (isNaN(v) || v < 0) v = 0;
+      if (v > max) { v = max; toast('أعلى درجة لهذا البند ' + max, false); }
+      el.value = v;
+    }
+    tjCalc();
+  });
+}
+
+function tjFillMax() {
+  let c = 0;
+  document.querySelectorAll('#tjItems input').forEach(i => { if (i.value === '') { i.value = i.max; c++; } });
+  tjCalc();
+  toast(c ? 'تمت تعبئة ' + c + ' بند بالدرجة الكاملة، عدّلي ما يلزم' : 'كل البنود معبأة');
+}
+
+function tjCalc() {
+  let sum = 0, filled = 0;
+  document.querySelectorAll('#tjItems input').forEach((el, i) => {
+    const v = parseFloat(el.value);
+    if (!isNaN(v)) { sum += Math.min(Math.max(v, 0), TJ.items[i][1]); filled++; }
+  });
+  const g = tjGrade(sum);
+  document.getElementById('tjTotal').textContent = tjFmt(sum);
+  document.getElementById('tjTotalBig').textContent = tjFmt(sum);
+  document.getElementById('tjGrade').textContent = g;
+  document.getElementById('tjBarW').textContent = tjFmt(sum);
+  document.getElementById('tjBarG').textContent = g;
+  document.getElementById('tjBarN').textContent = filled + '/' + TJ.items.length;
+  document.getElementById('tjC').textContent = filled;
+  return { sum, grade: g, filled };
+}
+
+function tjOpenForm() {
+  show('tjFormView');
+  if (!tjBuilt) {
+    tjBuild(); tjBind();
+    document.getElementById('tjPeriod').innerHTML = evOpts(TJ.lists.period, 'اختاري الفترة');
+    document.getElementById('tjQual').innerHTML = evOpts(TJ.lists.qual, 'اختاري المؤهل');
+    document.getElementById('tjDay').innerHTML = evOpts(TJ.lists.day, 'اختاري اليوم');
+    document.getElementById('tjCat').innerHTML = evOpts(TJ.lists.cat, 'اختاري الفئة');
+    document.getElementById('tjCat2').innerHTML = evOpts(TJ.lists.cat, 'اختاري الفئة');
+    tjPad = makeSigPad(document.getElementById('tjSig'));
+    document.getElementById('tjSigBox').addEventListener('toggle', e => { if (e.target.open) setTimeout(() => tjPad.resize(), 30); });
+    tjBuilt = true;
+  }
+  document.getElementById('tjCenter').innerHTML = evOpts(LISTS.centers, 'اختاري المركز');
+  evFillTeacherList();
+  if (!document.getElementById('tjDate').value) { document.getElementById('tjDate').value = todayStr(); tjDateChange(); }
+  tjCalc();
+  setTimeout(() => tjPad.resize(), 60);
+}
+
+function tjDateChange() {
+  const v = document.getElementById('tjDate').value;
+  if (!v) return;
+  const p = v.split('-');
+  const name = DAYS[new Date(+p[0], +p[1] - 1, +p[2]).getDay()];
+  if (TJ.lists.day.indexOf(name) > -1) document.getElementById('tjDay').value = name;
+}
+
+async function tjSave() {
+  const val = id => document.getElementById(id).value.trim();
+  const center = val('tjCenter'), period = val('tjPeriod'), teacher = val('tjTeacher'), date = val('tjDate');
+  if (!center) return toast('اختاري اسم المركز', false);
+  if (!period) return toast('اختاري الفترة', false);
+  if (!teacher) return toast('اكتبي اسم المعلمة', false);
+  if (!date) return toast('اختاري التاريخ', false);
+
+  const inputs = [...document.querySelectorAll('#tjItems input')];
+  const empty = inputs.filter(i => i.value === '');
+  if (empty.length) {
+    empty[0].scrollIntoView({ block: 'center' }); empty[0].focus();
+    return toast('بقي ' + empty.length + ' بند بدون درجة (اكتبي 0 إن لم ينل شيئاً)', false);
+  }
+  const items = inputs.map(i => ({ score: i.value }));
+
+  const btn = document.getElementById('tjSaveBtn');
+  const calc = tjCalc();
+  const extra = {
+    kind: val('tjKind'), groups: val('tjGroups'),
+    cat2: val('tjCat2'), total2: val('tjTotal2'), present2: val('tjPresent2')
+  };
+  setBtnBusy(btn, true);
+  try {
+    await api('addEval', {
+      center, period, teacher, date, items, formType: 'tj_multi',
+      raw: tjFmt(calc.sum), weighted: '', grade: calc.grade,
+      qual: val('tjQual'), cat: val('tjCat'), day: val('tjDay'), lesson: val('tjLesson'),
+      years: val('tjYears'), total: val('tjTotalN'), present: val('tjPresent'), visitNo: '',
+      supervisor: val('tjSupervisor'), notes: '', recs: val('tjRecs'),
+      extra: JSON.stringify(extra),
+      signature: tjPad.has() ? tjPad.data() : ''
+    });
+    toast('تم حفظ الاستمارة');
+    tjReset();
+    show('evalsView');
+    evLoadList();
+  } catch (e) { toast(e.message, false); }
+  finally { setBtnBusy(btn, false); }
+}
+
+function tjReset() {
+  ['tjCenter', 'tjPeriod', 'tjTeacher', 'tjQual', 'tjDay', 'tjKind', 'tjCat', 'tjTotalN', 'tjPresent', 'tjGroups',
+    'tjCat2', 'tjTotal2', 'tjPresent2', 'tjYears', 'tjLesson', 'tjSupervisor', 'tjRecs']
+    .forEach(id => document.getElementById(id).value = '');
+  document.querySelectorAll('#tjItems input').forEach(el => el.value = '');
+  document.getElementById('tjDate').value = todayStr(); tjDateChange();
+  if (tjPad) tjPad.clear();
+  tjCalc();
+}
+
+// عرض استمارة محفوظة (يُستدعى من evView)
+function tjView(r) {
+  let items = [], ex = {};
+  try { items = JSON.parse(r.items || '[]'); } catch (e) {}
+  try { ex = JSON.parse(r.extra || '{}'); } catch (e) {}
+  const rows = TJ.items.map((it, k) => {
+    const x = items[k] || {};
+    return '<tr><td>' + (k + 1) + '</td><td style="text-align:right">' + esc(it[0]) + '</td><td>' + esc(x.s) + ' / ' + it[1] + '</td></tr>';
+  }).join('');
+  const f = (l, v) => v ? '<div><b>' + l + ':</b> ' + esc(v) + '</div>' : '';
+  document.getElementById('evModalBody').innerHTML =
+    '<h2>' + esc(r.center) + ' - ' + esc(r.teacher) + '</h2>' +
+    '<div class="ev-info">' + f('نوع الاستمارة', 'التجويد - تعدد المجموعات') + f('الفترة', r.period) + f('اليوم', r.day) + f('التاريخ', r.date) +
+    f('نوعها', ex.kind) + f('الفئة', r.cat) + f('العدد الكلي', r.total) + f('العدد الحاضر', r.present) +
+    f('الفئة الثانية', ex.cat2) + f('العدد الكلي (2)', ex.total2) + f('العدد الحاضر (2)', ex.present2) +
+    f('عدد المجموعات', ex.groups) + f('المؤهل في القرآن', r.qual) + f('سنوات الخبرة', r.years) +
+    f('عنوان الدرس', r.lesson) + f('اسم المشرفة', r.supervisor) + '</div>' +
+    '<div class="tbl-wrap"><table style="min-width:420px"><thead><tr><th>م</th><th>البند</th><th>الدرجة المكتسبة</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<div class="stats" style="margin-top:14px"><div class="stat"><b>' + esc(r.raw) + ' / ' + TJ_MAX + '</b><span>المجموع الكلي - التقدير: ' + esc(r.grade) + '</span></div></div>' +
+    f('التوصيات', r.recs) +
+    (r.signature ? '<div style="margin-top:10px"><a class="lnk" target="_blank" rel="noopener" href="' + esc(r.signature) + '">عرض التوقيع</a></div>' : '');
+  document.getElementById('evModal').classList.remove('hidden');
+}
