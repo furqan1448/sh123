@@ -53,18 +53,19 @@ function makeSigPad(canvas) {
 function evBuild() {
   let n = 0, html = '';
   EV_SECTIONS.forEach((sec, si) => {
-    html += '<details class="card ev-sec"' + (si === 0 ? ' open' : '') + '><summary><span>' + esc(sec.title) +
-      '</span><span class="ev-prog"><b id="evC_' + sec.key + '">0</b>/' + EV[sec.key].length + '</span></summary>';
+    html += '<details class="card ev-sec"' + (si === 0 || window.innerWidth >= 900 ? ' open' : '') + '><summary><span>' + esc(sec.title) +
+      '</span><span class="ev-prog"><b id="evC_' + sec.key + '">0</b>/' + EV[sec.key].length + '</span></summary>' +
+      '<div class="ev-head"><span>م</span><span>البند</span><span>التنفيذ</span><span>المعايير</span><span>الدرجة</span><span>الملاحظات والتوجيه</span></div>';
     EV[sec.key].forEach((it, i) => {
       const id = n++;
       const hasMore = true;
-      html += '<div class="ev-item"><div class="ev-row"><span class="ev-num">' + (i + 1) + '</span><b>' + esc(it.t) + '</b>' +
-        '<span class="ev-sc"><input type="number" inputmode="decimal" min="0" max="' + it.max + '" step="0.5" data-i="' + id + '" data-f="s" placeholder="0"><small>/' + it.max + '</small></span></div>' +
+      html += '<div class="ev-item"><div class="ev-row"><span class="ev-num c1">' + (i + 1) + '</span><b class="c2">' + esc(it.t) + '</b>' +
+        '<span class="ev-sc c5"><input type="number" inputmode="decimal" min="0" max="' + it.max + '" step="0.5" data-i="' + id + '" data-f="s" placeholder="0"><small>/' + it.max + '</small></span></div>' +
         '<button type="button" class="ev-tg" onclick="evMore(this)">تفاصيل التنفيذ والملاحظات ▾</button>' +
         '<div class="ev-more hidden"><div class="ev-grid">' +
-        '<div class="ev-wide"><label>التنفيذ</label><select data-i="' + id + '" data-f="e">' + evOpts(EV_EXEC, 'اختاري') + '</select></div>' +
-        (it.crit.length ? '<div class="ev-wide"><label>المعايير</label><select data-i="' + id + '" data-f="c">' + evOpts(it.crit, 'بدون') + '</select></div>' : '') +
-        (it.note.length ? '<div class="ev-wide"><label>الملاحظات والتوجيه</label><select data-i="' + id + '" data-f="n">' + evOpts(it.note, 'بدون') + '</select></div>' : '') +
+        '<div class="ev-wide c3"><label>التنفيذ</label><select data-i="' + id + '" data-f="e">' + evOpts(EV_EXEC, 'اختاري') + '</select></div>' +
+        (it.crit.length ? '<div class="ev-wide c4"><label>المعايير</label><select data-i="' + id + '" data-f="c">' + evOpts(it.crit, 'بدون') + '</select></div>' : '') +
+        (it.note.length ? '<div class="ev-wide c6"><label>الملاحظات والتوجيه</label><select data-i="' + id + '" data-f="n">' + evOpts(it.note, 'بدون') + '</select></div>' : '') +
         '</div></div></div>';
     });
     html += '<div class="ev-sub">المجموع: <b id="evS_' + sec.key + '">0</b> من ' + evFmt(sec.maxSum) +

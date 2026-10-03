@@ -114,3 +114,32 @@ a.lnk{color:var(--primary);font-weight:700}
 .ev-extra{margin-top:12px;border:1px dashed var(--line);border-radius:12px;padding:0 12px}
 .ev-extra>summary{cursor:pointer;padding:10px 0;font-size:14px;font-weight:700;color:var(--primary)}
 .ev-extra[open]{padding-bottom:12px}
+
+/* ===== شكل الجدول (مثل الإكسل) على الشاشات الكبيرة ===== */
+.ev-head{display:none}
+@media (min-width:900px){
+  .ev-head,.ev-sec .ev-item{display:grid;grid-template-columns:34px minmax(0,2.4fr) 100px minmax(0,1.6fr) 92px minmax(0,1.6fr);gap:8px;align-items:center}
+  .ev-head{background:var(--primary);color:#fff;font-size:13px;font-weight:700;padding:8px 14px;text-align:center}
+  .ev-sec .ev-item{padding:5px 14px}
+  .ev-sec .ev-item:nth-of-type(even){background:#fdf9f6}
+  .ev-row,.ev-more,.ev-more .ev-grid{display:contents}
+  .ev-more.hidden{display:contents!important}
+  .ev-tg{display:none}
+  .c1,.c2,.c3,.c4,.c5,.c6{grid-row:1}
+  .c1{grid-column:1}.c2{grid-column:2}.c3{grid-column:3}.c4{grid-column:4}.c5{grid-column:5}.c6{grid-column:6}
+  .ev-more .ev-wide label{display:none}
+  .ev-row b{font-size:13.5px}
+  .ev-sec .ev-item select{font-size:12.5px;padding:7px 6px}
+  .ev-sc{justify-content:center}
+  .ev-sc input{padding:7px 4px}
+  .ev-num{justify-self:center}
+}
+
+/* صف بيانات الزيارة + النتائج */
+.ev-top{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+#evalFormView .stats{grid-template-columns:repeat(3,1fr)}
+#evalFormView .stat b{font-size:24px}
+#evalFormView .stat span{font-size:12px}
+@media (min-width:900px){
+  .ev-top{grid-template-columns:1.3fr .8fr 1.3fr 1fr}
+}

@@ -148,14 +148,12 @@
 
     <div class="card">
       <h2>بيانات الزيارة</h2>
-      <label for="evCenter" style="margin-top:0">اسم المركز</label>
-      <select id="evCenter"></select>
-      <div class="row2">
+      <div class="ev-top">
+        <div><label for="evCenter">اسم المركز</label><select id="evCenter"></select></div>
         <div><label for="evPeriod">الفترة</label><select id="evPeriod"></select></div>
+        <div><label for="evTeacher">اسم المعلمة</label><input id="evTeacher" placeholder="اكتبي اسم المعلمة"></div>
         <div><label for="evDate">التاريخ</label><input id="evDate" type="date" onchange="evDateChange()"></div>
       </div>
-      <label for="evTeacher">اسم المعلمة</label>
-      <input id="evTeacher" placeholder="اكتبي اسم المعلمة">
       <details class="ev-extra">
         <summary>بيانات إضافية (اختياري)</summary>
         <div class="row2">
