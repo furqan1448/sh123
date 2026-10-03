@@ -178,3 +178,7 @@ a.lnk{color:var(--primary);font-weight:700}
 .stat b.gr{font-weight:700;display:inline-block;background:#fff;color:var(--gc);padding:2px 16px;border-radius:20px}
 .stat .tag.gr{background:#fff;border-color:#fff}
 .ev-bar b.gr{background:var(--gc);color:#fff;padding:1px 10px;border-radius:12px}
+
+/* ===== أزرار التحميل ===== */
+.ex-bar{display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap}
+.ex-bar .btn{flex:1;min-width:130px;padding:9px 10px;font-size:14px}

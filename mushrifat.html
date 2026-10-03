@@ -151,6 +151,10 @@
         <button data-tab="tajweed" onclick="evSetTab('tajweed')">التجويد</button>
         <button data-tab="teachers" onclick="evSetTab('teachers')">سجل المعلمات</button>
       </div>
+      <div class="ex-bar">
+        <button class="btn light" onclick="exList('xlsx', this)">تحميل الجدول Excel</button>
+        <button class="btn light" onclick="exList('pdf', this)">تحميل الجدول PDF</button>
+      </div>
       <div class="tbl-wrap">
         <table style="min-width:560px">
           <thead id="evHead"></thead>
@@ -392,6 +396,7 @@
 <script src="evals.js"></script>
 <script src="tabyan.js"></script>
 <script src="tajweed.js"></script>
+<script src="export.js"></script>
 <script>
 const DAYS = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 let LISTS = { centers: [], types: [], teachers: [] };
