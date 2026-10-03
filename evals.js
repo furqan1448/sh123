@@ -9,6 +9,16 @@ const EV_SECTIONS = [
 ];
 EV_SECTIONS.forEach(s => s.maxSum = EV[s.key].reduce((a, i) => a + i.max, 0));
 
+// استمارة «تعدد المجموعات»: نفس البنود والدرجات، وعنوانا بندين فقط مختلفان (بند 6 أساسية وبند 9 فرعية)
+const EV2 = JSON.parse(JSON.stringify(EV));
+(function () {
+  const a = EV2.basic[5], b = EV2.sub[8], tmp = a.t;
+  a.t = b.t; b.t = tmp;
+})();
+const EV_TYPES = { single: 'بدون تعدد', multi: 'تعدد المجموعات' };
+let evType = 'single', evTypeBuilt = '';
+function evD() { return evType === 'multi' ? EV2 : EV; }
+
 const EV_EXEC = ['نفذ', 'لم ينفذ', 'نوعاً ما'];
 let evBuilt = false, evPad = null, evRows = [];
 
@@ -54,9 +64,9 @@ function evBuild() {
   let n = 0, html = '';
   EV_SECTIONS.forEach((sec, si) => {
     html += '<details class="card ev-sec"' + (si === 0 || window.innerWidth >= 900 ? ' open' : '') + '><summary><span>' + esc(sec.title) +
-      '</span><span class="ev-prog"><b id="evC_' + sec.key + '">0</b>/' + EV[sec.key].length + '</span></summary>' +
+      '</span><span class="ev-prog"><b id="evC_' + sec.key + '">0</b>/' + evD()[sec.key].length + '</span></summary>' +
       '<div class="ev-head"><span>م</span><span>البند</span><span>التنفيذ</span><span>المعايير</span><span>الدرجة</span><span>الملاحظات والتوجيه</span></div>';
-    EV[sec.key].forEach((it, i) => {
+    evD()[sec.key].forEach((it, i) => {
       const id = n++;
       const hasMore = true;
       html += '<div class="ev-item"><div class="ev-row"><span class="ev-num c1">' + (i + 1) + '</span><b class="c2">' + esc(it.t) + '</b>' +
@@ -72,6 +82,9 @@ function evBuild() {
       ' &nbsp;|&nbsp; الموزونة: <b id="evW_' + sec.key + '">0</b> من ' + evFmt(sec.target) + '</div></details>';
   });
   document.getElementById('evSections').innerHTML = html;
+}
+
+function evBind() {
   document.getElementById('evSections').addEventListener('input', evCalc);
   document.getElementById('evSections').addEventListener('change', e => {
     if (e.target.dataset.f === 's') {
@@ -132,10 +145,13 @@ function evCalc() {
 }
 
 /* ---------- فتح الاستمارة ---------- */
-function evOpenForm() {
+function evOpenForm(type) {
+  evType = type === 'multi' ? 'multi' : 'single';
   show('evalFormView');
+  const lbl = document.getElementById('evTypeLabel'); if (lbl) lbl.textContent = EV_TYPES[evType];
+  if (evTypeBuilt !== evType) { evBuild(); evTypeBuilt = evType; evCalc(); }
   if (!evBuilt) {
-    evBuild();
+    evBind();
     document.getElementById('evPeriod').innerHTML = evOpts(EV.lists.period, 'اختاري الفترة');
     document.getElementById('evQual').innerHTML = evOpts(EV.lists.qual, 'اختاري المؤهل');
     document.getElementById('evCat').innerHTML = evOpts(EV.lists.cat, 'اختاري الفئة');
@@ -169,7 +185,7 @@ async function evSave() {
 
   const items = [];
   let missing = 0;
-  const total = EV.basic.length + EV.second.length + EV.sub.length;
+  const total = evD().basic.length + evD().second.length + evD().sub.length;
   for (let i = 0; i < total; i++) {
     const q = f => document.querySelector('#evSections [data-i="' + i + '"][data-f="' + f + '"]');
     const s = q('s').value;
@@ -187,7 +203,7 @@ async function evSave() {
   setBtnBusy(btn, true);
   try {
     await api('addEval', {
-      center, period, teacher, date, items,
+      center, period, teacher, date, items, formType: evType,
       raw: evFmt(calc.rawTotal), weighted: evFmt(calc.wTotal), grade: calc.grade,
       qual: val('evQual'), cat: val('evCat'), day: val('evDay'), lesson: val('evLesson'),
       years: val('evYears'), total: val('evTotalN'), present: val('evPresent'), visitNo: val('evVisitNo'),
@@ -219,7 +235,7 @@ async function evLoadList() {
     const body = document.getElementById('evBody');
     if (!evRows.length) { body.innerHTML = '<tr><td colspan="8" class="empty">لا توجد استمارات</td></tr>'; return; }
     body.innerHTML = evRows.map((r, i) => '<tr>' +
-      '<td>' + esc(r.date) + '</td><td>' + esc(r.center) + '</td><td>' + esc(r.teacher) + '</td>' +
+      '<td>' + esc(r.date) + '</td><td>' + esc(r.center) + '</td><td>' + esc(r.teacher) + (r.formType === 'multi' ? ' <span class="tag">تعدد المجموعات</span>' : '') + '</td>' +
       '<td>' + esc(r.raw) + '</td><td>' + esc(r.weighted) + '</td>' +
       '<td><span class="tag ' + (r.grade === 'لم تجتاز' || r.grade === 'ضعيف' ? 'warn' : 'ok') + '">' + esc(r.grade) + '</span></td>' +
       '<td><button class="btn light" style="padding:6px 12px;font-size:13px" onclick="evView(' + i + ')">عرض</button></td>' +
@@ -232,9 +248,10 @@ function evView(i) {
   let items = [];
   try { items = JSON.parse(r.items || '[]'); } catch (e) {}
   let n = 0, rows = '';
+  const D = r.formType === 'multi' ? EV2 : EV;
   EV_SECTIONS.forEach(sec => {
     rows += '<tr><th colspan="5" style="text-align:right">' + esc(sec.title) + '</th></tr>';
-    EV[sec.key].forEach((it, k) => {
+    D[sec.key].forEach((it, k) => {
       const x = items[n++] || {};
       rows += '<tr><td>' + (k + 1) + '</td><td style="text-align:right">' + esc(it.t) + '</td><td>' + esc(x.e || '') + '</td>' +
         '<td>' + esc(x.s) + ' / ' + it.max + '</td><td style="text-align:right">' + esc([x.c, x.n].filter(Boolean).join(' | ')) + '</td></tr>';
@@ -243,7 +260,7 @@ function evView(i) {
   const f = (l, v) => v ? '<div><b>' + l + ':</b> ' + esc(v) + '</div>' : '';
   document.getElementById('evModalBody').innerHTML =
     '<h2>' + esc(r.center) + ' - ' + esc(r.teacher) + '</h2>' +
-    '<div class="ev-info">' + f('الفترة', r.period) + f('اليوم', r.day) + f('التاريخ', r.date) + f('الفئة', r.cat) + f('المؤهل', r.qual) +
+    '<div class="ev-info">' + f('نوع الاستمارة', EV_TYPES[r.formType === 'multi' ? 'multi' : 'single']) + f('الفترة', r.period) + f('اليوم', r.day) + f('التاريخ', r.date) + f('الفئة', r.cat) + f('المؤهل', r.qual) +
     f('عنوان الدرس', r.lesson) + f('سنوات الخبرة', r.years) + f('العدد الكلي', r.total) + f('العدد الحاضر', r.present) +
     f('رقم الزيارة', r.visitNo) + f('اسم المشرفة', r.supervisor) + '</div>' +
     '<div class="tbl-wrap"><table style="min-width:560px"><thead><tr><th>م</th><th>البند</th><th>التنفيذ</th><th>الدرجة</th><th>المعايير والتوجيه</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +

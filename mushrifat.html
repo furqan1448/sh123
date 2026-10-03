@@ -129,7 +129,10 @@
     <div class="card">
       <h2>استمارات التقييم الأسبوعية</h2>
       <p style="font-size:14px;color:var(--muted)">استمارة تقييم القرآن الكريم للمعلمات.</p>
-      <button class="btn block" onclick="evOpenForm()">+ استمارة جديدة</button>
+      <div class="ev-new">
+        <button class="btn block" onclick="evOpenForm('single')">+ استمارة جديدة<small>بدون تعدد</small></button>
+        <button class="btn block" onclick="evOpenForm('multi')">+ استمارة جديدة<small>تعدد المجموعات</small></button>
+      </div>
     </div>
     <div class="card">
       <h2>سجل الاستمارات</h2>
@@ -147,7 +150,7 @@
     <button class="back" onclick="show('evalsView'); evLoadList()">← رجوع</button>
 
     <div class="card">
-      <h2>بيانات الزيارة</h2>
+      <h2>بيانات الزيارة <span id="evTypeLabel" class="tag" style="margin-right:8px"></span></h2>
       <div class="ev-top">
         <div><label for="evCenter">اسم المركز</label><select id="evCenter"></select></div>
         <div><label for="evPeriod">الفترة</label><select id="evPeriod"></select></div>
