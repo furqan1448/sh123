@@ -52,20 +52,23 @@ function makeSigPad(canvas) {
 /* ---------- بناء الاستمارة ---------- */
 function evBuild() {
   let n = 0, html = '';
-  EV_SECTIONS.forEach(sec => {
-    html += '<div class="card"><h2>' + esc(sec.title) + '</h2>';
+  EV_SECTIONS.forEach((sec, si) => {
+    html += '<details class="card ev-sec"' + (si === 0 ? ' open' : '') + '><summary><span>' + esc(sec.title) +
+      '</span><span class="ev-prog"><b id="evC_' + sec.key + '">0</b>/' + EV[sec.key].length + '</span></summary>';
     EV[sec.key].forEach((it, i) => {
       const id = n++;
-      html += '<div class="ev-item"><div class="ev-title"><span class="ev-num">' + (i + 1) + '</span><b>' + esc(it.t) +
-        '</b><span class="ev-max">من ' + it.max + '</span></div><div class="ev-grid">' +
-        '<div><label>التنفيذ</label><select data-i="' + id + '" data-f="e">' + evOpts(EV_EXEC, 'اختاري') + '</select></div>' +
-        '<div><label>الدرجة</label><input type="number" inputmode="decimal" min="0" max="' + it.max + '" step="0.5" data-i="' + id + '" data-f="s" placeholder="0 - ' + it.max + '"></div>' +
+      const hasMore = true;
+      html += '<div class="ev-item"><div class="ev-row"><span class="ev-num">' + (i + 1) + '</span><b>' + esc(it.t) + '</b>' +
+        '<span class="ev-sc"><input type="number" inputmode="decimal" min="0" max="' + it.max + '" step="0.5" data-i="' + id + '" data-f="s" placeholder="0"><small>/' + it.max + '</small></span></div>' +
+        '<button type="button" class="ev-tg" onclick="evMore(this)">تفاصيل التنفيذ والملاحظات ▾</button>' +
+        '<div class="ev-more hidden"><div class="ev-grid">' +
+        '<div class="ev-wide"><label>التنفيذ</label><select data-i="' + id + '" data-f="e">' + evOpts(EV_EXEC, 'اختاري') + '</select></div>' +
         (it.crit.length ? '<div class="ev-wide"><label>المعايير</label><select data-i="' + id + '" data-f="c">' + evOpts(it.crit, 'بدون') + '</select></div>' : '') +
         (it.note.length ? '<div class="ev-wide"><label>الملاحظات والتوجيه</label><select data-i="' + id + '" data-f="n">' + evOpts(it.note, 'بدون') + '</select></div>' : '') +
-        '</div></div>';
+        '</div></div></div>';
     });
     html += '<div class="ev-sub">المجموع: <b id="evS_' + sec.key + '">0</b> من ' + evFmt(sec.maxSum) +
-      ' &nbsp;|&nbsp; الدرجة الموزونة: <b id="evW_' + sec.key + '">0</b> من ' + evFmt(sec.target) + '</div></div>';
+      ' &nbsp;|&nbsp; الموزونة: <b id="evW_' + sec.key + '">0</b> من ' + evFmt(sec.target) + '</div></details>';
   });
   document.getElementById('evSections').innerHTML = html;
   document.getElementById('evSections').addEventListener('input', evCalc);
@@ -83,20 +86,41 @@ function evBuild() {
   });
 }
 
+function evMore(btn) {
+  const m = btn.nextElementSibling, open = m.classList.toggle('hidden') === false;
+  btn.innerHTML = open ? 'إخفاء التفاصيل ▴' : 'تفاصيل التنفيذ والملاحظات ▾';
+}
+
+// تعبئة البنود الفارغة فقط بالدرجة الكاملة (للتعديل بعدها حسب الحاجة)
+function evFillMax() {
+  let c = 0;
+  document.querySelectorAll('#evSections input[data-f="s"]').forEach(i => { if (i.value === '') { i.value = i.max; c++; } });
+  evCalc();
+  toast(c ? 'تمت تعبئة ' + c + ' بند بالدرجة الكاملة، عدّلي ما يلزم' : 'كل البنود معبأة');
+}
+
 function evCalc() {
   const ins = document.querySelectorAll('#evSections input[data-f="s"]');
-  let idx = 0, rawTotal = 0, wTotal = 0;
+  let idx = 0, rawTotal = 0, wTotal = 0, filledAll = 0, totalAll = 0;
   EV_SECTIONS.forEach(sec => {
-    let sum = 0;
+    let sum = 0, filled = 0;
     EV[sec.key].forEach(it => {
       const v = parseFloat(ins[idx++].value);
-      if (!isNaN(v)) sum += Math.min(Math.max(v, 0), it.max);
+      totalAll++;
+      if (!isNaN(v)) { sum += Math.min(Math.max(v, 0), it.max); filled++; }
     });
+    filledAll += filled;
+    const ce = document.getElementById('evC_' + sec.key); if (ce) ce.textContent = filled;
     const w = sum * sec.target / sec.maxSum;
     document.getElementById('evS_' + sec.key).textContent = evFmt(sum);
     document.getElementById('evW_' + sec.key).textContent = evFmt(w);
     rawTotal += sum; wTotal += w;
   });
+  document.querySelectorAll('#evSections .ev-item').forEach(el => {
+    const has = [...el.querySelectorAll('.ev-more select')].some(s => s.value && s.dataset.f !== 'e' ? true : (s.dataset.f === 'e' && s.value));
+    el.querySelector('.ev-tg').classList.toggle('has', has);
+  });
+  const bn = document.getElementById('evBarN'); if (bn) bn.textContent = filledAll + '/' + totalAll;
   const g = evGrade(wTotal);
   document.getElementById('evRaw').textContent = evFmt(rawTotal);
   document.getElementById('evWeighted').textContent = evFmt(wTotal);
@@ -116,6 +140,7 @@ function evOpenForm() {
     document.getElementById('evCat').innerHTML = evOpts(EV.lists.cat, 'اختاري الفئة');
     document.getElementById('evDay').innerHTML = evOpts(EV.lists.day, 'اختاري اليوم');
     evPad = makeSigPad(document.getElementById('evSig'));
+    document.getElementById('evSigBox').addEventListener('toggle', e => { if (e.target.open) setTimeout(() => evPad.resize(), 30); });
     evBuilt = true;
   }
   document.getElementById('evCenter').innerHTML = evOpts(LISTS.centers, 'اختاري المركز');
@@ -150,7 +175,11 @@ async function evSave() {
     if (s === '') missing++;
     items.push({ score: s, exec: q('e').value, crit: q('c') ? q('c').value : '', note: q('n') ? q('n').value : '' });
   }
-  if (missing) return toast('بقي ' + missing + ' بند بدون درجة (اكتبي 0 إن لم ينل شيئاً)', false);
+  if (missing) {
+    const first = [...document.querySelectorAll('#evSections input[data-f="s"]')].find(i => i.value === '');
+    if (first) { const d = first.closest('details'); if (d) d.open = true; first.scrollIntoView({ block: 'center' }); first.focus(); }
+    return toast('بقي ' + missing + ' بند بدون درجة (اكتبي 0 إن لم ينل شيئاً)', false);
+  }
 
   const btn = document.getElementById('evSaveBtn');
   const calc = evCalc();

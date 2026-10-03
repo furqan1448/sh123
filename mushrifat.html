@@ -152,29 +152,34 @@
       <select id="evCenter"></select>
       <div class="row2">
         <div><label for="evPeriod">الفترة</label><select id="evPeriod"></select></div>
-        <div><label for="evVisitNo">رقم الزيارة</label><input id="evVisitNo" inputmode="numeric" placeholder="مثال: 1"></div>
+        <div><label for="evDate">التاريخ</label><input id="evDate" type="date" onchange="evDateChange()"></div>
       </div>
       <label for="evTeacher">اسم المعلمة</label>
       <input id="evTeacher" placeholder="اكتبي اسم المعلمة">
-      <div class="row2">
-        <div><label for="evQual">المؤهل</label><select id="evQual"></select></div>
-        <div><label for="evCat">الفئة</label><select id="evCat"></select></div>
-      </div>
-      <div class="row2">
-        <div><label for="evDate">التاريخ</label><input id="evDate" type="date" onchange="evDateChange()"></div>
-        <div><label for="evDay">اليوم</label><select id="evDay"></select></div>
-      </div>
-      <label for="evLesson">عنوان الدرس</label>
-      <input id="evLesson" placeholder="عنوان الدرس">
-      <div class="row2">
-        <div><label for="evYears">سنوات الخبرة</label><input id="evYears" inputmode="numeric"></div>
-        <div><label for="evSupervisor">اسم المشرفة</label><input id="evSupervisor"></div>
-      </div>
-      <div class="row2">
-        <div><label for="evTotalN">العدد الكلي للدارسات</label><input id="evTotalN" inputmode="numeric"></div>
-        <div><label for="evPresent">العدد الحاضر</label><input id="evPresent" inputmode="numeric"></div>
-      </div>
+      <details class="ev-extra">
+        <summary>بيانات إضافية (اختياري)</summary>
+        <div class="row2">
+          <div><label for="evDay">اليوم</label><select id="evDay"></select></div>
+          <div><label for="evVisitNo">رقم الزيارة</label><input id="evVisitNo" inputmode="numeric"></div>
+        </div>
+        <div class="row2">
+          <div><label for="evQual">المؤهل</label><select id="evQual"></select></div>
+          <div><label for="evCat">الفئة</label><select id="evCat"></select></div>
+        </div>
+        <label for="evLesson">عنوان الدرس</label>
+        <input id="evLesson">
+        <div class="row2">
+          <div><label for="evYears">سنوات الخبرة</label><input id="evYears" inputmode="numeric"></div>
+          <div><label for="evSupervisor">اسم المشرفة</label><input id="evSupervisor"></div>
+        </div>
+        <div class="row2">
+          <div><label for="evTotalN">العدد الكلي</label><input id="evTotalN" inputmode="numeric"></div>
+          <div><label for="evPresent">العدد الحاضر</label><input id="evPresent" inputmode="numeric"></div>
+        </div>
+      </details>
     </div>
+
+    <div style="margin-bottom:12px"><button type="button" class="btn light" style="width:100%" onclick="evFillMax()">تعبئة البنود الفارغة بالدرجة الكاملة ثم التعديل</button></div>
 
     <div id="evSections"></div>
 
@@ -185,20 +190,25 @@
         <div class="stat"><b id="evWeighted">0</b><span>الدرجة الموزونة</span></div>
         <div class="stat"><b id="evGrade">—</b><span>التقدير</span></div>
       </div>
-      <label for="evNotes">ملاحظات المشرفة</label>
-      <textarea id="evNotes" rows="3"></textarea>
-      <label for="evRecs">توصيات المشرفة</label>
-      <textarea id="evRecs" rows="3"></textarea>
-      <label>التوقيع (اختياري)</label>
-      <div class="sig-box"><canvas id="evSig"></canvas></div>
-      <div class="sig-tools">
-        <span>وقّعي داخل المربع بالإصبع أو الماوس</span>
-        <button type="button" class="btn light" style="padding:6px 14px;font-size:13px" onclick="evPad.clear()">مسح التوقيع</button>
-      </div>
+      <details class="ev-extra" style="margin-top:0">
+        <summary>ملاحظات وتوصيات المشرفة (اختياري)</summary>
+        <label for="evNotes">ملاحظات المشرفة</label>
+        <textarea id="evNotes" rows="2"></textarea>
+        <label for="evRecs">توصيات المشرفة</label>
+        <textarea id="evRecs" rows="2"></textarea>
+      </details>
+      <details class="ev-extra" id="evSigBox">
+        <summary>التوقيع (اختياري)</summary>
+        <div class="sig-box"><canvas id="evSig"></canvas></div>
+        <div class="sig-tools">
+          <span>وقّعي داخل المربع بالإصبع أو الماوس</span>
+          <button type="button" class="btn light" style="padding:6px 14px;font-size:13px" onclick="evPad.clear()">مسح التوقيع</button>
+        </div>
+      </details>
       <button id="evSaveBtn" class="btn block" onclick="evSave()">حفظ الاستمارة</button>
     </div>
 
-    <div class="ev-bar"><span>الموزونة: <b id="evBarW">0</b></span><span>التقدير: <b id="evBarG">—</b></span></div>
+    <div class="ev-bar"><span>الموزونة: <b id="evBarW">0</b></span><span>التقدير: <b id="evBarG">—</b></span><span>المعبأ: <b id="evBarN">0/23</b></span></div>
   </div>
 
   <!-- نافذة عرض استمارة -->
