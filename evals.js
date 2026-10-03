@@ -235,8 +235,8 @@ async function evLoadList() {
     const body = document.getElementById('evBody');
     if (!evRows.length) { body.innerHTML = '<tr><td colspan="8" class="empty">لا توجد استمارات</td></tr>'; return; }
     body.innerHTML = evRows.map((r, i) => '<tr>' +
-      '<td>' + esc(r.date) + '</td><td>' + esc(r.center) + '</td><td>' + esc(r.teacher) + (r.formType === 'multi' ? ' <span class="tag">تعدد المجموعات</span>' : '') + '</td>' +
-      '<td>' + esc(r.raw) + '</td><td>' + esc(r.weighted) + '</td>' +
+      '<td>' + esc(r.date) + '</td><td>' + esc(r.center) + '</td><td>' + esc(r.teacher) + (r.formType === 'multi' ? ' <span class="tag">تعدد المجموعات</span>' : '') + (r.formType === 'tabyan' ? ' <span class="tag">التبيان</span>' : '') + '</td>' +
+      '<td>' + (r.formType === 'tabyan' ? esc(r.raw) + ' / 40' : esc(r.raw)) + '</td><td>' + (r.formType === 'tabyan' ? '—' : esc(r.weighted)) + '</td>' +
       '<td><span class="tag ' + (r.grade === 'لم تجتاز' || r.grade === 'ضعيف' ? 'warn' : 'ok') + '">' + esc(r.grade) + '</span></td>' +
       '<td><button class="btn light" style="padding:6px 12px;font-size:13px" onclick="evView(' + i + ')">عرض</button></td>' +
       '<td><button class="btn danger" onclick="evDelete(\'' + esc(r.id) + '\')">حذف</button></td></tr>').join('');
@@ -245,6 +245,7 @@ async function evLoadList() {
 
 function evView(i) {
   const r = evRows[i];
+  if (r.formType === 'tabyan') return tbView(r);
   let items = [];
   try { items = JSON.parse(r.items || '[]'); } catch (e) {}
   let n = 0, rows = '';

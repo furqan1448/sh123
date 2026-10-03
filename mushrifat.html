@@ -34,7 +34,7 @@
     <div class="grid">
       <button class="tile" onclick="show('visitsView'); loadVisits()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4"/><path d="M10 13l2 2 3.5-4"/><path d="M10 18h5"/></svg><b>كشف الخروج</b></button>
       <button class="tile" onclick="show('filesView'); loadFiles()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5l-8 8a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L9.7 17.2a1.7 1.7 0 0 1-2.4-2.4L15 7"/></svg><b>المرفقات</b></button>
-      <button class="tile" onclick="show('evalsView'); evLoadList()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M8.5 12l1.5 1.5 2.5-3"/><path d="M8.5 17.5h7"/></svg><b>استمارات التقييم</b></button>
+      <button class="tile" onclick="show('evalsView'); evLoadList()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M8.5 12l1.5 1.5 2.5-3"/><path d="M8.5 17.5h7"/></svg><b>استمارات التقييم الأسبوعية</b></button>
     </div>
     <p style="text-align:center;margin-top:22px"><button class="btn light" onclick="logout()">تسجيل الخروج</button></p>
   </div>
@@ -128,10 +128,14 @@
     <button class="back" onclick="show('homeView')">← رجوع</button>
     <div class="card">
       <h2>استمارات التقييم الأسبوعية</h2>
-      <p style="font-size:14px;color:var(--muted)">استمارة تقييم القرآن الكريم للمعلمات.</p>
+      <h3 class="ev-grp">استمارة تقييم القرآن الكريم</h3>
       <div class="ev-new">
         <button class="btn block" onclick="evOpenForm('single')">+ استمارة جديدة<small>بدون تعدد</small></button>
         <button class="btn block" onclick="evOpenForm('multi')">+ استمارة جديدة<small>تعدد المجموعات</small></button>
+      </div>
+      <h3 class="ev-grp">استمارة مادة التبيان</h3>
+      <div class="ev-new one">
+        <button class="btn block" onclick="tbOpenForm()">+ استمارة جديدة<small>مادة التبيان</small></button>
       </div>
     </div>
     <div class="card">
@@ -212,6 +216,83 @@
     <div class="ev-bar"><span>الموزونة: <b id="evBarW">0</b></span><span>التقدير: <b id="evBarG">—</b></span><span>المعبأ: <b id="evBarN">0/23</b></span></div>
   </div>
 
+  <!-- استمارة مادة التبيان -->
+  <div id="tbFormView" class="hidden">
+    <button class="back" onclick="show('evalsView'); evLoadList()">← رجوع</button>
+
+    <div class="card">
+      <h2>استمارة تقييم أداء معلمة التبيان (الأسبوعي)</h2>
+      <div class="ev-top">
+        <div><label for="tbCenter">اسم المركز</label><select id="tbCenter"></select></div>
+        <div><label for="tbPeriod">الفترة</label><select id="tbPeriod"></select></div>
+        <div><label for="tbTeacher">اسم المعلمة</label><input id="tbTeacher" placeholder="اكتبي اسم المعلمة"></div>
+        <div><label for="tbDate">التاريخ</label><input id="tbDate" type="date" onchange="tbDateChange()"></div>
+      </div>
+      <details class="ev-extra">
+        <summary>بيانات إضافية (اختياري)</summary>
+        <div class="row2">
+          <div><label for="tbDay">اليوم</label><select id="tbDay"></select></div>
+          <div><label for="tbKind">نوعها</label><input id="tbKind"></div>
+        </div>
+        <div class="row2">
+          <div><label for="tbQual">المؤهل في القرآن</label><select id="tbQual"></select></div>
+          <div><label for="tbYears">سنوات الخبرة</label><input id="tbYears" inputmode="numeric"></div>
+        </div>
+        <div class="row2">
+          <div><label for="tbCat">الفئة</label><select id="tbCat"></select></div>
+          <div><label for="tbGroups">عدد المجموعات</label><input id="tbGroups" inputmode="numeric"></div>
+        </div>
+        <div class="row2">
+          <div><label for="tbTotalN">العدد الكلي</label><input id="tbTotalN" inputmode="numeric"></div>
+          <div><label for="tbPresent">العدد الحاضر</label><input id="tbPresent" inputmode="numeric"></div>
+        </div>
+        <div class="row2">
+          <div><label for="tbCat2">الفئة الثانية (إن وُجدت)</label><select id="tbCat2"></select></div>
+          <div><label for="tbSupervisor">اسم المشرفة</label><input id="tbSupervisor"></div>
+        </div>
+        <div class="row2">
+          <div><label for="tbTotal2">العدد الكلي (للفئة الثانية)</label><input id="tbTotal2" inputmode="numeric"></div>
+          <div><label for="tbPresent2">العدد الحاضر (للفئة الثانية)</label><input id="tbPresent2" inputmode="numeric"></div>
+        </div>
+        <label for="tbLesson">عنوان الدرس</label>
+        <input id="tbLesson">
+      </details>
+    </div>
+
+    <div style="margin-bottom:12px"><button type="button" class="btn light" style="width:100%" onclick="tbFillMax()">تعبئة البنود الفارغة بالدرجة الكاملة ثم التعديل</button></div>
+
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="tb-head"><span>البنود</span><span class="ev-prog"><b id="tbC">0</b>/15</span></div>
+      <div id="tbItems"></div>
+      <div class="ev-sub" style="margin:10px 14px 14px">المجموع الكلي: <b id="tbTotal">0</b> من 40</div>
+    </div>
+
+    <div class="card">
+      <h2>النتيجة النهائية</h2>
+      <div class="stats">
+        <div class="stat"><b id="tbTotalBig">0</b><span>المجموع من 40</span></div>
+        <div class="stat"><b id="tbGrade">—</b><span>التقدير</span></div>
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin:6px 0 4px">سلّم التقدير:</div>
+      <div id="tbLegend"></div>
+      <details class="ev-extra">
+        <summary>التوصيات (اختياري)</summary>
+        <textarea id="tbRecs" rows="3"></textarea>
+      </details>
+      <details class="ev-extra" id="tbSigBox">
+        <summary>التوقيع (اختياري)</summary>
+        <div class="sig-box"><canvas id="tbSig"></canvas></div>
+        <div class="sig-tools">
+          <span>وقّعي داخل المربع بالإصبع أو الماوس</span>
+          <button type="button" class="btn light" style="padding:6px 14px;font-size:13px" onclick="tbPad.clear()">مسح التوقيع</button>
+        </div>
+      </details>
+      <button id="tbSaveBtn" class="btn block" onclick="tbSave()">حفظ الاستمارة</button>
+    </div>
+
+    <div class="ev-bar"><span>المجموع: <b id="tbBarW">0</b>/40</span><span>التقدير: <b id="tbBarG">—</b></span><span>المعبأ: <b id="tbBarN">0/15</b></span></div>
+  </div>
+
   <!-- نافذة عرض استمارة -->
   <div id="evModal" class="modal hidden" onclick="if (event.target === this) evCloseModal()">
     <div class="modal-box">
@@ -225,6 +306,7 @@
 <script src="logo-config.js"></script>
 <script src="config.js"></script>
 <script src="evals.js"></script>
+<script src="tabyan.js"></script>
 <script>
 const DAYS = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 let LISTS = { centers: [], types: [] };
@@ -232,7 +314,7 @@ let VISITS = [];
 
 /* ---------- التنقل ---------- */
 function show(id) {
-  ['loginView','homeView','visitsView','filesView','evalsView','evalFormView'].forEach(v => document.getElementById(v).classList.add('hidden'));
+  ['loginView','homeView','visitsView','filesView','evalsView','evalFormView','tbFormView'].forEach(v => document.getElementById(v).classList.add('hidden'));
   document.getElementById(id).classList.remove('hidden');
   if (id !== 'loginView') localStorage.setItem('mush_view', id);
   window.scrollTo(0, 0);
@@ -470,7 +552,7 @@ async function delFile(id) {
   if (!getPw() || !getUser()) return;
   // نعرض آخر صفحة فوراً دون انتظار الخادم
   const last = localStorage.getItem('mush_view');
-  const view = last === 'evalFormView' ? 'evalsView' : (['homeView', 'visitsView', 'filesView', 'evalsView'].indexOf(last) > -1 ? last : 'homeView');
+  const view = (last === 'evalFormView' || last === 'tbFormView') ? 'evalsView' : (['homeView', 'visitsView', 'filesView', 'evalsView'].indexOf(last) > -1 ? last : 'homeView');
   show(view);
   preload();
   if (view === 'visitsView') loadVisits();

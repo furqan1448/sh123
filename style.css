@@ -148,3 +148,15 @@ a.lnk{color:var(--primary);font-weight:700}
 .ev-new .btn small{display:block;font-size:12px;font-weight:400;opacity:.9;margin-top:2px}
 .ev-new .btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:12px 8px;line-height:1.4;white-space:nowrap}
 .ev-new .btn small{margin:0}
+
+/* ===== استمارة التبيان + عناوين مجموعات الاستمارات ===== */
+.ev-grp{font-size:15px;color:var(--primary);margin:16px 0 8px}
+.ev-new.one{grid-template-columns:1fr}
+.tb-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;font-size:16px;font-weight:700;color:var(--primary);background:#fbf3ef}
+.tb-item{display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid var(--line);background:#fff}
+.tb-item:nth-child(even){background:#fdf9f6}
+.tb-item b{flex:1;font-size:14px;line-height:1.55;font-weight:600}
+#tbFormView .stats{grid-template-columns:repeat(2,1fr)}
+#tbFormView .stat b{font-size:24px}
+#tbFormView .stat span{font-size:12px}
+@media (min-width:900px){#tbFormView .ev-top{grid-template-columns:1.3fr .8fr 1.3fr 1fr}}

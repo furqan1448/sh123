@@ -20,7 +20,7 @@ const VISIT_HEADERS = ['الرقم', 'اسم المركز', 'نوع الزيار
 const FILE_HEADERS = ['الرقم', 'العنوان', 'اسم الملف', 'الرابط', 'وقت الرفع'];
 const EVAL_HEADERS = ['الرقم', 'اسم المركز', 'الفترة', 'اسم المعلمة', 'المؤهل', 'الفئة', 'اليوم', 'التاريخ',
   'عنوان الدرس', 'سنوات الخبرة', 'العدد الكلي', 'العدد الحاضر', 'رقم الزيارة', 'اسم المشرفة',
-  'الدرجة الكلية', 'الدرجة الموزونة', 'التقدير', 'البنود', 'ملاحظات المشرفة', 'توصيات المشرفة', 'التوقيع', 'وقت التسجيل', 'نوع الاستمارة'];
+  'الدرجة الكلية', 'الدرجة الموزونة', 'التقدير', 'البنود', 'ملاحظات المشرفة', 'توصيات المشرفة', 'التوقيع', 'وقت التسجيل', 'نوع الاستمارة', 'بيانات إضافية'];
 const EVAL_URL_COL = 21; // عمود التوقيع (رابط ملف في الدرايف)
 
 const DAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
@@ -72,7 +72,7 @@ function setup() {
   const es = getOrCreate_(ss, SHEET.EVALS);
   ensureHeaders_(es, EVAL_HEADERS);
   // ورقة قديمة قبل إضافة عمود النوع: نكمّل ترويسته فقط
-  if (es.getLastRow() > 0 && !es.getRange(1, EVAL_HEADERS.length).getValue()) es.getRange(1, EVAL_HEADERS.length).setValue(EVAL_HEADERS[EVAL_HEADERS.length - 1]);
+  if (es.getLastRow() > 0) es.getRange(1, 1, 1, EVAL_HEADERS.length).setValues([EVAL_HEADERS]);
   styleHeader_(es, EVAL_HEADERS.length);
   es.setColumnWidths(1, EVAL_HEADERS.length, 140);
 
@@ -272,7 +272,7 @@ function getEvals_() {
     id: r[0], center: r[1], period: r[2], teacher: r[3], qual: r[4], cat: r[5], day: r[6], date: r[7],
     lesson: r[8], years: r[9], total: r[10], present: r[11], visitNo: r[12], supervisor: r[13],
     raw: r[14], weighted: r[15], grade: r[16], items: r[17], notes: r[18], recs: r[19],
-    signature: r[20], at: r[21], formType: r[22] === 'تعدد المجموعات' ? 'multi' : 'single'
+    signature: r[20], at: r[21], formType: r[22] === 'تعدد المجموعات' ? 'multi' : (r[22] === 'التبيان' ? 'tabyan' : 'single'), extra: r[23] || ''
   })).reverse();
 }
 
@@ -308,7 +308,8 @@ function addEval_(r) {
     s(r.lesson), s(r.years), s(r.total), s(r.present), s(r.visitNo), s(r.supervisor),
     s(r.raw), s(r.weighted), s(r.grade), JSON.stringify(items), s(r.notes), s(r.recs), sigUrl,
     Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm'),
-    s(r.formType) === 'multi' ? 'تعدد المجموعات' : 'بدون تعدد'
+    s(r.formType) === 'multi' ? 'تعدد المجموعات' : (s(r.formType) === 'tabyan' ? 'التبيان' : 'بدون تعدد'),
+    s(r.extra).slice(0, 2000)
   ]];
   sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
   return { ok: true };
