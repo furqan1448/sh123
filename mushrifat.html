@@ -135,6 +135,7 @@ let VISITS = [];
 function show(id) {
   ['loginView','homeView','visitsView','filesView'].forEach(v => document.getElementById(v).classList.add('hidden'));
   document.getElementById(id).classList.remove('hidden');
+  if (id !== 'loginView') localStorage.setItem('mush_view', id);
   window.scrollTo(0, 0);
 }
 
@@ -145,24 +146,25 @@ async function doLogin() {
   if (!un) return toast('أدخلي اسم المستخدم', false);
   if (!pw) return toast('أدخلي كلمة المرور', false);
   const btn = document.getElementById('loginBtn');
-  sessionStorage.setItem(USER_KEY, un);
-  sessionStorage.setItem(PW_KEY, pw);
+  localStorage.setItem(USER_KEY, un);
+  localStorage.setItem(PW_KEY, pw);
   setBtnBusy(btn, true, 'جارِ التحقق...');
   try {
     await api('login');
     show('homeView');
     preload();
   } catch (e) {
-    sessionStorage.removeItem(PW_KEY);
-    sessionStorage.removeItem(USER_KEY);
+    localStorage.removeItem(PW_KEY);
+    localStorage.removeItem(USER_KEY);
     toast(e.message, false);
   } finally { setBtnBusy(btn, false); }
 }
 ['un','pw'].forEach(id => document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); }));
 
 function logout() {
-  sessionStorage.removeItem(PW_KEY);
-  sessionStorage.removeItem(USER_KEY);
+  localStorage.removeItem(PW_KEY);
+  localStorage.removeItem(USER_KEY);
+  localStorage.removeItem('mush_view');
   document.getElementById('un').value = '';
   document.getElementById('pw').value = '';
   show('loginView');
@@ -364,11 +366,20 @@ async function delFile(id) {
   catch (e) { toast(e.message, false); }
 }
 
-/* ---------- استعادة الجلسة ---------- */
-(async function init() {
+/* ---------- استعادة الجلسة (البقاء داخل الموقع عند التحديث) ---------- */
+(function init() {
   if (!getPw() || !getUser()) return;
-  try { await api('login'); show('homeView'); preload(); }
-  catch (e) { sessionStorage.removeItem(PW_KEY); sessionStorage.removeItem(USER_KEY); }
+  // نعرض آخر صفحة فوراً دون انتظار الخادم
+  const last = localStorage.getItem('mush_view');
+  const view = ['homeView', 'visitsView', 'filesView'].indexOf(last) > -1 ? last : 'homeView';
+  show(view);
+  preload();
+  if (view === 'visitsView') loadVisits();
+  if (view === 'filesView') loadFiles();
+  // نتحقق بالخلفية: لا نُخرج المستخدمة إلا إذا تغيّرت بياناتها فعلاً (وليس عند ضعف الإنترنت)
+  api('login').catch(e => {
+    if (e.auth) { toast('انتهت صلاحية الدخول، سجّلي الدخول من جديد', false); logout(); }
+  });
 })();
 </script>
 </body>

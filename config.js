@@ -1,11 +1,11 @@
 // ===== الإعدادات =====
 // الصقي هنا رابط الـ Web App بعد النشر (ينتهي بـ /exec)
-const API_URL = "https://script.google.com/macros/s/AKfycby9uGGLK61FUTAt3egHCrIwKAZGNq61SrUS8la6-n50L4IS33kEaGKU2oCm5vnGU4kZXw/exec";
+const API_URL = 'ضع_رابط_Web_App_هنا';
 
 const PW_KEY = 'mush_pw';
 const USER_KEY = 'mush_user';
-const getPw = () => sessionStorage.getItem(PW_KEY) || '';
-const getUser = () => sessionStorage.getItem(USER_KEY) || '';
+const getPw = () => localStorage.getItem(PW_KEY) || '';
+const getUser = () => localStorage.getItem(USER_KEY) || '';
 
 // استدعاء الـ API (POST بنوع text/plain لتفادي مشاكل CORS) مع إعادة محاولة تلقائية
 async function api(action, data = {}) {
@@ -22,7 +22,7 @@ async function api(action, data = {}) {
       });
       clearTimeout(t);
       const out = await res.json();
-      if (!out.ok) throw Object.assign(new Error(out.error || 'حدث خطأ'), { final: true });
+      if (!out.ok) throw Object.assign(new Error(out.error || 'حدث خطأ'), { final: true, auth: String(out.error || '').indexOf('كلمة المرور') > -1 });
       return out;
     } catch (e) {
       clearTimeout(t);
