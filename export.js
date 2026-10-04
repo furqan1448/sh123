@@ -104,7 +104,6 @@ function exVisitsModel(rows) {
     });
   });
   m.info.push(['المراكز', String(Object.keys(centers).filter(k => k !== V_NOC).length)]);
-  m.totals = [['إجمالي أيام الحضور (كل المراكز)', att], ['إجمالي أيام الغياب (كل المراكز)', abs]];
   return m;
 }
 
