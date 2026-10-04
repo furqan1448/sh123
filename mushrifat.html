@@ -37,6 +37,7 @@
       <button class="tile" onclick="show('visitsView'); loadVisits()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4"/><path d="M10 13l2 2 3.5-4"/><path d="M10 18h5"/></svg><b>كشف الخروج</b></button>
       <button class="tile" onclick="show('filesView'); loadFiles()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5l-8 8a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L9.7 17.2a1.7 1.7 0 0 1-2.4-2.4L15 7"/></svg><b>المرفقات</b></button>
       <button class="tile" onclick="show('evalsView'); evLoadList()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M8.5 12l1.5 1.5 2.5-3"/><path d="M8.5 17.5h7"/></svg><b>استمارات التقييم الأسبوعية</b></button>
+      <button class="tile" onclick="show('evalsFinalView'); evLoadList()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M9 8h6"/><path d="M9 11.5h6"/><circle cx="12" cy="16" r="2"/></svg><b>استمارات التقييم النهائية</b></button>
     </div>
     <p style="text-align:center;margin-top:22px"><button class="btn light" onclick="logout()">تسجيل الخروج</button></p>
   </div>
@@ -242,6 +243,110 @@
     </div>
   </div>
 
+  <!-- استمارات التقييم النهائية: السجل -->
+  <div id="evalsFinalView" class="hidden">
+    <button class="back" onclick="show('homeView')">← رجوع</button>
+    <div class="card hidden" id="efDraftsCard">
+      <h2>المسودات <span class="tag warn" id="efDraftCnt">0</span></h2>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:8px">مسودات محفوظة على هذا الجهاز، اضغطي «متابعة» لإكمالها.</div>
+      <div id="efDraftList"></div>
+    </div>
+    <div class="card">
+      <h2>استمارات التقييم النهائية</h2>
+      <h3 class="ev-grp">استمارة تقييم القرآن الكريم (النهائي)</h3>
+      <div class="ev-new">
+        <button class="btn block" onclick="efOpenForm('single')">+ استمارة جديدة<small>بدون تعدد</small></button>
+        <button class="btn block" onclick="efOpenForm('multi')">+ استمارة جديدة<small>تعدد المجموعات</small></button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>سجل الاستمارات النهائية</h2>
+      <div class="ev-tabs" id="efTabs">
+        <button class="on" data-tab="quran" onclick="efSetTab('quran')">القرآن الكريم</button>
+        <button data-tab="teachers" onclick="efSetTab('teachers')">سجل المعلمات</button>
+      </div>
+      <div class="ex-bar hidden" id="efListBar">
+        <button class="btn light" onclick="exListF(this)">تحميل الجدول Excel</button>
+      </div>
+      <div class="tbl-wrap">
+        <table style="min-width:560px">
+          <thead id="efHead"></thead>
+          <tbody id="efBody"><tr><td colspan="8" class="empty">جارِ التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- استمارة تقييم القرآن الكريم (النهائي): نموذج جديد -->
+  <div id="evfFormView" class="hidden">
+    <button class="back" onclick="show('evalsFinalView'); evLoadList()">← رجوع</button>
+
+    <div class="card">
+      <h2>استمارة تقييم القرآن الكريم (النهائي) <span id="efTypeLabel" class="tag" style="margin-right:8px"></span></h2>
+      <div class="ev-top">
+        <div><label for="efCenter">اسم المركز</label><select id="efCenter"></select></div>
+        <div><label for="efPeriod">الفترة</label><select id="efPeriod"></select></div>
+        <div><label for="efTeacher">اسم المعلمة</label><input id="efTeacher" list="teacherList" autocomplete="off" placeholder="اختاري من القائمة أو اكتبي"></div>
+        <div><label for="efDate">التاريخ</label><input id="efDate" type="date" onchange="efDateChange()"></div>
+      </div>
+      <details class="ev-extra">
+        <summary>بيانات إضافية</summary>
+        <div class="row2">
+          <div><label for="efDay">اليوم</label><select id="efDay"></select></div>
+          <div><label for="efVisitNo">رقم الزيارة</label><input id="efVisitNo" inputmode="numeric"></div>
+        </div>
+        <div class="row2">
+          <div><label for="efKind">نوعها</label><input id="efKind"></div>
+          <div><label for="efQual">المؤهل في القرآن</label><select id="efQual"></select></div>
+        </div>
+        <div class="row2">
+          <div><label for="efCat">الفئة</label><select id="efCat"></select></div>
+          <div><label for="efGroups">عدد المجموعات</label><input id="efGroups" inputmode="numeric"></div>
+        </div>
+        <div class="row2">
+          <div><label for="efTotalN">العدد الكلي</label><input id="efTotalN" inputmode="numeric"></div>
+          <div><label for="efPresent">العدد الحاضر</label><input id="efPresent" inputmode="numeric"></div>
+        </div>
+        <div class="row2">
+          <div><label for="efCat2">الفئة الثانية (إن وُجدت)</label><select id="efCat2"></select></div>
+          <div><label for="efYears">سنوات الخبرة</label><input id="efYears" inputmode="numeric"></div>
+        </div>
+        <div class="row2">
+          <div><label for="efTotal2">العدد الكلي (للفئة الثانية)</label><input id="efTotal2" inputmode="numeric"></div>
+          <div><label for="efPresent2">العدد الحاضر (للفئة الثانية)</label><input id="efPresent2" inputmode="numeric"></div>
+        </div>
+        <label for="efLesson">عنوان الدرس</label>
+        <input id="efLesson">
+        <label for="efSupervisor">اسم المشرفة</label>
+        <input id="efSupervisor">
+      </details>
+    </div>
+
+    <div style="margin-bottom:12px"><button type="button" class="btn light" style="width:100%" onclick="efFillMax()">تعبئة البنود الفارغة بالدرجة الكاملة ثم التعديل</button></div>
+
+    <div id="efSections"></div>
+
+    <div class="card">
+      <h2>النتيجة النهائية</h2>
+      <div class="stats">
+        <div class="stat"><b id="efRaw">0</b><span>الدرجة الكلية من 100</span></div>
+        <div class="stat"><b id="efWeighted">0</b><span>الدرجة الموزونة</span></div>
+        <div class="stat"><b id="efGrade">—</b><span>التقدير</span></div>
+      </div>
+      <details class="ev-extra" style="margin-top:0">
+        <summary>ملاحظات وتوصيات المشرفة (اختياري)</summary>
+        <label for="efNotes">ملاحظات المشرفة</label>
+        <textarea id="efNotes" rows="2"></textarea>
+        <label for="efRecs">التوصيات</label>
+        <textarea id="efRecs" rows="3"></textarea>
+      </details>
+      <label>التوقيع</label>
+      <div id="efSigW"></div>
+      <button id="efSaveBtn" class="btn block" onclick="efSave()">حفظ الاستمارة</button>
+      <button id="efDraftBtn" type="button" class="btn light block" style="margin-top:10px" onclick="draftSave('evfFormView')">حفظ مسودة</button>
+    </div>
+  </div>
+
   <!-- استمارة مادة التبيان -->
   <div id="tbFormView" class="hidden">
     <button class="back" onclick="show('evalsView'); evLoadList()">← رجوع</button>
@@ -399,6 +504,7 @@
 <script src="evals.js"></script>
 <script src="tabyan.js"></script>
 <script src="tajweed.js"></script>
+<script src="final.js"></script>
 <script src="export.js"></script>
 <script>
 const DAYS = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
@@ -415,11 +521,11 @@ const vIsAbsent = v => vStatusOf(v) === V_NONE;
 
 /* ---------- التنقل ---------- */
 function show(id) {
-  ['loginView','homeView','visitsView','filesView','evalsView','evalFormView','tbFormView','tjFormView'].forEach(v => document.getElementById(v).classList.add('hidden'));
+  ['loginView','homeView','visitsView','filesView','evalsView','evalFormView','tbFormView','tjFormView','evalsFinalView','evfFormView'].forEach(v => document.getElementById(v).classList.add('hidden'));
   document.getElementById(id).classList.remove('hidden');
   if (id !== 'loginView') localStorage.setItem('mush_view', id);
   window.scrollTo(0, 0);
-  if (['evalFormView', 'tbFormView', 'tjFormView'].indexOf(id) < 0) clearEdit();   // الخروج من نموذج الاستمارة يُنهي وضع التعديل
+  if (['evalFormView', 'tbFormView', 'tjFormView', 'evfFormView'].indexOf(id) < 0) clearEdit();   // الخروج من نموذج الاستمارة يُنهي وضع التعديل
 }
 
 /* ---------- الدخول ---------- */
@@ -707,12 +813,12 @@ async function delFile(id) {
   if (!getPw() || !getUser()) return;
   // نعرض آخر صفحة فوراً دون انتظار الخادم
   const last = localStorage.getItem('mush_view');
-  const view = (last === 'evalFormView' || last === 'tbFormView' || last === 'tjFormView') ? 'evalsView' : (['homeView', 'visitsView', 'filesView', 'evalsView'].indexOf(last) > -1 ? last : 'homeView');
+  const view = last === 'evfFormView' ? 'evalsFinalView' : (last === 'evalFormView' || last === 'tbFormView' || last === 'tjFormView') ? 'evalsView' : (['homeView', 'visitsView', 'filesView', 'evalsView', 'evalsFinalView'].indexOf(last) > -1 ? last : 'homeView');
   show(view);
   preload();   // يتحقق من الدخول أيضاً (طلب getLists) فلا حاجة لطلب login منفصل
   if (view === 'visitsView') loadVisits();
   if (view === 'filesView') loadFiles();
-  if (view === 'evalsView') evLoadList();
+  if (view === 'evalsView' || view === 'evalsFinalView') evLoadList();
 })();
 </script>
 </body>

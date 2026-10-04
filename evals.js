@@ -23,7 +23,7 @@ const EV_EXEC = ['نفذ', 'لم ينفذ', 'نوعاً ما'];
 
 /* ---------- وضع التعديل (استمارة محفوظة تُفتح للتعديل) ---------- */
 let EDIT = null;   // { id, sig } أثناء تعديل استمارة محفوظة، وإلا null
-const EV_FORM_BTNS = { evalFormView: 'evSaveBtn', tbFormView: 'tbSaveBtn', tjFormView: 'tjSaveBtn' };
+const EV_FORM_BTNS = { evalFormView: 'evSaveBtn', tbFormView: 'tbSaveBtn', tjFormView: 'tjSaveBtn', evfFormView: 'efSaveBtn' };
 const EV_PENCIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
 function evSetVal(id, v) { const el = document.getElementById(id); if (el) el.value = v == null ? '' : v; }
 function evSetSel(id, v) {   // يضيف الخيار إن لم يكن في القائمة (قيم قديمة) ثم يحدده
@@ -33,8 +33,8 @@ function evSetSel(id, v) {   // يضيف الخيار إن لم يكن في ال
   el.value = v;
 }
 function evJson(t, d) { try { const x = JSON.parse(t || ''); return x == null ? d : x; } catch (e) { return d; } }
-const EV_PADS = () => ({ evalFormView: evPad, tbFormView: tbPad, tjFormView: tjPad });
-const EV_DRAFT_BTNS = { evalFormView: 'evDraftBtn', tbFormView: 'tbDraftBtn', tjFormView: 'tjDraftBtn' };
+const EV_PADS = () => ({ evalFormView: evPad, tbFormView: tbPad, tjFormView: tjPad, evfFormView: efPad });
+const EV_DRAFT_BTNS = { evalFormView: 'evDraftBtn', tbFormView: 'tbDraftBtn', tjFormView: 'tjDraftBtn', evfFormView: 'efDraftBtn' };
 function evNote(viewId, text) {
   const view = document.getElementById(viewId);
   let note = view.querySelector('.edit-note');
@@ -72,18 +72,18 @@ function evOpts(arr, ph) {
 
 /* ---------- المسودات (تُحفظ على هذا الجهاز لكل مستخدمة) ---------- */
 let CUR_DRAFT = null;
-const DRAFT_LABEL = { single: 'القرآن - بدون تعدد', multi: 'القرآن - تعدد المجموعات', tabyan: 'التبيان', tj_single: 'التجويد - بدون تعدد', tj_multi: 'التجويد - تعدد المجموعات' };
+const DRAFT_LABEL = { single: 'القرآن - بدون تعدد', multi: 'القرآن - تعدد المجموعات', tabyan: 'التبيان', tj_single: 'التجويد - بدون تعدد', tj_multi: 'التجويد - تعدد المجموعات', f_single: 'القرآن (النهائي) - بدون تعدد', f_multi: 'القرآن (النهائي) - تعدد المجموعات' };
 const draftKey = () => 'mush_d_' + getUser();
 function draftsGet() { try { const a = JSON.parse(localStorage.getItem(draftKey()) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
 function draftsPut(a) { try { localStorage.setItem(draftKey(), JSON.stringify(a)); return true; } catch (e) { return false; } }
-function draftView(ft) { return (ft === 'single' || ft === 'multi') ? 'evalFormView' : ft === 'tabyan' ? 'tbFormView' : 'tjFormView'; }
-function draftPrefix(view) { return { evalFormView: 'ev', tbFormView: 'tb', tjFormView: 'tj' }[view]; }
+function draftView(ft) { return String(ft).indexOf('f_') === 0 ? 'evfFormView' : (ft === 'single' || ft === 'multi') ? 'evalFormView' : ft === 'tabyan' ? 'tbFormView' : 'tjFormView'; }
+function draftPrefix(view) { return { evalFormView: 'ev', tbFormView: 'tb', tjFormView: 'tj', evfFormView: 'ef' }[view]; }
 function draftFields(view) {
   return [...document.getElementById(view).querySelectorAll('input, select, textarea')]
     .filter(el => el.type !== 'file' && el.type !== 'checkbox' && !el.closest('.sigw'));
 }
-function draftCurType(view) { return view === 'evalFormView' ? evType : view === 'tbFormView' ? 'tabyan' : 'tj_' + tjType; }
-function draftResetForm(view) { ({ evalFormView: evReset, tbFormView: tbReset, tjFormView: tjReset })[view](); }
+function draftCurType(view) { return view === 'evalFormView' ? evType : view === 'tbFormView' ? 'tabyan' : view === 'evfFormView' ? 'f_' + efType : 'tj_' + tjType; }
+function draftResetForm(view) { ({ evalFormView: evReset, tbFormView: tbReset, tjFormView: tjReset, evfFormView: efReset })[view](); }
 
 function draftSave(view) {
   if (EDIT) return;
@@ -101,20 +101,20 @@ function draftSave(view) {
   }
   toast('تم حفظ المسودة، تجدينها أعلى صفحة الاستمارات');
   draftResetForm(view); CUR_DRAFT = null;
-  show('evalsView'); renderDrafts();
+  show(view === 'evfFormView' ? 'evalsFinalView' : 'evalsView'); renderDrafts();
 }
 
 function draftOpen(id) {
   const d = draftsGet().find(x => x.id === id); if (!d) return;
   const view = draftView(d.ft);
-  if (view === 'evalFormView') evOpenForm(d.ft); else if (view === 'tbFormView') tbOpenForm(); else tjOpenForm(d.ft.slice(3));
+  if (view === 'evalFormView') evOpenForm(d.ft); else if (view === 'tbFormView') tbOpenForm(); else if (view === 'evfFormView') efOpenForm(d.ft.slice(2)); else tjOpenForm(d.ft.slice(3));
   draftResetForm(view);
   const fields = draftFields(view);
   fields.forEach((el, i) => {
     const v = d.vals[i]; if (v == null) return;
     if (el.tagName === 'SELECT') evSetSel(el, v); else el.value = v;
   });
-  ({ evalFormView: evCalc, tbFormView: tbCalc, tjFormView: tjCalc })[view]();
+  ({ evalFormView: evCalc, tbFormView: tbCalc, tjFormView: tjCalc, evfFormView: efCalc })[view]();
   if (d.sig) EV_PADS()[view].loadDraft(d.sig);
   CUR_DRAFT = d.id;
   evNote(view, 'تم استرجاع مسودة محفوظة، أكملي الاستمارة ثم احفظيها. وعند الحفظ النهائي تُحذف المسودة تلقائياً.');
@@ -127,17 +127,21 @@ function draftDelete(id) {
 }
 
 function renderDrafts() {
-  const card = document.getElementById('draftsCard'); if (!card) return;
-  const list = draftsGet();
-  card.classList.toggle('hidden', !list.length);
-  document.getElementById('draftCnt').textContent = list.length;
-  document.getElementById('draftList').innerHTML = list.map(d => {
-    const t = new Date(d.at), when = isNaN(t) ? '' : t.toLocaleDateString('ar-SA-u-ca-gregory') + ' ' + t.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
-    return '<div class="draft-row"><div><b>' + esc(d.teacher || 'بدون اسم معلمة') + '</b><small>' + esc(DRAFT_LABEL[d.ft] || '') +
-      (d.center ? ' — ' + esc(d.center) : '') + (when ? ' — ' + esc(when) : '') + '</small></div>' +
-      '<div class="act"><button class="btn light" style="padding:6px 12px;font-size:13px" onclick="draftOpen(\'' + esc(d.id) + '\')">متابعة</button>' +
-      '<button class="btn danger" onclick="draftDelete(\'' + esc(d.id) + '\')">حذف</button></div></div>';
-  }).join('');
+  const all = draftsGet(), isFin = d => String(d.ft).indexOf('f_') === 0;
+  // المسودات الأسبوعية في صفحة الأسبوعية، والنهائية في صفحة النهائية
+  [['draftsCard', 'draftCnt', 'draftList', d => !isFin(d)], ['efDraftsCard', 'efDraftCnt', 'efDraftList', isFin]].forEach(([c, n, l, f]) => {
+    const card = document.getElementById(c); if (!card) return;
+    const list = all.filter(f);
+    card.classList.toggle('hidden', !list.length);
+    document.getElementById(n).textContent = list.length;
+    document.getElementById(l).innerHTML = list.map(d => {
+      const t = new Date(d.at), when = isNaN(t) ? '' : t.toLocaleDateString('ar-SA-u-ca-gregory') + ' ' + t.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+      return '<div class="draft-row"><div><b>' + esc(d.teacher || 'بدون اسم معلمة') + '</b><small>' + esc(DRAFT_LABEL[d.ft] || '') +
+        (d.center ? ' — ' + esc(d.center) : '') + (when ? ' — ' + esc(when) : '') + '</small></div>' +
+        '<div class="act"><button class="btn light" style="padding:6px 12px;font-size:13px" onclick="draftOpen(\'' + esc(d.id) + '\')">متابعة</button>' +
+        '<button class="btn danger" onclick="draftDelete(\'' + esc(d.id) + '\')">حذف</button></div></div>';
+    }).join('');
+  });
 }
 
 /* ---------- بناء الاستمارة ---------- */
@@ -315,6 +319,7 @@ function evReset() {
 function evEdit(i) {
   const r = evRows[i]; if (!r) return;
   const ft = String(r.formType);
+  if (ft.indexOf('f_') === 0) return efEdit(r);
   if (ft === 'tabyan') return tbEdit(r);
   if (ft.indexOf('tj_') === 0) return tjEdit(r);
   evOpenForm(ft === 'multi' ? 'multi' : 'single');
@@ -370,12 +375,13 @@ function evSetTab(t) {
 function evGradeTag(g) { return gradeTag(g); }
 
 // تجميع الاستمارات حسب المعلمة: آخر استمارة لكل مادة (يستخدمها العرض وتحميل سجل المعلمات)
-function evTeacherGroups() {
+function evTeacherGroups(subjects) {
+  subjects = subjects || EV_SUBJECTS;
   const map = {};
   evRows.forEach((r, i) => {
     const k = evNameKey(r.teacher); if (!k) return;
     const m = map[k] || (map[k] = { name: r.teacher, last: {} });
-    EV_SUBJECTS.forEach(sub => {
+    subjects.forEach(sub => {
       if (!sub.match(r)) return;
       const cur = m.last[sub.key];
       if (cur === undefined || String(r.date) > String(evRows[cur].date)) m.last[sub.key] = i;   // أحدث تاريخ
@@ -386,7 +392,7 @@ function evTeacherGroups() {
   return Object.keys(map).map(k => map[k]).sort((x, y) => x.name.localeCompare(y.name, 'ar'));
 }
 
-function evRender() {
+function evRenderW() {
   renderDrafts();
   const head = document.getElementById('evHead'), body = document.getElementById('evBody');
   if (!head || !body) return;
@@ -424,8 +430,16 @@ function evRender() {
     '<td><div class="act">' + btnEdit(i) + '<button class="btn danger" onclick="evDelete(\'' + esc(r.id) + '\')">حذف</button></div></td></tr>').join('');
 }
 
+// يرسم سجل الأسبوعية وسجل النهائية معاً (يُستدعى بعد كل تحميل أو حفظ أو حذف)
+function evRender() { evRenderW(); if (typeof efRender === 'function') efRender(); }
+
 // استمارات حُفظت قبل تحديث Apps Script تُسجَّل «بدون تعدد»؛ نعرف نوعها الحقيقي من عدد البنود
 function evFixType(r) {
+  // الاستمارة النهائية تحمل علامة fin في «بيانات إضافية» (تعمل حتى مع نسخة Apps Script القديمة)
+  if (String(r.extra || '').indexOf('"fin"') > -1) {
+    try { const ex = JSON.parse(r.extra); if (ex && (ex.fin === 'f_single' || ex.fin === 'f_multi')) { r.formType = ex.fin; return; } } catch (e) {}
+  }
+  if (String(r.formType).indexOf('f_') === 0) return;
   if (r.formType === 'tabyan' || String(r.formType).indexOf('tj_') === 0) return;
   let n = 0;
   try { n = JSON.parse(r.items || '[]').length; } catch (e) {}
@@ -479,6 +493,7 @@ async function evLoadList(bgOnly) {
 
 function evView(i) {
   const r = evRows[i];
+  if (String(r.formType).indexOf('f_') === 0) return efView(r);
   if (r.formType === 'tabyan') return tbView(r);
   if (String(r.formType).indexOf('tj_') === 0) return tjView(r);
   let items = [];

@@ -56,6 +56,33 @@ function exFormModel(r) {
     return m;
   }
 
+  if (ft === 'f_single' || ft === 'f_multi') {   // استمارة القرآن الكريم (النهائي): درجات فقط، ومجموع وموزونة لكل قسم
+    const fm = ft === 'f_multi', FD = fm ? EV2 : EV;
+    m.title = 'استمارة تقييم القرآن الكريم (النهائي) — ' + (fm ? 'تعدد المجموعات' : 'بدون تعدد المجموعات');
+    m.file = 'القرآن_النهائي_' + exSafe(r.teacher) + '_' + exSafe(r.date);
+    push('المركز', r.center); push('المعلمة', r.teacher); push('الفترة', r.period); push('اليوم', r.day); push('التاريخ', r.date);
+    push('رقم الزيارة', r.visitNo); push('نوعها', ex.kind); push('الفئة', r.cat); push('المؤهل في القرآن', r.qual);
+    push('العدد الكلي', r.total); push('العدد الحاضر', r.present); push('عدد المجموعات', ex.groups);
+    push('الفئة الثانية', ex.cat2); push('العدد الكلي (الفئة الثانية)', ex.total2); push('العدد الحاضر (الفئة الثانية)', ex.present2);
+    push('سنوات الخبرة', r.years); push('عنوان الدرس', r.lesson); push('اسم المشرفة', r.supervisor);
+    m.cols = ['م', 'البند', 'الدرجة العظمى', 'الدرجة المكتسبة'];
+    m.widths = [6, 62, 16, 18];
+    let fn = 0;
+    EV_SECTIONS.forEach(sec => {
+      let sum = 0;
+      const rows = FD[sec.key].map((it, k) => {
+        const x = items[fn++] || {}, v = parseFloat(x.s);
+        if (!isNaN(v)) sum += v;
+        return [k + 1, it.t, it.max, exNum(x.s)];
+      });
+      m.sections.push({ title: sec.title, rows, footer: [['المجموع من ' + evFmt(sec.maxSum), sum], ['الدرجة الموزونة من ' + evFmt(sec.target), Math.round(sum * sec.target / sec.maxSum * 1000) / 1000]] });
+    });
+    m.totals = [['الدرجة الكلية من 100', exNum(r.raw)], ['الدرجة الموزونة', exNum(r.weighted)], ['التقدير', r.grade]];
+    if (r.notes) m.notes.push(['ملاحظات المشرفة', r.notes]);
+    if (r.recs) m.notes.push(['التوصيات', r.recs]);
+    return m;
+  }
+
   const multi = ft === 'multi', D = multi ? EV2 : EV;
   m.title = 'استمارة تقييم القرآن الكريم — ' + (multi ? 'تعدد المجموعات' : 'بدون تعدد المجموعات');
   m.file = 'القرآن_' + exSafe(r.teacher) + '_' + exSafe(r.date);
@@ -138,6 +165,36 @@ function exListModel() {
     const t = (r.formType === 'multi' || r.formType === 'tj_multi') ? 'تعدد المجموعات' : (hasType ? 'بدون تعدد' : '');
     return [r.date, r.center, r.teacher].concat(hasType ? [t] : [], sub.weighted ? [exNum(r.raw), exNum(r.weighted)] : [exNum(r.raw)], [r.grade]);
   });
+  return m;
+}
+
+/* ---------- نموذج سجل الاستمارات النهائية (الجدول المعروض حالياً) ---------- */
+function exListModelF() {
+  const tabLabel = efTab === 'teachers' ? 'سجل المعلمات' : (EF_SUBJECTS.find(x => x.key === efTab) || EF_SUBJECTS[0]).label;
+  const m = { title: 'سجل استمارات التقييم النهائية — ' + tabLabel, file: 'سجل_النهائية_' + tabLabel.replace(/\s+/g, '_'), landscape: true, info: [], sections: [], totals: [], notes: [] };
+  if (efTab === 'teachers') {
+    m.cols = ['المعلمة']; m.widths = [30]; m.gradeCols = [];
+    EF_SUBJECTS.forEach(s => {
+      m.cols.push(s.label + ' - الدرجة', s.label + ' - التقدير', s.label + ' - التاريخ');
+      m.widths.push(16, 18, 14);
+      m.gradeCols.push(m.cols.length - 2);
+    });
+    m.rows = evTeacherGroups(EF_SUBJECTS).filter(g => EF_SUBJECTS.some(s => g.last[s.key] !== undefined)).map(g => {
+      const row = [g.name];
+      EF_SUBJECTS.forEach(s => {
+        const i = g.last[s.key];
+        if (i === undefined) row.push('', '', '');
+        else { const r = evRows[i]; row.push(exNum(r.weighted), r.grade, r.date); }
+      });
+      return row;
+    });
+    return m;
+  }
+  const sub = EF_SUBJECTS.find(x => x.key === efTab) || EF_SUBJECTS[0];
+  m.cols = ['التاريخ', 'المركز', 'المعلمة', 'نوع الاستمارة', 'الدرجة من 100', 'الدرجة الموزونة', 'التقدير'];
+  m.widths = [14, 26, 28, 18, 16, 16, 16];
+  m.gradeCols = [6];
+  m.rows = evRows.filter(sub.match).map(r => [r.date, r.center, r.teacher, r.formType === 'f_multi' ? 'تعدد المجموعات' : 'بدون تعدد', exNum(r.raw), exNum(r.weighted), r.grade]);
   return m;
 }
 
@@ -325,6 +382,8 @@ function exVisits(btn) {
 }
 // تحميل الجدول المعروض (سجل المعلمات)
 function exList(btn) { exRun(exListModel(), btn); }
+// تحميل جدول سجل الاستمارات النهائية
+function exListF(btn) { exRun(exListModelF(), btn); }
 
 // تحميل مسبق لمكتبة الإكسل والكليشة وقت الفراغ ليكون أول تحميل سريعاً
 let exPre = false;

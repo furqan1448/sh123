@@ -419,7 +419,7 @@ function getEvals_() {
     id: r[0], center: r[1], period: r[2], teacher: r[3], qual: r[4], cat: r[5], day: r[6], date: r[7],
     lesson: r[8], years: r[9], total: r[10], present: r[11], visitNo: r[12], supervisor: r[13],
     raw: r[14], weighted: r[15], grade: r[16], items: r[17], notes: r[18], recs: r[19],
-    signature: r[20], at: r[21], formType: r[22] === 'تعدد المجموعات' ? 'multi' : (r[22] === 'التبيان' ? 'tabyan' : (r[22] === 'التجويد - تعدد المجموعات' ? 'tj_multi' : (r[22] === 'التجويد - بدون تعدد' ? 'tj_single' : 'single'))), extra: r[23] || ''
+    signature: r[20], at: r[21], formType: evalTypeKey_(r[22]), extra: r[23] || ''
   })).reverse();
 }
 
@@ -451,8 +451,17 @@ function evalSig_(r, teacher, date) {
   return f.getUrl();
 }
 
+// أنواع الاستمارات (المفتاح ← الاسم المكتوب في عمود «نوع الاستمارة»). f_ = استمارات التقييم النهائية
+const EVAL_TYPE_LABELS = {
+  multi: 'تعدد المجموعات', tabyan: 'التبيان', tj_multi: 'التجويد - تعدد المجموعات', tj_single: 'التجويد - بدون تعدد',
+  f_multi: 'القرآن النهائي - تعدد المجموعات', f_single: 'القرآن النهائي - بدون تعدد'
+};
 function evalTypeLabel_(ft) {
-  return ({ multi: 'تعدد المجموعات', tabyan: 'التبيان', tj_multi: 'التجويد - تعدد المجموعات', tj_single: 'التجويد - بدون تعدد' })[ft] || 'بدون تعدد';
+  return EVAL_TYPE_LABELS[ft] || 'بدون تعدد';
+}
+function evalTypeKey_(label) {
+  for (const k in EVAL_TYPE_LABELS) if (EVAL_TYPE_LABELS[k] === label) return k;
+  return 'single';
 }
 
 function evalRow_(r, c, id, sigUrl, at, typeLabel) {
