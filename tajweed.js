@@ -58,7 +58,7 @@ function tjGrade(t) {
   return 'لم تجتاز';
 }
 
-let tjBuilt = false, tjPad = null;
+let tjBuilt = false, tjPad = null, tjFin = false;   // tjFin: استمارة التجويد النهائية
 const tjFmt = x => String(Math.round(x * 100) / 100);
 
 function tjBuild() {
@@ -110,16 +110,20 @@ function tjCalc() {
   return { sum, grade: g, filled };
 }
 
-function tjOpenForm(type) {
+function tjBack() { show(tjFin ? 'evalsFinalView' : 'evalsView'); evLoadList(); }
+
+function tjOpenForm(type, fin) {
   type = type === 'single' ? 'single' : 'multi';
+  tjFin = !!fin;
+  try { localStorage.setItem('mush_fin', tjFin ? '1' : ''); } catch (e) {}
   show('tjFormView');
   if (!tjBuilt || type !== tjType) {
     tjType = type; TJ_ITEMS = TJ_V[type].items;
     TJ_MAX = TJ_ITEMS.reduce((a, i) => a + i[1], 0);
     tjBuild();
-    document.getElementById('tjTitle').textContent = 'استمارة تقييم مادة التجويد الأسبوعي — ' + TJ_V[type].label;
     document.getElementById('tjCnt').textContent = TJ_ITEMS.length;
   }
+  document.getElementById('tjTitle').textContent = 'استمارة تقييم مادة التجويد ' + (tjFin ? '(النهائي)' : 'الأسبوعي') + ' — ' + TJ_V[type].label;
   if (!tjBuilt) {
     tjBind();
     document.getElementById('tjPeriod').innerHTML = evOpts(TJ.lists.period, 'اختاري الفترة');
@@ -165,6 +169,7 @@ async function tjSave() {
   const btn = document.getElementById('tjSaveBtn');
   const calc = tjCalc();
   const extra = {
+    fin: tjFin ? 'f_tj_' + tjType : undefined,   // علامة تضمن بقاءها ضمن «النهائية» حتى مع نسخة Apps Script القديمة
     kind: val('tjKind'), groups: val('tjGroups'),
     cat2: val('tjCat2'), total2: val('tjTotal2'), present2: val('tjPresent2')
   };
@@ -173,7 +178,7 @@ async function tjSave() {
     const editing = EDIT;
     const payload = {
       id: editing ? editing.id : undefined,
-      center, period, teacher, date, items, formType: 'tj_' + tjType,
+      center, period, teacher, date, items, formType: (tjFin ? 'f_tj_' : 'tj_') + tjType,
       raw: tjFmt(calc.sum), weighted: '', grade: calc.grade,
       qual: val('tjQual'), cat: val('tjCat'), day: val('tjDay'), lesson: val('tjLesson'),
       years: val('tjYears'), total: val('tjTotalN'), present: val('tjPresent'), visitNo: '',
@@ -186,7 +191,7 @@ async function tjSave() {
     tjPad.commit();
     evAfterSave(payload, res, editing);
     tjReset();
-    show('evalsView');
+    show(tjFin ? 'evalsFinalView' : 'evalsView');
   } catch (e) { toast(e.message, false); }
   finally { setBtnBusy(btn, false); }
 }
@@ -203,7 +208,7 @@ function tjReset() {
 
 // عرض استمارة محفوظة (يُستدعى من evView)
 function tjView(r) {
-  const vt = r.formType === 'tj_single' ? 'single' : 'multi', TJV = TJ_V[vt].items;
+  const fin = String(r.formType).indexOf('f_') === 0, vt = /tj_single$/.test(r.formType) ? 'single' : 'multi', TJV = TJ_V[vt].items;
   let items = [], ex = {};
   try { items = JSON.parse(r.items || '[]'); } catch (e) {}
   try { ex = JSON.parse(r.extra || '{}'); } catch (e) {}
@@ -214,7 +219,7 @@ function tjView(r) {
   const f = (l, v) => v ? '<div><b>' + l + ':</b> ' + esc(v) + '</div>' : '';
   document.getElementById('evModalBody').innerHTML =
     '<h2>' + esc(r.center) + ' - ' + esc(r.teacher) + '</h2>' +
-    '<div class="ev-info">' + f('نوع الاستمارة', 'التجويد - ' + TJ_V[vt].label) + f('الفترة', r.period) + f('اليوم', r.day) + f('التاريخ', r.date) +
+    '<div class="ev-info">' + f('نوع الاستمارة', (fin ? 'التجويد (النهائي) - ' : 'التجويد - ') + TJ_V[vt].label) + f('الفترة', r.period) + f('اليوم', r.day) + f('التاريخ', r.date) +
     f('نوعها', ex.kind) + f('الفئة', r.cat) + f('العدد الكلي', r.total) + f('العدد الحاضر', r.present) +
     f('الفئة الثانية', ex.cat2) + f('العدد الكلي (2)', ex.total2) + f('العدد الحاضر (2)', ex.present2) +
     f('عدد المجموعات', ex.groups) + f('المؤهل في القرآن', r.qual) + f('سنوات الخبرة', r.years) +
@@ -228,7 +233,7 @@ function tjView(r) {
 
 // تعديل استمارة محفوظة (يُستدعى من evEdit)
 function tjEdit(r) {
-  tjOpenForm(r.formType === 'tj_single' ? 'single' : 'multi'); tjReset();
+  tjOpenForm(/tj_single$/.test(r.formType) ? 'single' : 'multi', String(r.formType).indexOf('f_') === 0); tjReset();
   const ex = evJson(r.extra, {});
   evSetSel('tjCenter', r.center); evSetSel('tjPeriod', r.period); evSetVal('tjTeacher', r.teacher); evSetVal('tjDate', r.date);
   evSetSel('tjDay', r.day); evSetVal('tjKind', ex.kind); evSetSel('tjQual', r.qual); evSetVal('tjYears', r.years);

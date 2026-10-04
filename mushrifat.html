@@ -258,11 +258,22 @@
         <button class="btn block" onclick="efOpenForm('single')">+ استمارة جديدة<small>بدون تعدد</small></button>
         <button class="btn block" onclick="efOpenForm('multi')">+ استمارة جديدة<small>تعدد المجموعات</small></button>
       </div>
+      <h3 class="ev-grp">استمارة تقييم أداء معلمة التبيان (النهائي)</h3>
+      <div class="ev-new one">
+        <button class="btn block" onclick="tbOpenForm(true)">+ استمارة جديدة<small>مادة التبيان</small></button>
+      </div>
+      <h3 class="ev-grp">استمارة تقييم مادة التجويد (النهائي)</h3>
+      <div class="ev-new">
+        <button class="btn block" onclick="tjOpenForm('multi', true)">+ استمارة جديدة<small>تعدد المجموعات</small></button>
+        <button class="btn block" onclick="tjOpenForm('single', true)">+ استمارة جديدة<small>بدون تعدد</small></button>
+      </div>
     </div>
     <div class="card">
       <h2>سجل الاستمارات النهائية</h2>
       <div class="ev-tabs" id="efTabs">
         <button class="on" data-tab="quran" onclick="efSetTab('quran')">القرآن الكريم</button>
+        <button data-tab="tabyan" onclick="efSetTab('tabyan')">التبيان</button>
+        <button data-tab="tajweed" onclick="efSetTab('tajweed')">التجويد</button>
         <button data-tab="teachers" onclick="efSetTab('teachers')">سجل المعلمات</button>
       </div>
       <div class="ex-bar hidden" id="efListBar">
@@ -349,10 +360,10 @@
 
   <!-- استمارة مادة التبيان -->
   <div id="tbFormView" class="hidden">
-    <button class="back" onclick="show('evalsView'); evLoadList()">← رجوع</button>
+    <button class="back" onclick="tbBack()">← رجوع</button>
 
     <div class="card">
-      <h2>استمارة تقييم أداء معلمة التبيان (الأسبوعي)</h2>
+      <h2 id="tbTitle">استمارة تقييم أداء معلمة التبيان (الأسبوعي)</h2>
       <div class="ev-top">
         <div><label for="tbCenter">اسم المركز</label><select id="tbCenter"></select></div>
         <div><label for="tbPeriod">الفترة</label><select id="tbPeriod"></select></div>
@@ -419,7 +430,7 @@
 
     <!-- استمارة مادة التجويد -->
   <div id="tjFormView" class="hidden">
-    <button class="back" onclick="show('evalsView'); evLoadList()">← رجوع</button>
+    <button class="back" onclick="tjBack()">← رجوع</button>
 
     <div class="card">
       <h2 id="tjTitle">استمارة تقييم مادة التجويد الأسبوعي</h2>
@@ -813,7 +824,7 @@ async function delFile(id) {
   if (!getPw() || !getUser()) return;
   // نعرض آخر صفحة فوراً دون انتظار الخادم
   const last = localStorage.getItem('mush_view');
-  const view = last === 'evfFormView' ? 'evalsFinalView' : (last === 'evalFormView' || last === 'tbFormView' || last === 'tjFormView') ? 'evalsView' : (['homeView', 'visitsView', 'filesView', 'evalsView', 'evalsFinalView'].indexOf(last) > -1 ? last : 'homeView');
+  const view = last === 'evfFormView' ? 'evalsFinalView' : (last === 'tbFormView' || last === 'tjFormView') ? (localStorage.getItem('mush_fin') ? 'evalsFinalView' : 'evalsView') : (last === 'evalFormView') ? 'evalsView' : (['homeView', 'visitsView', 'filesView', 'evalsView', 'evalsFinalView'].indexOf(last) > -1 ? last : 'homeView');
   show(view);
   preload();   // يتحقق من الدخول أيضاً (طلب getLists) فلا حاجة لطلب login منفصل
   if (view === 'visitsView') loadVisits();

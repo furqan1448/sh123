@@ -38,7 +38,7 @@ function tbGrade(t) {
   return 'ضعيف';
 }
 
-let tbBuilt = false, tbPad = null;
+let tbBuilt = false, tbPad = null, tbFin = false;   // tbFin: استمارة التبيان النهائية (نفس البنود والدرجات)
 const tbFmt = x => String(Math.round(x * 100) / 100);
 
 function tbBuild() {
@@ -89,8 +89,13 @@ function tbCalc() {
   return { sum, grade: g, filled };
 }
 
-function tbOpenForm() {
+function tbBack() { show(tbFin ? 'evalsFinalView' : 'evalsView'); evLoadList(); }
+
+function tbOpenForm(fin) {
+  tbFin = !!fin;
+  try { localStorage.setItem('mush_fin', tbFin ? '1' : ''); } catch (e) {}
   show('tbFormView');
+  document.getElementById('tbTitle').textContent = 'استمارة تقييم أداء معلمة التبيان ' + (tbFin ? '(النهائي)' : '(الأسبوعي)');
   if (!tbBuilt) {
     tbBuild(); tbBind();
     document.getElementById('tbPeriod').innerHTML = evOpts(TB.lists.period, 'اختاري الفترة');
@@ -136,6 +141,7 @@ async function tbSave() {
   const btn = document.getElementById('tbSaveBtn');
   const calc = tbCalc();
   const extra = {
+    fin: tbFin ? 'f_tabyan' : undefined,   // علامة تضمن بقاءها ضمن «النهائية» حتى مع نسخة Apps Script القديمة
     kind: val('tbKind'), groups: val('tbGroups'),
     cat2: val('tbCat2'), total2: val('tbTotal2'), present2: val('tbPresent2')
   };
@@ -144,7 +150,7 @@ async function tbSave() {
     const editing = EDIT;
     const payload = {
       id: editing ? editing.id : undefined,
-      center, period, teacher, date, items, formType: 'tabyan',
+      center, period, teacher, date, items, formType: tbFin ? 'f_tabyan' : 'tabyan',
       raw: tbFmt(calc.sum), weighted: '', grade: calc.grade,
       qual: val('tbQual'), cat: val('tbCat'), day: val('tbDay'), lesson: val('tbLesson'),
       years: val('tbYears'), total: val('tbTotalN'), present: val('tbPresent'), visitNo: '',
@@ -157,7 +163,7 @@ async function tbSave() {
     tbPad.commit();
     evAfterSave(payload, res, editing);
     tbReset();
-    show('evalsView');
+    show(tbFin ? 'evalsFinalView' : 'evalsView');
   } catch (e) { toast(e.message, false); }
   finally { setBtnBusy(btn, false); }
 }
@@ -184,7 +190,7 @@ function tbView(r) {
   const f = (l, v) => v ? '<div><b>' + l + ':</b> ' + esc(v) + '</div>' : '';
   document.getElementById('evModalBody').innerHTML =
     '<h2>' + esc(r.center) + ' - ' + esc(r.teacher) + '</h2>' +
-    '<div class="ev-info">' + f('نوع الاستمارة', 'مادة التبيان') + f('الفترة', r.period) + f('اليوم', r.day) + f('التاريخ', r.date) +
+    '<div class="ev-info">' + f('نوع الاستمارة', r.formType === 'f_tabyan' ? 'مادة التبيان (النهائي)' : 'مادة التبيان') + f('الفترة', r.period) + f('اليوم', r.day) + f('التاريخ', r.date) +
     f('نوعها', ex.kind) + f('الفئة', r.cat) + f('العدد الكلي', r.total) + f('العدد الحاضر', r.present) +
     f('الفئة الثانية', ex.cat2) + f('العدد الكلي (2)', ex.total2) + f('العدد الحاضر (2)', ex.present2) +
     f('عدد المجموعات', ex.groups) + f('المؤهل في القرآن', r.qual) + f('سنوات الخبرة', r.years) +
@@ -198,7 +204,7 @@ function tbView(r) {
 
 // تعديل استمارة محفوظة (يُستدعى من evEdit)
 function tbEdit(r) {
-  tbOpenForm(); tbReset();
+  tbOpenForm(r.formType === 'f_tabyan'); tbReset();
   const ex = evJson(r.extra, {});
   evSetSel('tbCenter', r.center); evSetSel('tbPeriod', r.period); evSetVal('tbTeacher', r.teacher); evSetVal('tbDate', r.date);
   evSetSel('tbDay', r.day); evSetVal('tbKind', ex.kind); evSetSel('tbQual', r.qual); evSetVal('tbYears', r.years);

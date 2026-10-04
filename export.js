@@ -36,13 +36,13 @@ function exFormModel(r) {
   const info = [], push = (l, v) => { if (v !== '' && v != null) info.push([l, String(v)]); };
   const m = { info, sections: [], totals: [], notes: [], landscape: false, gradeVal: r.grade };
 
-  if (ft === 'tabyan' || ft.indexOf('tj_') === 0) {
-    const isT = ft === 'tabyan';
-    const list = isT ? TB.items : TJ_V[ft === 'tj_single' ? 'single' : 'multi'].items;
+  if (ft === 'tabyan' || ft === 'f_tabyan' || ft.indexOf('tj_') === 0 || ft.indexOf('f_tj_') === 0) {
+    const isT = ft === 'tabyan' || ft === 'f_tabyan', fin = ft.indexOf('f_') === 0, single = /tj_single$/.test(ft);
+    const list = isT ? TB.items : TJ_V[single ? 'single' : 'multi'].items;
     const max = list.reduce((a, i) => a + i[1], 0);
-    m.title = isT ? 'استمارة تقييم أداء معلمة مادة التبيان (الأسبوعي)'
-      : 'استمارة تقييم مادة التجويد الأسبوعي — ' + (ft === 'tj_single' ? 'بدون تعدد المجموعات' : 'تعدد المجموعات');
-    m.file = (isT ? 'التبيان' : 'التجويد') + '_' + exSafe(r.teacher) + '_' + exSafe(r.date);
+    m.title = isT ? 'استمارة تقييم أداء معلمة مادة التبيان ' + (fin ? '(النهائي)' : '(الأسبوعي)')
+      : 'استمارة تقييم مادة التجويد ' + (fin ? 'النهائي' : 'الأسبوعي') + ' — ' + (single ? 'بدون تعدد المجموعات' : 'تعدد المجموعات');
+    m.file = (isT ? 'التبيان' : 'التجويد') + (fin ? '_النهائي' : '') + '_' + exSafe(r.teacher) + '_' + exSafe(r.date);
     push('المركز', r.center); push('المعلمة', r.teacher); push('الفترة', r.period); push('اليوم', r.day); push('التاريخ', r.date);
     push('نوعها', ex.kind); push('الفئة', r.cat); push('العدد الكلي', r.total); push('العدد الحاضر', r.present);
     push('الفئة الثانية', ex.cat2); push('العدد الكلي (الفئة الثانية)', ex.total2); push('العدد الحاضر (الفئة الثانية)', ex.present2);
@@ -184,17 +184,21 @@ function exListModelF() {
       EF_SUBJECTS.forEach(s => {
         const i = g.last[s.key];
         if (i === undefined) row.push('', '', '');
-        else { const r = evRows[i]; row.push(exNum(r.weighted), r.grade, r.date); }
+        else { const r = evRows[i]; row.push(exNum(s.key === 'quran' ? r.weighted : r.raw), r.grade, r.date); }
       });
       return row;
     });
     return m;
   }
   const sub = EF_SUBJECTS.find(x => x.key === efTab) || EF_SUBJECTS[0];
-  m.cols = ['التاريخ', 'المركز', 'المعلمة', 'نوع الاستمارة', 'الدرجة من 100', 'الدرجة الموزونة', 'التقدير'];
-  m.widths = [14, 26, 28, 18, 16, 16, 16];
-  m.gradeCols = [6];
-  m.rows = evRows.filter(sub.match).map(r => [r.date, r.center, r.teacher, r.formType === 'f_multi' ? 'تعدد المجموعات' : 'بدون تعدد', exNum(r.raw), exNum(r.weighted), r.grade]);
+  const hasType = sub.key !== 'tabyan';
+  m.cols = ['التاريخ', 'المركز', 'المعلمة'].concat(hasType ? ['نوع الاستمارة'] : [], sub.weighted ? ['الدرجة من 100', 'الدرجة الموزونة'] : ['المجموع من ' + sub.max], ['التقدير']);
+  m.widths = [14, 26, 28].concat(hasType ? [18] : [], sub.weighted ? [16, 16] : [16], [16]);
+  m.gradeCols = [m.cols.length - 1];
+  m.rows = evRows.filter(sub.match).map(r => {
+    const t = (r.formType === 'f_multi' || r.formType === 'f_tj_multi') ? 'تعدد المجموعات' : 'بدون تعدد';
+    return [r.date, r.center, r.teacher].concat(hasType ? [t] : [], sub.weighted ? [exNum(r.raw), exNum(r.weighted)] : [exNum(r.raw)], [r.grade]);
+  });
   return m;
 }
 

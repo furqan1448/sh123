@@ -72,17 +72,18 @@ function evOpts(arr, ph) {
 
 /* ---------- المسودات (تُحفظ على هذا الجهاز لكل مستخدمة) ---------- */
 let CUR_DRAFT = null;
-const DRAFT_LABEL = { single: 'القرآن - بدون تعدد', multi: 'القرآن - تعدد المجموعات', tabyan: 'التبيان', tj_single: 'التجويد - بدون تعدد', tj_multi: 'التجويد - تعدد المجموعات', f_single: 'القرآن (النهائي) - بدون تعدد', f_multi: 'القرآن (النهائي) - تعدد المجموعات' };
+const DRAFT_LABEL = { single: 'القرآن - بدون تعدد', multi: 'القرآن - تعدد المجموعات', tabyan: 'التبيان', tj_single: 'التجويد - بدون تعدد', tj_multi: 'التجويد - تعدد المجموعات', f_single: 'القرآن (النهائي) - بدون تعدد', f_tabyan: 'التبيان (النهائي)', f_tj_single: 'التجويد (النهائي) - بدون تعدد', f_tj_multi: 'التجويد (النهائي) - تعدد المجموعات', f_multi: 'القرآن (النهائي) - تعدد المجموعات' };
 const draftKey = () => 'mush_d_' + getUser();
 function draftsGet() { try { const a = JSON.parse(localStorage.getItem(draftKey()) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
 function draftsPut(a) { try { localStorage.setItem(draftKey(), JSON.stringify(a)); return true; } catch (e) { return false; } }
-function draftView(ft) { return String(ft).indexOf('f_') === 0 ? 'evfFormView' : (ft === 'single' || ft === 'multi') ? 'evalFormView' : ft === 'tabyan' ? 'tbFormView' : 'tjFormView'; }
+function draftView(ft) { return (ft === 'f_single' || ft === 'f_multi') ? 'evfFormView' : (ft === 'single' || ft === 'multi') ? 'evalFormView' : (ft === 'tabyan' || ft === 'f_tabyan') ? 'tbFormView' : 'tjFormView'; }
+function draftIsFin(view) { return view === 'evfFormView' || (view === 'tbFormView' && tbFin) || (view === 'tjFormView' && tjFin); }
 function draftPrefix(view) { return { evalFormView: 'ev', tbFormView: 'tb', tjFormView: 'tj', evfFormView: 'ef' }[view]; }
 function draftFields(view) {
   return [...document.getElementById(view).querySelectorAll('input, select, textarea')]
     .filter(el => el.type !== 'file' && el.type !== 'checkbox' && !el.closest('.sigw'));
 }
-function draftCurType(view) { return view === 'evalFormView' ? evType : view === 'tbFormView' ? 'tabyan' : view === 'evfFormView' ? 'f_' + efType : 'tj_' + tjType; }
+function draftCurType(view) { return view === 'evalFormView' ? evType : view === 'tbFormView' ? (tbFin ? 'f_tabyan' : 'tabyan') : view === 'evfFormView' ? 'f_' + efType : (tjFin ? 'f_tj_' : 'tj_') + tjType; }
 function draftResetForm(view) { ({ evalFormView: evReset, tbFormView: tbReset, tjFormView: tjReset, evfFormView: efReset })[view](); }
 
 function draftSave(view) {
@@ -101,13 +102,13 @@ function draftSave(view) {
   }
   toast('تم حفظ المسودة، تجدينها أعلى صفحة الاستمارات');
   draftResetForm(view); CUR_DRAFT = null;
-  show(view === 'evfFormView' ? 'evalsFinalView' : 'evalsView'); renderDrafts();
+  show(draftIsFin(view) ? 'evalsFinalView' : 'evalsView'); renderDrafts();
 }
 
 function draftOpen(id) {
   const d = draftsGet().find(x => x.id === id); if (!d) return;
   const view = draftView(d.ft);
-  if (view === 'evalFormView') evOpenForm(d.ft); else if (view === 'tbFormView') tbOpenForm(); else if (view === 'evfFormView') efOpenForm(d.ft.slice(2)); else tjOpenForm(d.ft.slice(3));
+  if (view === 'evalFormView') evOpenForm(d.ft); else if (view === 'tbFormView') tbOpenForm(d.ft === 'f_tabyan'); else if (view === 'evfFormView') efOpenForm(d.ft.slice(2)); else { const fin = d.ft.indexOf('f_') === 0; tjOpenForm(d.ft.slice(fin ? 5 : 3), fin); }
   draftResetForm(view);
   const fields = draftFields(view);
   fields.forEach((el, i) => {
@@ -319,9 +320,9 @@ function evReset() {
 function evEdit(i) {
   const r = evRows[i]; if (!r) return;
   const ft = String(r.formType);
-  if (ft.indexOf('f_') === 0) return efEdit(r);
-  if (ft === 'tabyan') return tbEdit(r);
-  if (ft.indexOf('tj_') === 0) return tjEdit(r);
+  if (ft === 'f_single' || ft === 'f_multi') return efEdit(r);
+  if (ft === 'tabyan' || ft === 'f_tabyan') return tbEdit(r);
+  if (ft.indexOf('tj_') === 0 || ft.indexOf('f_tj_') === 0) return tjEdit(r);
   evOpenForm(ft === 'multi' ? 'multi' : 'single');
   evReset();
   evSetSel('evCenter', r.center); evSetSel('evPeriod', r.period); evSetVal('evTeacher', r.teacher); evSetVal('evDate', r.date);
@@ -437,7 +438,7 @@ function evRender() { evRenderW(); if (typeof efRender === 'function') efRender(
 function evFixType(r) {
   // الاستمارة النهائية تحمل علامة fin في «بيانات إضافية» (تعمل حتى مع نسخة Apps Script القديمة)
   if (String(r.extra || '').indexOf('"fin"') > -1) {
-    try { const ex = JSON.parse(r.extra); if (ex && (ex.fin === 'f_single' || ex.fin === 'f_multi')) { r.formType = ex.fin; return; } } catch (e) {}
+    try { const ex = JSON.parse(r.extra); if (ex && ['f_single', 'f_multi', 'f_tabyan', 'f_tj_single', 'f_tj_multi'].indexOf(ex.fin) > -1) { r.formType = ex.fin; return; } } catch (e) {}
   }
   if (String(r.formType).indexOf('f_') === 0) return;
   if (r.formType === 'tabyan' || String(r.formType).indexOf('tj_') === 0) return;
@@ -493,9 +494,9 @@ async function evLoadList(bgOnly) {
 
 function evView(i) {
   const r = evRows[i];
-  if (String(r.formType).indexOf('f_') === 0) return efView(r);
-  if (r.formType === 'tabyan') return tbView(r);
-  if (String(r.formType).indexOf('tj_') === 0) return tjView(r);
+  if (r.formType === 'f_single' || r.formType === 'f_multi') return efView(r);
+  if (r.formType === 'tabyan' || r.formType === 'f_tabyan') return tbView(r);
+  if (String(r.formType).indexOf('tj_') === 0 || String(r.formType).indexOf('f_tj_') === 0) return tjView(r);
   let items = [];
   try { items = JSON.parse(r.items || '[]'); } catch (e) {}
   let n = 0, rows = '';

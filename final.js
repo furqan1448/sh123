@@ -219,9 +219,11 @@ function efView(r) {
 }
 
 /* ---------- سجل الاستمارات النهائية ---------- */
-// لإضافة مادة نهائية جديدة (التبيان/التجويد) أضيفي سطراً هنا فقط
+// لإضافة مادة نهائية جديدة أضيفي سطراً هنا فقط
 const EF_SUBJECTS = [
-  { key: 'quran', label: 'القرآن الكريم', max: 100, weighted: true, match: r => r.formType === 'f_single' || r.formType === 'f_multi', score: r => esc(r.weighted) + ' من 100' }
+  { key: 'quran', label: 'القرآن الكريم', max: 100, weighted: true, match: r => r.formType === 'f_single' || r.formType === 'f_multi', score: r => esc(r.weighted) + ' من 100' },
+  { key: 'tabyan', label: 'التبيان', max: 40, weighted: false, match: r => r.formType === 'f_tabyan', score: r => esc(r.raw) + ' من 40' },
+  { key: 'tajweed', label: 'التجويد', max: 100, weighted: false, match: r => String(r.formType).indexOf('f_tj_') === 0, score: r => esc(r.raw) + ' من 100' }
 ];
 let efTab = 'quran';
 
@@ -256,13 +258,13 @@ function efRender() {
   }
 
   const sub = EF_SUBJECTS.find(x => x.key === efTab) || EF_SUBJECTS[0];
-  head.innerHTML = '<tr><th>التاريخ</th><th>المركز</th><th>المعلمة</th><th>الدرجة من 100</th><th>الدرجة الموزونة</th><th>التقدير</th><th></th><th></th></tr>';
+  head.innerHTML = '<tr><th>التاريخ</th><th>المركز</th><th>المعلمة</th>' + (sub.weighted ? '<th>الدرجة من 100</th><th>الدرجة الموزونة</th>' : '<th>المجموع من ' + sub.max + '</th>') + '<th>التقدير</th><th></th><th></th></tr>';
   const rows = [];
   evRows.forEach((r, i) => { if (sub.match(r)) rows.push([r, i]); });
-  if (!rows.length) { body.innerHTML = '<tr><td colspan="8" class="empty">لا توجد استمارات</td></tr>'; return; }
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="' + (sub.weighted ? 8 : 7) + '" class="empty">لا توجد استمارات</td></tr>'; return; }
   body.innerHTML = rows.map(([r, i]) => '<tr><td>' + esc(r.date) + '</td><td>' + esc(r.center) + '</td><td>' + esc(r.teacher) +
-    (r.formType === 'f_multi' ? ' <span class="tag">تعدد المجموعات</span>' : '') + '</td>' +
-    '<td>' + esc(r.raw) + '</td><td>' + esc(r.weighted) + '</td>' +
+    (r.formType === 'f_multi' || r.formType === 'f_tj_multi' ? ' <span class="tag">تعدد المجموعات</span>' : '') + '</td>' +
+    '<td>' + esc(r.raw) + '</td>' + (sub.weighted ? '<td>' + esc(r.weighted) + '</td>' : '') +
     '<td>' + gradeTag(r.grade) + '</td><td><div class="act">' + btnView(i) + btnDl(i) + '</div></td>' +
     '<td><div class="act">' + btnEdit(i) + '<button class="btn danger" onclick="evDelete(\'' + esc(r.id) + '\')">حذف</button></div></td></tr>').join('');
 }
