@@ -222,7 +222,8 @@ function getVisits_() {
 
 function addVisit_(r) {
   const center = String(r.center || '').trim();
-  const type = String(r.type || '').trim();
+  const type = String(r.type || '').trim();   // قد تحوي أكثر من نوع مفصولة بـ «،»
+  const typeList = type ? type.split(/[،,]/).map(x => x.trim()).filter(Boolean) : [];
   let date = String(r.date || '').trim();
   // توافق مع النسخة القديمة من الواجهة (absent=true) إن لم تصل «الحالة»
   const status = String(r.status || (r.absent === true ? VISIT_STATUS[1] : VISIT_STATUS[0])).trim();
@@ -236,9 +237,10 @@ function addVisit_(r) {
   if (needSig && !r.signature) throw new Error('توقيع المديرة مطلوب، أو اختاري حالة أخرى للزيارة');
 
   let lists = getLists_(false);
-  if ((center && lists.centers.indexOf(center) < 0) || (!notVisited && lists.types.indexOf(type) < 0)) lists = getLists_(true);
+  const badType = l => typeList.some(t => l.types.indexOf(t) < 0);
+  if ((center && lists.centers.indexOf(center) < 0) || (!notVisited && badType(lists))) lists = getLists_(true);
   if (center && lists.centers.indexOf(center) < 0) throw new Error('اسم المركز غير موجود في القائمة');
-  if (!notVisited && lists.types.indexOf(type) < 0) throw new Error('نوع الزيارة غير موجود في القائمة');
+  if (!notVisited && badType(lists)) throw new Error('نوع الزيارة غير موجود في القائمة');
 
   const p = date.split('-');
   const day = DAY_NAMES[new Date(+p[0], +p[1] - 1, +p[2]).getDay()];

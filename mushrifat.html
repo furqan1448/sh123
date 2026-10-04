@@ -60,8 +60,8 @@
       </div>
 
       <div id="vTypeBox">
-        <label for="vType">نوع الزيارة</label>
-        <select id="vType"><option value="">جارِ التحميل...</option></select>
+        <label>نوع الزيارة <span style="font-weight:400;color:var(--muted);font-size:14px">(يمكن اختيار أكثر من نوع)</span></label>
+        <div id="vTypeList" class="chips"><span class="empty">جارِ التحميل...</span></div>
       </div>
 
       <div class="row2">
@@ -576,7 +576,7 @@ function logout() {
 
 function fillLists() {
   fillSelect('vCenter', LISTS.centers, 'اختاري المركز');
-  fillSelect('vType', LISTS.types, 'اختاري نوع الزيارة');
+  fillTypes();
   fillSelect('fCenter', LISTS.centers, 'كل المراكز');
 }
 function applyLists(d) {
@@ -596,15 +596,23 @@ async function preload() {
   loadMySig();
   try {
     const out = await api('getLists');
-    const vc = document.getElementById('vCenter').value, vt = document.getElementById('vType').value;
+    const vc = document.getElementById('vCenter').value;
     applyLists(out.data);
     if (vc) document.getElementById('vCenter').value = vc;
-    if (vt) document.getElementById('vType').value = vt;
   } catch (e) {
     if (e.auth) { toast('انتهت صلاحية الدخول، سجّلي الدخول من جديد', false); logout(); }
     else if (!c) toast(e.message, false);
   }
 }
+// أنواع الزيارة: اختيار أكثر من نوع (تُحفظ مفصولة بـ «،»)
+const V_TSEP = '، ';
+function fillTypes() {
+  const box = document.getElementById('vTypeList'); if (!box) return;
+  const cur = getVTypes();
+  box.innerHTML = (LISTS.types || []).map(t => '<label class="chip"><input type="checkbox" value="' + esc(t) + '"' + (cur.indexOf(t) > -1 ? ' checked' : '') + '><span>' + esc(t) + '</span></label>').join('') || '<span class="empty">لا توجد أنواع زيارة</span>';
+}
+function getVTypes() { return [...document.querySelectorAll('#vTypeList input:checked')].map(i => i.value); }
+function clearVTypes() { document.querySelectorAll('#vTypeList input').forEach(i => i.checked = false); }
 function fillSelect(id, arr, placeholder) {
   const el = document.getElementById(id);
   el.innerHTML = '<option value="">' + esc(placeholder) + '</option>' +
@@ -694,7 +702,7 @@ async function saveVisit() {
   const status = document.getElementById('vStatus').value;
   const none = status === V_NONE;
   const center = none ? '' : document.getElementById('vCenter').value;
-  const type = none ? '' : document.getElementById('vType').value;
+  const type = none ? '' : getVTypes().join(V_TSEP);
   const date = document.getElementById('vDate').value || todayStr();
   const needSig = status === V_SIGNED;
   const sig = needSig ? vSig.get() : '';
@@ -715,7 +723,7 @@ async function saveVisit() {
       absent: status === V_STATUS[1], status, signature: res.signature || '', counted: !none, at: '' });
     cacheSet('visits', VISITS);
     document.getElementById('vCenter').value = '';
-    document.getElementById('vType').value = '';
+    clearVTypes();
     document.getElementById('vStatus').value = V_SIGNED;
     onStatusChange();
     vSig.reset();
