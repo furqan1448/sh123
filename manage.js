@@ -52,6 +52,7 @@ async function doLogin() {
 function logout() {
   localStorage.removeItem(MG_USER); localStorage.removeItem(MG_PW);
   MG = null; $('un').value = ''; $('pw').value = '';
+  loadLoginNames('managers', 'un');
   show('loginView');
 }
 
@@ -69,6 +70,7 @@ async function mgLoad() {
 }
 
 (function init() {
+  loadLoginNames('managers', 'un');
   if (localStorage.getItem(MG_USER) && localStorage.getItem(MG_PW)) { show('manageView'); mgLoad(); }
 })();
 

@@ -21,7 +21,7 @@
   <div id="loginView" class="card" style="max-width:420px;margin:30px auto">
     <h2>تسجيل الدخول</h2>
     <label for="un">اسم المستخدم</label>
-    <input id="un" type="text" autocomplete="username" autocapitalize="none" placeholder="أدخلي اسم المستخدم">
+    <select id="un"><option value="">جارِ تحميل الأسماء...</option></select>
     <label for="pw">كلمة المرور</label>
     <div class="pw-wrap">
       <input id="pw" type="password" autocomplete="current-password" placeholder="أدخلي كلمة المرور">
@@ -830,6 +830,7 @@ async function delFile(id) {
 
 /* ---------- استعادة الجلسة (البقاء داخل الموقع عند التحديث) ---------- */
 (function init() {
+  loadLoginNames('users', 'un');
   if (!getPw() || !getUser()) return;
   // نعرض آخر صفحة فوراً دون انتظار الخادم
   const last = localStorage.getItem('mush_view');

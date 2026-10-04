@@ -143,7 +143,9 @@ function doPost(e) {
   let out;
   try {
     const req = JSON.parse(e.postData.contents);
-    if (req.action === 'getManage' || (req.action === 'getSigs' && req.mgr)) {   // صفحة إدارة الوحدات لها دخول مستقل (ورقة «مديرات الوحدات»)
+    if (req.action === 'listNames') {   // قائمة الأسماء لشاشة الدخول (أسماء فقط، بلا كلمات مرور)
+      out = { ok: true, data: listNames_(req.kind) };
+    } else if (req.action === 'getManage' || (req.action === 'getSigs' && req.mgr)) {   // صفحة إدارة الوحدات لها دخول مستقل (ورقة «مديرات الوحدات»)
       const mgr = mgrAuth_(req.username, req.password);
       if (!mgr) out = { ok: false, error: 'الاسم أو كلمة المرور غير صحيحة' };
       else if (req.action === 'getSigs') out = { ok: true, data: getSigs_(req.items) };   // توقيعات الاستمارات لملف الإكسل
@@ -687,6 +689,21 @@ function fixVisitValidation() {
 
 /* ============ إدارة الوحدات (دخول مستقل لمديرات الوحدات) ============ */
 // ورقة «مديرات الوحدات»: الاسم | كلمة المرور | الوحدة. كل مديرة ترى مشرفات وحدتها وما سجّلنه. وحدة «الكل» ترى كل الوحدات.
+// أسماء القائمة المنسدلة في شاشة الدخول: kind = 'users' (المشرفات) أو 'managers' (مديرات الوحدات)
+function listNames_(kind) {
+  const isM = kind === 'managers';
+  const sh = ss_().getSheetByName(isM ? SHEET.MANAGERS : SHEET.USERS);
+  if (!sh) throw new Error('شغّلي setup() أولاً');
+  const seen = {}, out = [];
+  sh.getDataRange().getDisplayValues().slice(1).forEach(r => {
+    const u = norm_(r[0]);
+    if (!u || seen[u.toLowerCase()]) return;
+    seen[u.toLowerCase()] = 1;
+    out.push({ u: u, n: (!isM && norm_(r[2])) || u });   // القيمة = اسم الدخول، والنص = الاسم الظاهر إن وُجد
+  });
+  return out;
+}
+
 function mgrAuth_(name, pw) {
   const n = norm_(name).toLowerCase(), p = norm_(pw);
   if (!n || !p) return null;

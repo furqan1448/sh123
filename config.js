@@ -1,6 +1,6 @@
 // ===== الإعدادات =====
 // الصقي هنا رابط الـ Web App بعد النشر (ينتهي بـ /exec)
-const API_URL ="https://script.google.com/macros/s/AKfycbzaLMC9xQaWCE0cayUqHcyIQJ90YLORWE0HEJTPdJK8SuwTTjljmBohsnkNt-obFMYkUA/exec";
+const API_URL ="https://script.google.com/macros/s/AKfycbwBcnpihjwENPL4c0grNjx0zgmBlK8sthQNXBqGfQKq9AX6Femzh4PR7SwodSy_k40fzw/exec";
 
 const PW_KEY = 'mush_pw';
 const USER_KEY = 'mush_user';
@@ -238,6 +238,34 @@ function makeSigWidget(rootId, o) {
 function setBtnBusy(btn, busy, text) {
   if (busy) { btn.dataset.t = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spin"></span> ' + (text || 'جارِ الحفظ...'); }
   else { btn.disabled = false; btn.innerHTML = btn.dataset.t || btn.innerHTML; }
+}
+
+/* ===== قائمة الأسماء المنسدلة في شاشة الدخول (كاش محلي ثم تحديث من الخادم) ===== */
+async function loadLoginNames(kind, id) {
+  const sel = document.getElementById(id);
+  if (!sel) return;
+  const key = 'mush_names_' + kind;
+  const ph = kind === 'managers' ? 'اختاري الاسم' : 'اختاري اسم المستخدم';
+  const fill = list => {
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">' + ph + '</option>' + list.map(n => '<option value="' + esc(n.u) + '">' + esc(n.n) + '</option>').join('');
+    if (cur && list.some(n => n.u === cur)) sel.value = cur;
+  };
+  sel.innerHTML = '<option value="">جارِ تحميل الأسماء...</option>';
+  try { const c = JSON.parse(localStorage.getItem(key) || 'null'); if (c && c.length) fill(c); } catch (e) {}
+  for (let i = 0; i < 3; i++) {
+    const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), 15000);
+    try {
+      const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'listNames', kind }), signal: ctrl.signal });
+      clearTimeout(t);
+      const out = await res.json();
+      if (!out.ok) throw Object.assign(new Error(out.error || 'خطأ'), { final: true });
+      fill(out.data);
+      try { localStorage.setItem(key, JSON.stringify(out.data)); } catch (e) {}
+      return;
+    } catch (e) { clearTimeout(t); if (e.final) break; }
+  }
+  if (sel.options.length < 2) { sel.innerHTML = '<option value="">' + ph + '</option>'; toast('تعذّر تحميل الأسماء، حدّثي الصفحة', false); }
 }
 
 function esc(s) {
