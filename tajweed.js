@@ -64,7 +64,7 @@ const tjFmt = x => String(Math.round(x * 100) / 100);
 function tjBuild() {
   document.getElementById('tjItems').innerHTML = TJ_ITEMS.map((it, i) =>
     '<div class="tb-item"><span class="ev-num">' + (i + 1) + '</span><b>' + esc(it[0]) + '</b>' +
-    '<span class="ev-sc"><input type="number" inputmode="decimal" min="0" max="' + it[1] + '" step="0.5" data-t="' + i + '" placeholder="0"><small>/' + it[1] + '</small></span></div>'
+    '<span class="ev-sc"><input type="text" inputmode="decimal" min="0" max="' + it[1] + '" step="0.5" data-t="' + i + '" placeholder="0"><small>/' + it[1] + '</small></span></div>'
   ).join('');
   const lg = TJ_GRADES.map((g, i) => [(i === 0 ? 'من ' + g[0] + ' فأكثر' : 'من ' + g[0] + ' إلى ' + (TJ_GRADES[i - 1][0] - 1)) + ': ' + g[1], g[1]]);
   lg.push(['أقل من 50: لم تجتاز', 'لم تجتاز']);

@@ -554,6 +554,7 @@ async function doLogin() {
     applyLists(out.data);
     loadMySig();
     show('homeView');
+    evLoadList(true, true);   // تحميل مسبق للاستمارات والمسودات بالخلفية لتفتح فوراً
   } catch (e) {
     localStorage.removeItem(PW_KEY);
     localStorage.removeItem(USER_KEY);
@@ -827,6 +828,7 @@ async function delFile(id) {
   const view = last === 'evfFormView' ? 'evalsFinalView' : (last === 'tbFormView' || last === 'tjFormView') ? (localStorage.getItem('mush_fin') ? 'evalsFinalView' : 'evalsView') : (last === 'evalFormView') ? 'evalsView' : (['homeView', 'visitsView', 'filesView', 'evalsView', 'evalsFinalView'].indexOf(last) > -1 ? last : 'homeView');
   show(view);
   preload();   // يتحقق من الدخول أيضاً (طلب getLists) فلا حاجة لطلب login منفصل
+  if (view !== 'evalsView' && view !== 'evalsFinalView') evLoadList(true, true);   // تحميل مسبق بالخلفية
   if (view === 'visitsView') loadVisits();
   if (view === 'filesView') loadFiles();
   if (view === 'evalsView' || view === 'evalsFinalView') evLoadList();

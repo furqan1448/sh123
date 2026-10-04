@@ -1,6 +1,6 @@
 // ===== الإعدادات =====
 // الصقي هنا رابط الـ Web App بعد النشر (ينتهي بـ /exec)
-const API_URL ="https://script.google.com/macros/s/AKfycbzdBiLVGMAF0X7vvLeyLLrq6PE_4EZxKqWDo_oKPTBL4GfxkbYvnjaxTYIDVy83YSXltQ/exec";
+const API_URL ="https://script.google.com/macros/s/AKfycbyI9ERhAbXNIw1oWP-qy_OZgpOkXiUwMgPemrPqiA8VISnTE4-HtdiE2-qynuUCa9Ab/exec";
 
 const PW_KEY = 'mush_pw';
 const USER_KEY = 'mush_user';
@@ -291,3 +291,17 @@ function setGrade(el, g) {
   const k = gradeCls(g);
   if (k) { el.classList.add('gr'); el.classList.add(k); }
 }
+
+// ===== خانات الدرجات: كتابة فقط (بدون أسهم)، وتقبل الأرقام العربية، ولا تتغير بعجلة الماوس أو الأسهم =====
+document.addEventListener('input', e => {
+  const el = e.target;
+  if (!el || !el.closest || !el.closest('.ev-sc') || el.tagName !== 'INPUT') return;
+  let v = el.value.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[٫,،]/g, '.');
+  v = v.replace(/[^0-9.]/g, '');
+  const i = v.indexOf('.');
+  if (i > -1) v = v.slice(0, i + 1) + v.slice(i + 1).replace(/\./g, '');
+  if (v !== el.value) el.value = v;
+}, true);   // مرحلة الالتقاط: يُنظَّف القيمة قبل أن تحسبها الاستمارة
+document.addEventListener('wheel', e => {
+  if (e.target && e.target.closest && e.target.closest('.ev-sc')) e.target.blur();
+}, { passive: true });

@@ -70,12 +70,50 @@ function evOpts(arr, ph) {
   return '<option value="">' + esc(ph) + '</option>' + arr.map(x => '<option>' + esc(x) + '</option>').join('');
 }
 
-/* ---------- المسودات (تُحفظ على هذا الجهاز لكل مستخدمة) ---------- */
+/* ---------- المسودات (تُحفظ على هذا الجهاز وعلى الخادم لتظهر من أي جهاز) ---------- */
 let CUR_DRAFT = null;
 const DRAFT_LABEL = { single: 'القرآن - بدون تعدد', multi: 'القرآن - تعدد المجموعات', tabyan: 'التبيان', tj_single: 'التجويد - بدون تعدد', tj_multi: 'التجويد - تعدد المجموعات', f_single: 'القرآن (النهائي) - بدون تعدد', f_tabyan: 'التبيان (النهائي)', f_tj_single: 'التجويد (النهائي) - بدون تعدد', f_tj_multi: 'التجويد (النهائي) - تعدد المجموعات', f_multi: 'القرآن (النهائي) - تعدد المجموعات' };
 const draftKey = () => 'mush_d_' + getUser();
 function draftsGet() { try { const a = JSON.parse(localStorage.getItem(draftKey()) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
 function draftsPut(a) { try { localStorage.setItem(draftKey(), JSON.stringify(a)); return true; } catch (e) { return false; } }
+
+/* مزامنة المسودات مع الخادم: الحفظ محلياً فوري، والرفع بالخلفية؛ وإن فشل الاتصال يُعاد الرفع عند التحميل التالي */
+const draftDelKey = () => 'mush_dd_' + getUser();
+function draftPendingDel() { try { const a = JSON.parse(localStorage.getItem(draftDelKey()) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function draftPendingPut(a) { try { localStorage.setItem(draftDelKey(), JSON.stringify(a.slice(-100))); } catch (e) {} }
+function draftPush(rec) {
+  const d = { id: rec.id, ft: rec.ft, at: rec.at, teacher: rec.teacher, center: rec.center, date: rec.date, vals: rec.vals, sig: rec.sig };
+  return api('saveDraft', { draft: d }).then(() => {
+    const l = draftsGet(), k = l.findIndex(x => x.id === rec.id && x.at === rec.at);
+    if (k > -1) { l[k].sync = true; draftsPut(l); }
+  }).catch(() => {});
+}
+function draftRemoveRemote(id) {
+  api('deleteDraft', { id }).then(() => draftPendingPut(draftPendingDel().filter(x => x !== id))).catch(() => {
+    const p = draftPendingDel(); if (p.indexOf(id) < 0) { p.push(id); draftPendingPut(p); }
+  });
+}
+// دمج مسودات الخادم مع المحلية (الأحدث يفوز، والمحذوفة من جهاز آخر تُحذف هنا)
+function draftsMerge(srv) {
+  const pend = draftPendingDel();
+  pend.forEach(id => api('deleteDraft', { id }).then(() => draftPendingPut(draftPendingDel().filter(x => x !== id))).catch(() => {}));
+  const local = draftsGet(), lm = {}, sm = {}, out = [];
+  local.forEach(d => lm[d.id] = d);
+  (srv || []).forEach(d => { if (pend.indexOf(d.id) < 0) sm[d.id] = d; });
+  Object.keys(sm).forEach(id => {
+    const s = sm[id], l = lm[id];
+    if (!l || String(s.at) > String(l.at)) out.push(Object.assign({}, s, { sync: true }));
+    else { out.push(l); if (String(l.at) > String(s.at)) draftPush(l); }
+  });
+  local.forEach(l => {
+    if (sm[l.id]) return;
+    if (l.sync) return;               // كانت على الخادم وحُذفت من جهاز آخر
+    out.push(l); draftPush(l);        // لم تُرفع بعد
+  });
+  out.sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  draftsPut(out);
+  renderDrafts();
+}
 function draftView(ft) { return (ft === 'f_single' || ft === 'f_multi') ? 'evfFormView' : (ft === 'single' || ft === 'multi') ? 'evalFormView' : (ft === 'tabyan' || ft === 'f_tabyan') ? 'tbFormView' : 'tjFormView'; }
 function draftIsFin(view) { return view === 'evfFormView' || (view === 'tbFormView' && tbFin) || (view === 'tjFormView' && tjFin); }
 function draftPrefix(view) { return { evalFormView: 'ev', tbFormView: 'tb', tjFormView: 'tj', evfFormView: 'ef' }[view]; }
@@ -100,7 +138,8 @@ function draftSave(view) {
     rec.sig = '';
     if (!draftsPut(list)) return toast('تعذّر حفظ المسودة، ذاكرة المتصفح ممتلئة', false);
   }
-  toast('تم حفظ المسودة، تجدينها أعلى صفحة الاستمارات');
+  toast('تم حفظ المسودة، تجدينها أعلى صفحة الاستمارات ومن أي جهاز');
+  draftPush(rec);
   draftResetForm(view); CUR_DRAFT = null;
   show(draftIsFin(view) ? 'evalsFinalView' : 'evalsView'); renderDrafts();
 }
@@ -124,6 +163,7 @@ function draftOpen(id) {
 function draftDelete(id) {
   if (!confirm('حذف هذه المسودة؟')) return;
   draftsPut(draftsGet().filter(d => d.id !== id));
+  draftRemoveRemote(id);
   renderDrafts();
 }
 
@@ -156,7 +196,7 @@ function evBuild() {
       const id = n++;
       const hasMore = true;
       html += '<div class="ev-item"><div class="ev-row"><span class="ev-num c1">' + (i + 1) + '</span><b class="c2">' + esc(it.t) + '</b>' +
-        '<span class="ev-sc c5"><input type="number" inputmode="decimal" min="0" max="' + it.max + '" step="0.5" data-i="' + id + '" data-f="s" placeholder="0"><small>/' + it.max + '</small></span></div>' +
+        '<span class="ev-sc c5"><input type="text" inputmode="decimal" min="0" max="' + it.max + '" step="0.5" data-i="' + id + '" data-f="s" placeholder="0"><small>/' + it.max + '</small></span></div>' +
         '<button type="button" class="ev-tg" onclick="evMore(this)">تفاصيل التنفيذ والملاحظات ▾</button>' +
         '<div class="ev-more hidden"><div class="ev-grid">' +
         '<div class="ev-wide c3"><label>التنفيذ</label><select data-i="' + id + '" data-f="e">' + evOpts(EV_EXEC, 'اختاري') + '</select></div>' +
@@ -451,7 +491,7 @@ function evFixType(r) {
 
 // تحديث القائمة محلياً بعد الحفظ فوراً (دون انتظار جلب كل الاستمارات من جديد) ثم نحدّثها بالخلفية
 function evAfterSave(p, res, editing) {
-  if (CUR_DRAFT) { draftsPut(draftsGet().filter(d => d.id !== CUR_DRAFT)); CUR_DRAFT = null; renderDrafts(); }
+  if (CUR_DRAFT) { draftsPut(draftsGet().filter(d => d.id !== CUR_DRAFT)); draftRemoveRemote(CUR_DRAFT); CUR_DRAFT = null; renderDrafts(); }
   const old = editing ? evRows.find(r => r.id === editing.id) : null;
   const row = {
     id: (res && res.id) || (editing && editing.id) || ('tmp' + Date.now()),
@@ -472,7 +512,7 @@ function evAfterSave(p, res, editing) {
 }
 
 let evLoading = false;
-async function evLoadList(bgOnly) {
+async function evLoadList(bgOnly, quiet) {
   if (!bgOnly) {   // نعرض المحفوظ فوراً
     const c = cacheGet('evals');
     if (c && c.length >= 0 && !evRows.length) { evRows = c; evFillTeacherList(); }
@@ -481,13 +521,16 @@ async function evLoadList(bgOnly) {
   if (evLoading) return;
   evLoading = true;
   try {
-    const out = await api('getEvals');
+    let out;
+    try { out = await api('getEvalsBundle'); }   // طلب واحد: الاستمارات + المسودات
+    catch (e) { if (String(e.message).indexOf('إجراء غير معروف') < 0) throw e; out = await api('getEvals'); }   // Apps Script قديم
     evRows = out.data;
     evRows.forEach(evFixType);
     cacheSet('evals', evRows);
+    if (out.drafts) draftsMerge(out.drafts);
     evFillTeacherList();
     evRender();
-    exPrefetch();
+    if (!quiet) exPrefetch();
   } catch (e) { toast(e.message, false); }
   finally { evLoading = false; }
 }

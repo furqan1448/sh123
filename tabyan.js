@@ -44,7 +44,7 @@ const tbFmt = x => String(Math.round(x * 100) / 100);
 function tbBuild() {
   document.getElementById('tbItems').innerHTML = TB.items.map((it, i) =>
     '<div class="tb-item"><span class="ev-num">' + (i + 1) + '</span><b>' + esc(it[0]) + '</b>' +
-    '<span class="ev-sc"><input type="number" inputmode="decimal" min="0" max="' + it[1] + '" step="0.5" data-t="' + i + '" placeholder="0"><small>/' + it[1] + '</small></span></div>'
+    '<span class="ev-sc"><input type="text" inputmode="decimal" min="0" max="' + it[1] + '" step="0.5" data-t="' + i + '" placeholder="0"><small>/' + it[1] + '</small></span></div>'
   ).join('');
   document.getElementById('tbLegend').innerHTML = TB_GRADES.map(g =>
     gradeTag((g[0] === g[1] ? g[0] : g[1] + ' - ' + g[0]) + ': ' + g[2]).replace(/class="tag[^"]*"/, 'class="tag gr ' + gradeCls(g[2]) + '" style="margin:3px"')).join('');

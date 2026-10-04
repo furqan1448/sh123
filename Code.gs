@@ -13,6 +13,7 @@ const SHEET = {
   VISITS: 'كشف الخروج',
   FILES: 'المرفقات',
   EVALS: 'استمارات التقييم',
+  DRAFTS: 'المسودات',   // مسودات الاستمارات لكل مشرفة (تظهر من أي جهاز)، تُنشأ تلقائياً
   SIGS: 'التواقيع'   // نسخة مصغّرة من كل توقيع (للإكسل) + توقيع المشرفة المحفوظ، تُنشأ تلقائياً
 };
 
@@ -140,9 +141,13 @@ function route_(r) {
     case 'addFile': return withLock_(() => addFile_(r));
     case 'deleteFile': return withLock_(() => deleteFile_(r.id));
     case 'getEvals': return { ok: true, data: getEvals_() };
+    case 'getEvalsBundle': return { ok: true, data: getEvalsCached_(), drafts: getDrafts_(r.username) };   // طلب واحد: الاستمارات + المسودات
+    case 'getDrafts': return { ok: true, data: getDrafts_(r.username) };
+    case 'saveDraft': return withLock_(() => saveDraft_(r));
+    case 'deleteDraft': return withLock_(() => deleteDraft_(r));
     case 'addEval': return withLock_(() => addEval_(r));
     case 'updateEval': return withLock_(() => updateEval_(r));
-    case 'deleteEval': return withLock_(() => { const o = deleteById_(SHEET.EVALS, r.id, true, EVAL_URL_COL); sigDel_(r.id); return o; });
+    case 'deleteEval': return withLock_(() => { const o = deleteById_(SHEET.EVALS, r.id, true, EVAL_URL_COL); sigDel_(r.id); evalsBump_(); return o; });
     case 'getSigs': return { ok: true, data: getSigs_(r.items) };
     case 'getMySig': return { ok: true, data: sigGet_('u:' + norm_(r.username).toLowerCase()) };
     case 'saveMySig': return withLock_(() => { sigPut_('u:' + norm_(r.username).toLowerCase(), r.data); return { ok: true }; });
@@ -487,6 +492,7 @@ function addEval_(r) {
   const vals = [evalRow_(r, c, newId, sigUrl, nowStr_(), evalTypeLabel_(c.s(r.formType)))];
   sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
   if (sigUrl) sigPut_(newId, r.signature);
+  evalsBump_();
   return { ok: true, id: newId, signature: sigUrl };
 }
 
@@ -516,5 +522,107 @@ function updateEval_(r) {
   }
   const vals = [evalRow_(r, c, id, sigUrl, String(old[21] || nowStr_()), String(old[22] || evalTypeLabel_(c.s(r.formType))))];
   sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
+  evalsBump_();
   return { ok: true, id: id, signature: sigUrl };
+}
+
+
+/* ============ كاش الاستمارات (يسرّع التحميل؛ يُبطَل تلقائياً عند أي إضافة أو تعديل أو حذف) ============ */
+const EVALS_CACHE_TTL = 300;   // ثوانٍ: لو عدّلتِ الشيت يدوياً تظهر التغييرات خلال 5 دقائق كحد أقصى
+function evalsVer_() {
+  const c = CacheService.getScriptCache();
+  let v = c.get('ev_ver');
+  if (!v) { v = String(Date.now()); c.put('ev_ver', v, 21600); }
+  return v;
+}
+function evalsBump_() {
+  try { CacheService.getScriptCache().put('ev_ver', String(Date.now()), 21600); } catch (e) {}
+}
+function getEvalsCached_() {
+  const c = CacheService.getScriptCache();
+  const key = 'ev_' + evalsVer_();
+  try {
+    const n = parseInt(c.get(key + '_n') || '0', 10);
+    if (n > 0) {
+      const keys = []; for (let i = 0; i < n; i++) keys.push(key + '_' + i);
+      const parts = c.getAll(keys); let s = '', ok = true;
+      for (let i = 0; i < n; i++) { const p = parts[key + '_' + i]; if (p == null) { ok = false; break; } s += p; }
+      if (ok) return JSON.parse(s);
+    }
+  } catch (e) {}
+  const data = getEvals_();
+  try {
+    const s = JSON.stringify(data), CH = 30000, cnt = Math.ceil(s.length / CH);   // كل قطعة أقل من 100KB
+    if (cnt > 0 && cnt <= 60) {
+      const o = {};
+      for (let i = 0; i < cnt; i++) o[key + '_' + i] = s.substr(i * CH, CH);
+      o[key + '_n'] = String(cnt);
+      c.putAll(o, EVALS_CACHE_TTL);
+    }
+  } catch (e) {}
+  return data;
+}
+
+/* ============ المسودات (تُحفظ على الخادم لكل مشرفة لتفتحها من أي جهاز) ============ */
+const DRAFT_HEADERS = ['الرقم', 'المستخدمة', 'نوع الاستمارة', 'اسم المعلمة', 'المركز', 'التاريخ', 'وقت التحديث', 'البيانات', 'التوقيع'];
+function draftSheet_() {
+  const ss = ss_();
+  let sh = ss.getSheetByName(SHEET.DRAFTS);
+  if (!sh) {
+    sh = ss.insertSheet(SHEET.DRAFTS);
+    sh.getRange(1, 1, 1, DRAFT_HEADERS.length).setValues([DRAFT_HEADERS]);
+    styleHeader_(sh, DRAFT_HEADERS.length);
+    sh.setColumnWidths(1, DRAFT_HEADERS.length, 140);
+  }
+  return sh;
+}
+function draftUser_(r) { return norm_(r.username).toLowerCase(); }
+function getDrafts_(username) {
+  const sh = ss_().getSheetByName(SHEET.DRAFTS);
+  if (!sh || sh.getLastRow() < 2) return [];
+  const u = norm_(username).toLowerCase();
+  const rows = sh.getRange(2, 1, sh.getLastRow() - 1, DRAFT_HEADERS.length).getValues();
+  const out = [];
+  rows.forEach(r => {
+    if (!r[0] || String(r[1]) !== u) return;
+    let vals = [];
+    try { vals = JSON.parse(String(r[7] || '[]')); } catch (e) {}
+    out.push({ id: String(r[0]), ft: String(r[2]), teacher: String(r[3]), center: String(r[4]), date: String(r[5]), at: String(r[6]), vals: vals, sig: String(r[8] || '') });
+  });
+  return out;
+}
+function draftRow_(sh, id, u) {
+  const last = sh.getLastRow();
+  if (last < 2) return 0;
+  const ids = sh.getRange(2, 1, last - 1, 2).getValues();
+  for (let i = 0; i < ids.length; i++) if (String(ids[i][0]) === id && String(ids[i][1]) === u) return i + 2;
+  return 0;
+}
+function saveDraft_(r) {
+  const d = r.draft || {};
+  const id = String(d.id || '').slice(0, 60);
+  if (!id) throw new Error('مسودة غير صالحة');
+  const ft = String(d.ft || '');
+  if (!EVAL_TYPE_LABELS[ft] && ft !== 'single') throw new Error('نوع المسودة غير معروف');
+  if (!Array.isArray(d.vals) || d.vals.length > 300) throw new Error('بيانات المسودة غير صالحة');
+  const vals = JSON.stringify(d.vals.map(v => String(v == null ? '' : v)));
+  if (vals.length > 45000) throw new Error('المسودة كبيرة جداً');
+  let sig = String(d.sig || '');
+  if (sig.indexOf('data:image/') !== 0 || sig.length > 45000) sig = '';
+  const u = draftUser_(r);
+  const sh = draftSheet_();
+  const row = draftRow_(sh, id, u) || sh.getLastRow() + 1;
+  const at = String(d.at || new Date().toISOString()).slice(0, 40);
+  sh.getRange(row, 1, 1, DRAFT_HEADERS.length).setNumberFormat('@').setValues([[
+    id, u, ft, String(d.teacher || '').slice(0, 200), String(d.center || '').slice(0, 200), String(d.date || '').slice(0, 20), at, vals, sig
+  ]]);
+  return { ok: true, id: id };
+}
+function deleteDraft_(r) {
+  const id = String(r.id || '');
+  const sh = ss_().getSheetByName(SHEET.DRAFTS);
+  if (!sh || !id) return { ok: true };
+  const row = draftRow_(sh, id, draftUser_(r));
+  if (row) sh.deleteRow(row);
+  return { ok: true };
 }

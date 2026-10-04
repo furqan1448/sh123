@@ -214,3 +214,6 @@ a.lnk{color:var(--primary);font-weight:700}
 .pc-row b{flex:1;min-width:140px}
 
 .pc-total{background:#f6f0f2;border-radius:10px;padding:8px 10px;border-top:0;margin-bottom:4px}
+
+.ev-sc input{-moz-appearance:textfield;appearance:textfield}
+.ev-sc input::-webkit-outer-spin-button,.ev-sc input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}

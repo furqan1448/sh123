@@ -18,7 +18,7 @@ function efBuild() {
       '</span><span class="ev-prog"><b id="efC_' + sec.key + '">0</b>/' + efD()[sec.key].length + '</span></summary>';
     efD()[sec.key].forEach((it, i) => {
       html += '<div class="tb-item"><span class="ev-num">' + (i + 1) + '</span><b>' + esc(it.t) + '</b>' +
-        '<span class="ev-sc"><input type="number" inputmode="decimal" min="0" max="' + it.max + '" step="0.5" data-i="' + (n++) + '" placeholder="0"><small>/' + it.max + '</small></span></div>';
+        '<span class="ev-sc"><input type="text" inputmode="decimal" min="0" max="' + it.max + '" step="0.5" data-i="' + (n++) + '" placeholder="0"><small>/' + it.max + '</small></span></div>';
     });
     html += '<div class="ev-sub">المجموع: <b id="efS_' + sec.key + '">0</b> من ' + evFmt(sec.maxSum) +
       ' &nbsp;|&nbsp; الموزونة: <b id="efW_' + sec.key + '">0</b> من ' + evFmt(sec.target) + '</div></details>';
