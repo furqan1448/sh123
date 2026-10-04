@@ -63,9 +63,9 @@ function setup() {
   styleHeader_(vs, VISIT_HEADERS.length);
   vs.getRange(2, 4, 1999, 2).setNumberFormat('@'); // التاريخ والهجري كنص
   const dvCenter = SpreadsheetApp.newDataValidation()
-    .requireValueInRange(ls.getRange('A2:A500'), true).setAllowInvalid(false).build();
+    .requireValueInRange(ls.getRange('A2:A500'), true).setAllowInvalid(true).build();
   const dvType = SpreadsheetApp.newDataValidation()
-    .requireValueInRange(ls.getRange('B2:B500'), true).setAllowInvalid(false).build();
+    .requireValueInRange(ls.getRange('B2:B500'), true).setAllowInvalid(true).build();
   vs.getRange('B2:B2000').setDataValidation(dvCenter);
   vs.getRange('C2:C2000').setDataValidation(dvType);
   vs.setColumnWidths(1, VISIT_HEADERS.length, 140);
@@ -267,7 +267,9 @@ function addVisit_(r) {
     status === VISIT_STATUS[1] ? 'نعم' : 'لا', sigUrl, notVisited ? 'لا' : 'نعم',
     Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm'), status
   ]];
-  sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
+  const rg = sh.getRange(row, 1, 1, vals[0].length);
+  rg.clearDataValidations(); // التحقق يمنع أنواع الزيارة المتعددة (مفصولة بـ «،») فنلغيه، والتحقق يتم داخل الكود أعلاه
+  rg.setNumberFormat('@').setValues(vals);
   if (needSig && sigUrl) sigPut_(id, r.signature);
   return { ok: true, id: id, day: day, signature: sigUrl };
 }
@@ -627,4 +629,12 @@ function deleteDraft_(r) {
   const row = draftRow_(sh, id, draftUser_(r));
   if (row) sh.deleteRow(row);
   return { ok: true };
+}
+
+
+/* شغّليها مرة واحدة من Apps Script لإزالة قيود التحقق القديمة من ورقة «كشف الخروج» */
+function fixVisitValidation() {
+  const sh = ss_().getSheetByName(SHEET.VISITS);
+  sh.getRange(2, 1, Math.max(sh.getMaxRows() - 1, 1), VISIT_HEADERS.length).clearDataValidations();
+  Logger.log('تمت إزالة قيود التحقق من كشف الخروج');
 }
