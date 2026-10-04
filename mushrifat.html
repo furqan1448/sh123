@@ -45,6 +45,11 @@
   <div id="visitsView" class="hidden">
     <button class="back" onclick="show('homeView')">← رجوع</button>
 
+    <div class="stats">
+      <div class="stat"><b id="stDays">0</b><span>أيام الحضور (الزيارات)</span></div>
+      <div class="stat"><b id="stAbs">0</b><span>أيام الغياب</span></div>
+    </div>
+
     <div class="card">
       <h2>تسجيل زيارة جديدة</h2>
 
@@ -86,7 +91,6 @@
       <h2>سجل الزيارات</h2>
       <label for="fCenter" style="margin-top:0">تصفية حسب المركز</label>
       <select id="fCenter" onchange="renderVisits()"><option value="">كل المراكز</option></select>
-      <div id="perCenter" style="margin:14px 0"></div>
       <div class="ex-bar">
         <button class="btn light" onclick="exVisits(this)">تحميل كشف الخروج Excel</button>
       </div>
@@ -545,28 +549,13 @@ function statusTag(v) {
   return '<span class="tag ' + cls + '">' + esc(st) + '</span>';
 }
 
-// حضور/غياب لكل مركز (على كل السجلات)
-function vCenterStats() {
-  const per = {};
-  VISITS.forEach(v => {
-    const key = v.center || V_NOC;
-    const p = per[key] || (per[key] = { att: 0, abs: 0 });
-    if (vIsAbsent(v)) p.abs++; else p.att++;
-  });
-  return per;
-}
-
 function renderVisits() {
   const f = document.getElementById('fCenter').value;
 
   // الإحصائيات (على كل السجلات)
-  const per = vCenterStats();
   const att = VISITS.filter(v => !vIsAbsent(v)).length;
-  const tags = (a, b) => '<span class="tag ok">حضور: ' + a + '</span><span class="tag bad">غياب: ' + b + '</span>';
-  document.getElementById('perCenter').innerHTML = VISITS.length
-    ? '<div class="pc-row pc-total"><b>الإجمالي</b>' + tags(att, VISITS.length - att) + '</div>' + Object.keys(per).sort().map(c =>
-        '<div class="pc-row"><b>' + esc(c) + '</b>' + tags(per[c].att, per[c].abs) + '</div>').join('')
-    : '';
+  document.getElementById('stDays').textContent = att;
+  document.getElementById('stAbs').textContent = VISITS.length - att;
 
   const rows = VISITS.filter(v => !f || v.center === f);
   const body = document.getElementById('vBody');
