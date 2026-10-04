@@ -9,6 +9,7 @@ function ss_() { return SPREADSHEET_ID ? SpreadsheetApp.openById(SPREADSHEET_ID)
 
 const SHEET = {
   USERS: 'المستخدمات',
+  MANAGERS: 'مديرات الوحدات',
   LISTS: 'القوائم',
   VISITS: 'كشف الخروج',
   FILES: 'المرفقات',
@@ -18,7 +19,7 @@ const SHEET = {
 };
 
 const DEFAULT_UNIT = 'وحدة الإشراف التربوي';   // وحدة السجلات القديمة والمستخدمات اللاتي لم تُكتب لهن وحدة
-const ROLE_SUP = 'sup', ROLE_MGR = 'mgr', ROLE_ADMIN = 'admin';   // مشرفة / مديرة وحدة / مديرة عامة (الوحدات كلها)
+const ALL_UNITS = 'الكل';   // إذا كتبتِ «الكل» في وحدة مديرة الوحدات ترى كل الوحدات
 const OWNER_HEADERS = ['المسجِّلة', 'الوحدة'];
 
 const VISIT_HEADERS = ['الرقم', 'اسم المركز', 'نوع الزيارة', 'التاريخ', 'التاريخ الهجري', 'اليوم',
@@ -44,14 +45,25 @@ function setup() {
   // المستخدمات (اسم المستخدم + كلمة المرور)
   const us = getOrCreate_(ss, SHEET.USERS);
   if (us.getLastRow() === 0) {
-    us.getRange(1, 1, 1, 5).setValues([['اسم المستخدم', 'كلمة المرور', 'الاسم', 'الوحدة', 'الدور']]);
+    us.getRange(1, 1, 1, 4).setValues([['اسم المستخدم', 'كلمة المرور', 'الاسم', 'الوحدة']]);
     us.getRange(2, 1, 1, 2).setNumberFormat('@').setValues([['مشرفة1', '1234']]);
   }
-  [['الاسم', 3], ['الوحدة', 4], ['الدور', 5]].forEach(h => { if (!us.getRange(1, h[1]).getValue()) us.getRange(1, h[1]).setValue(h[0]); });
-  styleHeader_(us, 5);
-  us.setColumnWidth(3, 200); us.setColumnWidth(4, 220); us.setColumnWidth(5, 160);
+  [['اسم المستخدم', 1], ['كلمة المرور', 2], ['الاسم', 3], ['الوحدة', 4]].forEach(h => { if (!us.getRange(1, h[1]).getValue()) us.getRange(1, h[1]).setValue(h[0]); });
+  styleHeader_(us, 4);
+  us.setColumnWidth(3, 200); us.setColumnWidth(4, 220);
   us.getRange('A2:B500').setNumberFormat('@');
   us.setColumnWidth(1, 200); us.setColumnWidth(2, 200);
+
+  // مديرات الوحدات (دخول مستقل لصفحة «إدارة الوحدات»: الاسم + كلمة المرور + الوحدة)
+  const ms = getOrCreate_(ss, SHEET.MANAGERS);
+  if (ms.getLastRow() === 0) {
+    ms.getRange(1, 1, 1, 3).setValues([['الاسم', 'كلمة المرور', 'الوحدة']]);
+    ms.getRange(2, 1, 1, 3).setNumberFormat('@').setValues([['مديرة الوحدة', '1234', DEFAULT_UNIT]]);
+  }
+  [['الاسم', 1], ['كلمة المرور', 2], ['الوحدة', 3]].forEach(h => { if (!ms.getRange(1, h[1]).getValue()) ms.getRange(1, h[1]).setValue(h[0]); });
+  styleHeader_(ms, 3);
+  ms.getRange('A2:C200').setNumberFormat('@');
+  ms.setColumnWidth(1, 200); ms.setColumnWidth(2, 200); ms.setColumnWidth(3, 240);
 
   // القوائم (المصدر للقوائم المنسدلة)
   const ls = getOrCreate_(ss, SHEET.LISTS);
@@ -131,7 +143,10 @@ function doPost(e) {
   let out;
   try {
     const req = JSON.parse(e.postData.contents);
-    if (!checkAuth_(req.username, req.password)) {
+    if (req.action === 'getManage') {   // صفحة إدارة الوحدات لها دخول مستقل (ورقة «مديرات الوحدات»)
+      const mgr = mgrAuth_(req.username, req.password);
+      out = mgr ? getManage_(mgr) : { ok: false, error: 'الاسم أو كلمة المرور غير صحيحة' };
+    } else if (!checkAuth_(req.username, req.password)) {
       out = { ok: false, error: 'اسم المستخدم أو كلمة المرور غير صحيحة' };
     } else {
       out = route_(req);
@@ -150,7 +165,6 @@ function route_(r) {
   switch (r.action) {
     case 'login': return { ok: true, profile: profileOf_(r.username) };
     case 'getLists': return { ok: true, data: getLists_(), profile: profileOf_(r.username) };
-    case 'getManage': return getManage_(r);
     case 'getVisits': return { ok: true, data: getVisits_() };
     case 'addVisit': return withLock_(() => addVisit_(r));
     case 'deleteVisit': return withLock_(() => { const o = deleteById_(SHEET.VISITS, r.id); sigDel_(r.id); return o; });
@@ -204,17 +218,10 @@ function checkAuth_(user, pw) {
   return has(usersRows_(false)) || has(usersRows_(true));
 }
 
-// الدور من نص الشيت: «مديرة عامة» ترى كل الوحدات، «مديرة وحدة» ترى وحدتها، وغير ذلك مشرفة
-function roleOf_(v) {
-  const t = norm_(v);
-  if (t.indexOf('عامة') > -1 || t.indexOf('عام') === 0) return ROLE_ADMIN;
-  if (t.indexOf('مديرة') > -1 || t.indexOf('إدارة') > -1) return ROLE_MGR;
-  return ROLE_SUP;
-}
 function profileOf_(user) {
   const u = norm_(user).toLowerCase();
   let row = usersRows_(false).filter(x => x[0] === u)[0] || usersRows_(true).filter(x => x[0] === u)[0] || [];
-  return { username: u, name: row[2] || norm_(user), unit: row[3] || DEFAULT_UNIT, role: roleOf_(row[4]) };
+  return { username: u, name: row[2] || norm_(user), unit: row[3] || DEFAULT_UNIT };
 }
 
 /* ============ القوائم ============ */
@@ -676,19 +683,31 @@ function fixVisitValidation() {
 }
 
 
-/* ============ إدارة الوحدات (لمديرات الوحدات فقط) ============ */
-// مديرة الوحدة ترى مشرفات وحدتها وكل ما سجّلنه، والمديرة العامة ترى كل الوحدات. السجلات القديمة (بلا وحدة) تُحسب على DEFAULT_UNIT.
-function getManage_(r) {
-  const me = profileOf_(r.username);
-  if (me.role === ROLE_SUP) throw new Error('هذه الصفحة لمديرات الوحدات فقط');
-  const all = me.role === ROLE_ADMIN;
+/* ============ إدارة الوحدات (دخول مستقل لمديرات الوحدات) ============ */
+// ورقة «مديرات الوحدات»: الاسم | كلمة المرور | الوحدة. كل مديرة ترى مشرفات وحدتها وما سجّلنه. وحدة «الكل» ترى كل الوحدات.
+function mgrAuth_(name, pw) {
+  const n = norm_(name).toLowerCase(), p = norm_(pw);
+  if (!n || !p) return null;
+  const sh = ss_().getSheetByName(SHEET.MANAGERS);
+  if (!sh) throw new Error('شغّلي setup() أولاً');
+  const rows = sh.getDataRange().getDisplayValues().slice(1);
+  for (let i = 0; i < rows.length; i++) {
+    if (norm_(rows[i][0]).toLowerCase() === n && norm_(rows[i][1]) === p) {
+      return { name: norm_(rows[i][0]), unit: norm_(rows[i][2]) || DEFAULT_UNIT };
+    }
+  }
+  return null;
+}
+
+function getManage_(me) {
+  const all = me.unit === ALL_UNITS;
   const U = u => u || DEFAULT_UNIT;
   const inScope = u => all || U(u) === me.unit;
 
   const ush = ss_().getSheetByName(SHEET.USERS);
   const users = ush.getDataRange().getDisplayValues().slice(1)
     .filter(x => norm_(x[0]))
-    .map(x => ({ username: norm_(x[0]).toLowerCase(), name: norm_(x[2]) || norm_(x[0]), unit: U(norm_(x[3])), role: roleOf_(x[4]) }))
+    .map(x => ({ username: norm_(x[0]).toLowerCase(), name: norm_(x[2]) || norm_(x[0]), unit: U(norm_(x[3])) }))
     .filter(u => inScope(u.unit));
 
   const visits = getVisits_().filter(v => inScope(v.unit)).map(v => ({
@@ -703,6 +722,5 @@ function getManage_(r) {
   const seen = {};
   users.concat(visits, evals, files).forEach(x => { seen[x.unit] = 1; });
   if (!all) seen[me.unit] = 1;
-  const units = Object.keys(seen).sort();
-  return { ok: true, me: me, units: units, users: users, visits: visits, evals: evals, files: files };
+  return { ok: true, me: me, units: Object.keys(seen).sort(), users: users, visits: visits, evals: evals, files: files };
 }

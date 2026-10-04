@@ -1,11 +1,11 @@
 /* ===== إدارة الوحدات: متابعة مشرفات كل وحدة (تظهر لمديرات الوحدات فقط) ===== */
-// صفحة مستقلة (units.html). الدور يأتي من ورقة «المستخدمات» (عمود الدور): sup = مشرفة، mgr = مديرة وحدة، admin = مديرة عامة (كل الوحدات)
+// صفحة مستقلة (units.html) بدخول خاص: ورقة «مديرات الوحدات» (الاسم | كلمة المرور | الوحدة). وحدة «الكل» = كل الوحدات
 let MG = null, mgTab = 'visits';
 const MG_NONE = 'غير محدد (سجلات قديمة)';
 const MG_LIMIT = 300;   // أقصى عدد صفوف تُعرض في التفاصيل
 
 const $ = id => document.getElementById(id);
-const MG_DENY = 'هذه الصفحة لمديرات الوحدات فقط';
+const MG_USER = 'mgr_user', MG_PW = 'mgr_pw';   // مفاتيح مستقلة عن صفحة المشرفات (لا يتداخل الحسابان)
 
 function show(id) {
   ['loginView', 'manageView'].forEach(v => $(v).classList.add('hidden'));
@@ -13,27 +13,44 @@ function show(id) {
   window.scrollTo(0, 0);
 }
 
+// طلب مستقل بدخول مديرة الوحدة (الاسم + كلمة المرور من ورقة «مديرات الوحدات»)
+async function mgApi() {
+  const body = JSON.stringify({ action: 'getManage', username: localStorage.getItem(MG_USER) || '', password: localStorage.getItem(MG_PW) || '' });
+  for (let i = 0; i < 3; i++) {
+    const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), 25000);
+    try {
+      const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body, signal: ctrl.signal });
+      clearTimeout(t);
+      const out = await res.json();
+      if (!out.ok) throw Object.assign(new Error(out.error || 'حدث خطأ'), { final: true, auth: String(out.error || '').indexOf('كلمة المرور') > -1 });
+      return out;
+    } catch (e) {
+      clearTimeout(t);
+      if (e.final) throw e;
+    }
+  }
+  throw new Error('تعذّر الاتصال بالخادم، تأكدي من الإنترنت ورابط النشر');
+}
+
 async function doLogin() {
   const un = $('un').value.trim(), pw = $('pw').value.trim();
-  if (!un) return toast('أدخلي اسم المستخدم', false);
+  if (!un) return toast('أدخلي الاسم', false);
   if (!pw) return toast('أدخلي كلمة المرور', false);
-  const btn = $('loginBtn'), oldU = getUser(), oldP = getPw();
-  localStorage.setItem(USER_KEY, un); localStorage.setItem(PW_KEY, pw);
+  const btn = $('loginBtn');
+  localStorage.setItem(MG_USER, un); localStorage.setItem(MG_PW, pw);
   setBtnBusy(btn, true, 'جارِ التحقق...');
   try {
-    MG = await api('getManage');
+    MG = await mgApi();
     show('manageView'); mgFillUnits(); mgRender();
   } catch (e) {
-    // نُرجع بيانات الدخول السابقة (قد تكون جلسة مشرفة في صفحة المشرفات) ولا نمسحها
-    if (oldU && oldP) { localStorage.setItem(USER_KEY, oldU); localStorage.setItem(PW_KEY, oldP); }
-    else { localStorage.removeItem(USER_KEY); localStorage.removeItem(PW_KEY); }
-    toast(e.message === MG_DENY ? 'هذا الحساب ليس مديرة وحدة' : e.message, false);
+    localStorage.removeItem(MG_USER); localStorage.removeItem(MG_PW);
+    toast(e.message, false);
   } finally { setBtnBusy(btn, false); }
 }
 ['un', 'pw'].forEach(id => $(id).addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); }));
 
 function logout() {
-  localStorage.removeItem(PW_KEY); localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(MG_USER); localStorage.removeItem(MG_PW);
   MG = null; $('un').value = ''; $('pw').value = '';
   show('loginView');
 }
@@ -42,18 +59,17 @@ async function mgLoad() {
   const sum = $('mgSum');
   if (sum && !MG) sum.innerHTML = '<tr><td colspan="6" class="empty">جارِ التحميل...</td></tr>';
   try {
-    MG = await api('getManage');
+    MG = await mgApi();
     mgFillUnits(); mgRender();
   } catch (e) {
     if (e.auth) { toast('انتهت صلاحية الدخول، سجّلي الدخول من جديد', false); logout(); return; }
-    if (e.message === MG_DENY) { toast('هذا الحساب ليس مديرة وحدة', false); show('loginView'); return; }
     toast(e.message, false);
     if (sum) sum.innerHTML = '<tr><td colspan="6" class="empty">تعذّر التحميل، اضغطي «تحديث»</td></tr>';
   }
 }
 
 (function init() {
-  if (getUser() && getPw()) { show('manageView'); mgLoad(); }
+  if (localStorage.getItem(MG_USER) && localStorage.getItem(MG_PW)) { show('manageView'); mgLoad(); }
 })();
 
 function mgFillUnits() {
