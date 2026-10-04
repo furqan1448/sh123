@@ -143,9 +143,11 @@ function doPost(e) {
   let out;
   try {
     const req = JSON.parse(e.postData.contents);
-    if (req.action === 'getManage') {   // صفحة إدارة الوحدات لها دخول مستقل (ورقة «مديرات الوحدات»)
+    if (req.action === 'getManage' || (req.action === 'getSigs' && req.mgr)) {   // صفحة إدارة الوحدات لها دخول مستقل (ورقة «مديرات الوحدات»)
       const mgr = mgrAuth_(req.username, req.password);
-      out = mgr ? getManage_(mgr) : { ok: false, error: 'الاسم أو كلمة المرور غير صحيحة' };
+      if (!mgr) out = { ok: false, error: 'الاسم أو كلمة المرور غير صحيحة' };
+      else if (req.action === 'getSigs') out = { ok: true, data: getSigs_(req.items) };   // توقيعات الاستمارات لملف الإكسل
+      else out = getManage_(mgr);
     } else if (!checkAuth_(req.username, req.password)) {
       out = { ok: false, error: 'اسم المستخدم أو كلمة المرور غير صحيحة' };
     } else {
@@ -713,9 +715,8 @@ function getManage_(me) {
   const visits = getVisits_().filter(v => inScope(v.unit)).map(v => ({
     id: v.id, owner: v.owner, unit: U(v.unit), center: v.center, type: v.type, date: v.date, day: v.day,
     status: v.status, counted: v.counted, signature: v.signature, at: v.at }));
-  const evals = getEvalsCached_().filter(e => inScope(e.unit)).map(e => ({
-    id: e.id, owner: e.owner, unit: U(e.unit), center: e.center, teacher: e.teacher, date: e.date, period: e.period,
-    type: evalTypeLabel_(e.formType), grade: e.grade, weighted: e.weighted, at: e.at }));
+  // الاستمارات كاملة (البنود والدرجات والملاحظات) ليتمكن الموقع من عرضها وتصديرها إكسل كما عند المشرفة
+  const evals = getEvalsCached_().filter(e => inScope(e.unit)).map(e => Object.assign({}, e, { unit: U(e.unit) }));
   const files = getFiles_().filter(f => inScope(f.unit)).map(f => ({
     id: f.id, owner: f.owner, unit: U(f.unit), title: f.title, name: f.name, url: f.url, at: f.at }));
 

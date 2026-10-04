@@ -76,6 +76,7 @@
         <button data-t="evals" onclick="mgTabSet('evals')">الاستمارات</button>
         <button data-t="files" onclick="mgTabSet('files')">المرفقات</button>
       </div>
+      <div class="ex-bar" id="mgBar"></div>
       <div class="tbl-wrap">
         <table>
           <thead id="mgHead"></thead>
@@ -87,8 +88,20 @@
 
 </div>
 
+<div id="evModal" class="modal hidden" onclick="if (event.target === this) evCloseModal()">
+  <div class="modal-box">
+    <button class="btn light" style="margin-bottom:10px" onclick="evCloseModal()">إغلاق ✕</button>
+    <div id="evModalBody"></div>
+  </div>
+</div>
+
 <script src="logo-config.js"></script>
 <script src="config.js"></script>
+<script src="evals.js"></script>
+<script src="tabyan.js"></script>
+<script src="tajweed.js"></script>
+<script src="final.js"></script>
+<script src="export.js"></script>
 <script src="manage.js"></script>
 </body>
 </html>
