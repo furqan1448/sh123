@@ -84,7 +84,7 @@ function exFormModel(r) {
 function exVisitsModel(rows) {
   const today = new Date().toISOString().slice(0, 10);
   const centers = {};
-  rows.forEach(v => (centers[v.center] = centers[v.center] || []).push(v));
+  rows.forEach(v => { const k = v.center || V_NOC; (centers[k] = centers[k] || []).push(v); });
   const m = {
     title: 'كشف خروج المشرفة', file: 'كشف_الخروج_' + today, landscape: true, visits: true,
     info: [['المشرفة', getUser()], ['تاريخ التقرير', today]],
@@ -103,7 +103,7 @@ function exVisitsModel(rows) {
       footer: [['إجمالي أيام الحضور', a1], ['إجمالي أيام الغياب', a2]]
     });
   });
-  m.info.push(['المراكز', Object.keys(centers).length ? String(Object.keys(centers).length) : '0']);
+  m.info.push(['المراكز', String(Object.keys(centers).filter(k => k !== V_NOC).length)]);
   m.totals = [['إجمالي أيام الحضور (كل المراكز)', att], ['إجمالي أيام الغياب (كل المراكز)', abs]];
   return m;
 }

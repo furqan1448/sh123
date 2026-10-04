@@ -218,20 +218,21 @@ function getVisits_() {
 function addVisit_(r) {
   const center = String(r.center || '').trim();
   const type = String(r.type || '').trim();
-  const date = String(r.date || '').trim();
+  let date = String(r.date || '').trim();
   // توافق مع النسخة القديمة من الواجهة (absent=true) إن لم تصل «الحالة»
   const status = String(r.status || (r.absent === true ? VISIT_STATUS[1] : VISIT_STATUS[0])).trim();
-  if (!center) throw new Error('اختاري اسم المركز');
   if (VISIT_STATUS.indexOf(status) < 0) throw new Error('حالة الزيارة غير صحيحة');
   const notVisited = status === VISIT_NONE;   // لم تتم الزيارة: لا نوع زيارة ولا توقيع
+  if (!notVisited && !center) throw new Error('اختاري اسم المركز');
   if (!type && !notVisited) throw new Error('اختاري نوع الزيارة');
+  if (!date && notVisited) date = Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd');   // لم تتم الزيارة: لا شيء مطلوب، والتاريخ الافتراضي اليوم
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('التاريخ غير صحيح');
   const needSig = status === VISIT_STATUS[0];
   if (needSig && !r.signature) throw new Error('توقيع المديرة مطلوب، أو اختاري حالة أخرى للزيارة');
 
   let lists = getLists_(false);
-  if (lists.centers.indexOf(center) < 0 || (!notVisited && lists.types.indexOf(type) < 0)) lists = getLists_(true);
-  if (lists.centers.indexOf(center) < 0) throw new Error('اسم المركز غير موجود في القائمة');
+  if ((center && lists.centers.indexOf(center) < 0) || (!notVisited && lists.types.indexOf(type) < 0)) lists = getLists_(true);
+  if (center && lists.centers.indexOf(center) < 0) throw new Error('اسم المركز غير موجود في القائمة');
   if (!notVisited && lists.types.indexOf(type) < 0) throw new Error('نوع الزيارة غير موجود في القائمة');
 
   const p = date.split('-');

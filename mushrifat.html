@@ -53,8 +53,10 @@
     <div class="card">
       <h2>تسجيل زيارة جديدة</h2>
 
-      <label for="vCenter">اسم المركز</label>
-      <select id="vCenter"><option value="">جارِ التحميل...</option></select>
+      <div id="vCenterBox">
+        <label for="vCenter">اسم المركز</label>
+        <select id="vCenter"><option value="">جارِ التحميل...</option></select>
+      </div>
 
       <div id="vTypeBox">
         <label for="vType">نوع الزيارة</label>
@@ -409,6 +411,7 @@ const V_STATUS = ['تمت الزيارة', 'تمت الزيارة والمدير
 const V_SIGNED = V_STATUS[0];
 const V_NONE = V_STATUS[4];   // لم تتم الزيارة: تُحسب يوم غياب، بدون نوع زيارة وبدون توقيع
 const vStatusOf = v => v.status || (v.absent ? V_STATUS[1] : V_STATUS[0]);
+const V_NOC = 'غياب بدون تحديد مركز';
 const vIsAbsent = v => vStatusOf(v) === V_NONE;
 
 /* ---------- التنقل ---------- */
@@ -520,9 +523,10 @@ function onStatusChange() {
   const needSig = st === V_SIGNED, none = st === V_NONE;
   document.getElementById('sigSection').classList.toggle('hidden', !needSig);
   document.getElementById('vTypeBox').classList.toggle('hidden', none);
+  document.getElementById('vCenterBox').classList.toggle('hidden', none);
   const note = document.getElementById('absentNote');
   note.classList.toggle('hidden', needSig);
-  note.textContent = none ? 'لم تتم الزيارة: تُسجَّل يوم غياب، ولا حاجة لنوع الزيارة أو التوقيع.'
+  note.textContent = none ? 'لم تتم الزيارة: يكفي اختيار هذه الحالة ثم الحفظ، وتُسجَّل يوم غياب (بدون مركز ولا نوع زيارة ولا توقيع).'
     : 'التوقيع غير مطلوب في هذه الحالة، وتُحسب الزيارة يوم حضور.';
   if (needSig) setTimeout(sizeCanvas, 30);
 }
@@ -550,7 +554,8 @@ function statusTag(v) {
 function vCenterStats() {
   const per = {};
   VISITS.forEach(v => {
-    const p = per[v.center] || (per[v.center] = { att: 0, abs: 0 });
+    const key = v.center || V_NOC;
+    const p = per[key] || (per[key] = { att: 0, abs: 0 });
     if (vIsAbsent(v)) p.abs++; else p.att++;
   });
   return per;
@@ -575,7 +580,7 @@ function renderVisits() {
   if (!rows.length) { body.innerHTML = '<tr><td colspan="8" class="empty">لا توجد زيارات</td></tr>'; return; }
   body.innerHTML = rows.map((v, i) => '<tr>' +
     '<td>' + (i + 1) + '</td>' +
-    '<td>' + esc(v.center) + '</td>' +
+    '<td>' + (esc(v.center) || '—') + '</td>' +
     '<td>' + (esc(v.type) || '—') + '</td>' +
     '<td>' + esc(v.date) + '</td>' +
     '<td>' + esc(v.day) + '</td>' +
@@ -586,18 +591,17 @@ function renderVisits() {
 }
 
 async function saveVisit() {
-  const center = document.getElementById('vCenter').value;
   const status = document.getElementById('vStatus').value;
   const none = status === V_NONE;
+  const center = none ? '' : document.getElementById('vCenter').value;
   const type = none ? '' : document.getElementById('vType').value;
-  const date = document.getElementById('vDate').value;
+  const date = document.getElementById('vDate').value || todayStr();
   const needSig = status === V_SIGNED;
   const sig = needSig ? vSig.get() : '';
 
-  if (!center) return toast('اختاري اسم المركز', false);
+  if (!none && !center) return toast('اختاري اسم المركز', false);
   if (!status) return toast('اختاري حالة الزيارة', false);
   if (!none && !type) return toast('اختاري نوع الزيارة', false);
-  if (!date) return toast('اختاري التاريخ', false);
   if (needSig && !sig) return toast('توقيع المديرة مطلوب (رسم أو صورة)، أو اختاري حالة أخرى للزيارة', false);
 
   const btn = document.getElementById('saveVisitBtn');
