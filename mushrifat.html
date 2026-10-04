@@ -45,11 +45,6 @@
   <div id="visitsView" class="hidden">
     <button class="back" onclick="show('homeView')">← رجوع</button>
 
-    <div class="stats">
-      <div class="stat"><b id="stDays">0</b><span>أيام الحضور (الزيارات)</span></div>
-      <div class="stat"><b id="stAbs">0</b><span>أيام الغياب</span></div>
-    </div>
-
     <div class="card">
       <h2>تسجيل زيارة جديدة</h2>
 
@@ -84,7 +79,7 @@
       </div>
       <p id="absentNote" class="hidden" style="margin-top:12px;font-size:14px;color:var(--muted)">التوقيع غير مطلوب في هذه الحالة، وتُحسب الزيارة يوماً واحداً.</p>
 
-      <button id="saveVisitBtn" class="btn block" onclick="saveVisit()">حفظ الزيارة</button>
+      <button id="saveVisitBtn" class="btn block" onclick="saveVisit()">حفظ</button>
     </div>
 
     <div class="card">
@@ -567,12 +562,10 @@ function renderVisits() {
   // الإحصائيات (على كل السجلات)
   const per = vCenterStats();
   const att = VISITS.filter(v => !vIsAbsent(v)).length;
-  document.getElementById('stDays').textContent = att;
-  document.getElementById('stAbs').textContent = VISITS.length - att;
-
-  document.getElementById('perCenter').innerHTML = Object.keys(per).length
-    ? Object.keys(per).sort().map(c =>
-        '<div class="pc-row"><b>' + esc(c) + '</b><span class="tag ok">حضور: ' + per[c].att + '</span><span class="tag bad">غياب: ' + per[c].abs + '</span></div>').join('')
+  const tags = (a, b) => '<span class="tag ok">حضور: ' + a + '</span><span class="tag bad">غياب: ' + b + '</span>';
+  document.getElementById('perCenter').innerHTML = VISITS.length
+    ? '<div class="pc-row pc-total"><b>الإجمالي</b>' + tags(att, VISITS.length - att) + '</div>' + Object.keys(per).sort().map(c =>
+        '<div class="pc-row"><b>' + esc(c) + '</b>' + tags(per[c].att, per[c].abs) + '</div>').join('')
     : '';
 
   const rows = VISITS.filter(v => !f || v.center === f);
