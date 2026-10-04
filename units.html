@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>إدارة الوحدات — منظومة مشرفات مكتب إشراف الداخل</title>
+<link rel="preconnect" href="https://script.google.com">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="topbar">
+  <img class="logo" alt="شعار فرقان">
+  <h1>إدارة الوحدات</h1>
+  <p>متابعة مشرفات الوحدات</p>
+</div>
+
+<div class="wrap">
+
+  <!-- تسجيل الدخول -->
+  <div id="loginView" class="card" style="max-width:420px;margin:30px auto">
+    <h2>تسجيل الدخول — إدارة الوحدات</h2>
+    <label for="un">اسم المستخدم</label>
+    <input id="un" type="text" autocomplete="username" autocapitalize="none" placeholder="أدخلي اسم المستخدم">
+    <label for="pw">كلمة المرور</label>
+    <div class="pw-wrap">
+      <input id="pw" type="password" autocomplete="current-password" placeholder="أدخلي كلمة المرور">
+      <button type="button" class="pw-toggle" onclick="togglePassword('pw', this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    </div>
+    <button id="loginBtn" class="btn block" onclick="doLogin()">دخول</button>
+    <p style="margin-top:12px;text-align:center"><a class="lnk" href="index.html">الرئيسية</a></p>
+  </div>
+
+
+  <!-- إدارة الوحدات -->
+  <div id="manageView" class="hidden">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px">
+      <a class="lnk" href="index.html">← الرئيسية</a>
+      <button class="btn light" onclick="logout()">تسجيل الخروج</button>
+    </div>
+
+    <div class="card">
+      <h2>إدارة الوحدات</h2>
+      <div id="mgUnitBox" class="hidden">
+        <label for="mgUnit" style="margin-top:0">الوحدة</label>
+        <select id="mgUnit" onchange="mgRender()"></select>
+      </div>
+      <div class="row2">
+        <div><label for="mgFrom">من تاريخ</label><input id="mgFrom" type="date" onchange="mgRender()"></div>
+        <div><label for="mgTo">إلى تاريخ</label><input id="mgTo" type="date" onchange="mgRender()"></div>
+      </div>
+      <div class="ex-bar">
+        <button class="btn light" onclick="mgLoad()">تحديث</button>
+        <button class="btn light" onclick="mgClear()">مسح التصفية</button>
+      </div>
+    </div>
+
+    <div class="stats" id="mgStats"></div>
+
+    <div class="card">
+      <h2>المشرفات</h2>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>المشرفة</th><th>أيام الحضور</th><th>أيام الغياب</th><th>الاستمارات</th><th>المرفقات</th><th>آخر نشاط</th></tr></thead>
+          <tbody id="mgSum"><tr><td colspan="6" class="empty">جارِ التحميل...</td></tr></tbody>
+        </table>
+      </div>
+      <p class="mg-note">اضغطي على اسم المشرفة لعرض ما سجّلته في الأسفل.</p>
+    </div>
+
+    <div class="card">
+      <h2>التفاصيل</h2>
+      <label for="mgSup" style="margin-top:0">تصفية حسب المشرفة</label>
+      <select id="mgSup" onchange="mgRender()"></select>
+      <div class="ev-tabs" id="mgTabs">
+        <button class="on" data-t="visits" onclick="mgTabSet('visits')">كشف الخروج</button>
+        <button data-t="evals" onclick="mgTabSet('evals')">الاستمارات</button>
+        <button data-t="files" onclick="mgTabSet('files')">المرفقات</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead id="mgHead"></thead>
+          <tbody id="mgBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="logo-config.js"></script>
+<script src="config.js"></script>
+<script src="manage.js"></script>
+</body>
+</html>

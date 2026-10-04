@@ -1,32 +1,60 @@
 /* ===== إدارة الوحدات: متابعة مشرفات كل وحدة (تظهر لمديرات الوحدات فقط) ===== */
-// الدور يأتي من ورقة «المستخدمات» (عمود الدور): sup = مشرفة، mgr = مديرة وحدة، admin = مديرة عامة (كل الوحدات)
-let ME = { role: 'sup', unit: '', name: '' };
+// صفحة مستقلة (units.html). الدور يأتي من ورقة «المستخدمات» (عمود الدور): sup = مشرفة، mgr = مديرة وحدة، admin = مديرة عامة (كل الوحدات)
 let MG = null, mgTab = 'visits';
 const MG_NONE = 'غير محدد (سجلات قديمة)';
 const MG_LIMIT = 300;   // أقصى عدد صفوف تُعرض في التفاصيل
 
-function applyMe(p) {
-  if (p) { ME = p; cacheSet('me', p); } else ME = { role: 'sup', unit: '', name: '' };
-  const t = document.getElementById('mgTile');
-  if (t) t.classList.toggle('hidden', ME.role === 'sup');
+const $ = id => document.getElementById(id);
+const MG_DENY = 'هذه الصفحة لمديرات الوحدات فقط';
+
+function show(id) {
+  ['loginView', 'manageView'].forEach(v => $(v).classList.add('hidden'));
+  $(id).classList.remove('hidden');
+  window.scrollTo(0, 0);
+}
+
+async function doLogin() {
+  const un = $('un').value.trim(), pw = $('pw').value.trim();
+  if (!un) return toast('أدخلي اسم المستخدم', false);
+  if (!pw) return toast('أدخلي كلمة المرور', false);
+  const btn = $('loginBtn'), oldU = getUser(), oldP = getPw();
+  localStorage.setItem(USER_KEY, un); localStorage.setItem(PW_KEY, pw);
+  setBtnBusy(btn, true, 'جارِ التحقق...');
+  try {
+    MG = await api('getManage');
+    show('manageView'); mgFillUnits(); mgRender();
+  } catch (e) {
+    // نُرجع بيانات الدخول السابقة (قد تكون جلسة مشرفة في صفحة المشرفات) ولا نمسحها
+    if (oldU && oldP) { localStorage.setItem(USER_KEY, oldU); localStorage.setItem(PW_KEY, oldP); }
+    else { localStorage.removeItem(USER_KEY); localStorage.removeItem(PW_KEY); }
+    toast(e.message === MG_DENY ? 'هذا الحساب ليس مديرة وحدة' : e.message, false);
+  } finally { setBtnBusy(btn, false); }
+}
+['un', 'pw'].forEach(id => $(id).addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); }));
+
+function logout() {
+  localStorage.removeItem(PW_KEY); localStorage.removeItem(USER_KEY);
+  MG = null; $('un').value = ''; $('pw').value = '';
+  show('loginView');
 }
 
 async function mgLoad() {
-  const sum = document.getElementById('mgSum');
+  const sum = $('mgSum');
   if (sum && !MG) sum.innerHTML = '<tr><td colspan="6" class="empty">جارِ التحميل...</td></tr>';
   try {
-    const out = await api('getManage');
-    MG = out;
-    applyMe(out.me);
-    mgFillUnits();
-    mgRender();
+    MG = await api('getManage');
+    mgFillUnits(); mgRender();
   } catch (e) {
     if (e.auth) { toast('انتهت صلاحية الدخول، سجّلي الدخول من جديد', false); logout(); return; }
+    if (e.message === MG_DENY) { toast('هذا الحساب ليس مديرة وحدة', false); show('loginView'); return; }
     toast(e.message, false);
-    if (ME.role === 'sup') show('homeView');
-    else if (sum) sum.innerHTML = '<tr><td colspan="6" class="empty">تعذّر التحميل</td></tr>';
+    if (sum) sum.innerHTML = '<tr><td colspan="6" class="empty">تعذّر التحميل، اضغطي «تحديث»</td></tr>';
   }
 }
+
+(function init() {
+  if (getUser() && getPw()) { show('manageView'); mgLoad(); }
+})();
 
 function mgFillUnits() {
   const sel = document.getElementById('mgUnit');
