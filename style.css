@@ -264,3 +264,9 @@ table{font-size:15px}
 .chip{display:inline-flex;align-items:center;gap:8px;margin:0;padding:9px 14px;border:1.5px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;font-size:15px;font-weight:600}
 .chip input{width:18px;height:18px;padding:0;margin:0;accent-color:var(--primary)}
 .chip:has(input:checked){border-color:var(--primary);background:#f6f0f2;color:var(--primary)}
+
+/* إدارة الوحدات */
+.mg-row{cursor:pointer}
+.mg-row:hover td{background:#faf3ee}
+.mg-note{font-size:13px;color:var(--muted);margin-top:8px}
+#mgStats{margin-bottom:16px}

@@ -17,16 +17,20 @@ const SHEET = {
   SIGS: 'التواقيع'   // نسخة مصغّرة من كل توقيع (للإكسل) + توقيع المشرفة المحفوظ، تُنشأ تلقائياً
 };
 
+const DEFAULT_UNIT = 'وحدة الإشراف التربوي';   // وحدة السجلات القديمة والمستخدمات اللاتي لم تُكتب لهن وحدة
+const ROLE_SUP = 'sup', ROLE_MGR = 'mgr', ROLE_ADMIN = 'admin';   // مشرفة / مديرة وحدة / مديرة عامة (الوحدات كلها)
+const OWNER_HEADERS = ['المسجِّلة', 'الوحدة'];
+
 const VISIT_HEADERS = ['الرقم', 'اسم المركز', 'نوع الزيارة', 'التاريخ', 'التاريخ الهجري', 'اليوم',
-  'المديرة متغيبة', 'التوقيع', 'تُحسب يوم', 'وقت التسجيل', 'حالة الزيارة'];
+  'المديرة متغيبة', 'التوقيع', 'تُحسب يوم', 'وقت التسجيل', 'حالة الزيارة', 'المسجِّلة', 'الوحدة'];
 // حالات الزيارة: الأولى تحتاج توقيع المديرة، والباقي بدون توقيع (الأربع الأولى تُحسب يوم حضور، والأخيرة يوم غياب)
 const VISIT_STATUS = ['تمت الزيارة', 'تمت الزيارة والمديرة متغيبة', 'تمت الزيارة وتعذر التوثيق لتعليق الموقع أو الشبكة', 'تمت الزيارة قبل توفر موقع النظام', 'لم تتم الزيارة'];
 const VISIT_NONE = VISIT_STATUS[4]; // لم تتم الزيارة: تُحسب يوم غياب ولا تحتاج نوع زيارة ولا توقيع
 const VISIT_STATUS_COL = 11;
-const FILE_HEADERS = ['الرقم', 'العنوان', 'اسم الملف', 'الرابط', 'وقت الرفع'];
+const FILE_HEADERS = ['الرقم', 'العنوان', 'اسم الملف', 'الرابط', 'وقت الرفع', 'المسجِّلة', 'الوحدة'];
 const EVAL_HEADERS = ['الرقم', 'اسم المركز', 'الفترة', 'اسم المعلمة', 'المؤهل', 'الفئة', 'اليوم', 'التاريخ',
   'عنوان الدرس', 'سنوات الخبرة', 'العدد الكلي', 'العدد الحاضر', 'رقم الزيارة', 'اسم المشرفة',
-  'الدرجة الكلية', 'الدرجة الموزونة', 'التقدير', 'البنود', 'ملاحظات المشرفة', 'توصيات المشرفة', 'التوقيع', 'وقت التسجيل', 'نوع الاستمارة', 'بيانات إضافية'];
+  'الدرجة الكلية', 'الدرجة الموزونة', 'التقدير', 'البنود', 'ملاحظات المشرفة', 'توصيات المشرفة', 'التوقيع', 'وقت التسجيل', 'نوع الاستمارة', 'بيانات إضافية', 'المسجِّلة', 'الوحدة'];
 const EVAL_URL_COL = 21; // عمود التوقيع (رابط ملف في الدرايف)
 
 const DAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
@@ -40,10 +44,12 @@ function setup() {
   // المستخدمات (اسم المستخدم + كلمة المرور)
   const us = getOrCreate_(ss, SHEET.USERS);
   if (us.getLastRow() === 0) {
-    us.getRange(1, 1, 1, 2).setValues([['اسم المستخدم', 'كلمة المرور']]);
+    us.getRange(1, 1, 1, 5).setValues([['اسم المستخدم', 'كلمة المرور', 'الاسم', 'الوحدة', 'الدور']]);
     us.getRange(2, 1, 1, 2).setNumberFormat('@').setValues([['مشرفة1', '1234']]);
   }
-  styleHeader_(us, 2);
+  [['الاسم', 3], ['الوحدة', 4], ['الدور', 5]].forEach(h => { if (!us.getRange(1, h[1]).getValue()) us.getRange(1, h[1]).setValue(h[0]); });
+  styleHeader_(us, 5);
+  us.setColumnWidth(3, 200); us.setColumnWidth(4, 220); us.setColumnWidth(5, 160);
   us.getRange('A2:B500').setNumberFormat('@');
   us.setColumnWidth(1, 200); us.setColumnWidth(2, 200);
 
@@ -60,6 +66,7 @@ function setup() {
   // كشف الخروج
   const vs = getOrCreate_(ss, SHEET.VISITS);
   ensureHeaders_(vs, VISIT_HEADERS);
+  ensureExtraHeaders_(vs, VISIT_HEADERS);
   styleHeader_(vs, VISIT_HEADERS.length);
   vs.getRange(2, 4, 1999, 2).setNumberFormat('@'); // التاريخ والهجري كنص
   const dvCenter = SpreadsheetApp.newDataValidation()
@@ -73,6 +80,7 @@ function setup() {
   // المرفقات
   const fs = getOrCreate_(ss, SHEET.FILES);
   ensureHeaders_(fs, FILE_HEADERS);
+  ensureExtraHeaders_(fs, FILE_HEADERS);
   styleHeader_(fs, FILE_HEADERS.length);
   fs.setColumnWidths(1, FILE_HEADERS.length, 160);
 
@@ -93,6 +101,14 @@ function getOrCreate_(ss, name) {
 }
 function ensureHeaders_(sh, headers) {
   if (sh.getLastRow() === 0) sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+}
+// يكمّل ترويسات الأعمدة الجديدة (المسجِّلة، الوحدة) في ورقة قديمة دون الحاجة لتشغيل setup
+function ensureExtraHeaders_(sh, headers) {
+  const n = headers.length;
+  const cur = sh.getRange(1, 1, 1, n).getValues()[0];
+  let changed = false;
+  for (let i = 0; i < n; i++) if (!cur[i]) { cur[i] = headers[i]; changed = true; }
+  if (changed) { sh.getRange(1, 1, 1, n).setValues([cur]); styleHeader_(sh, n); }
 }
 function styleHeader_(sh, cols) {
   sh.setRightToLeft(true);
@@ -132,8 +148,9 @@ function json_(o) {
 
 function route_(r) {
   switch (r.action) {
-    case 'login': return { ok: true };
-    case 'getLists': return { ok: true, data: getLists_() };
+    case 'login': return { ok: true, profile: profileOf_(r.username) };
+    case 'getLists': return { ok: true, data: getLists_(), profile: profileOf_(r.username) };
+    case 'getManage': return getManage_(r);
     case 'getVisits': return { ok: true, data: getVisits_() };
     case 'addVisit': return withLock_(() => addVisit_(r));
     case 'deleteVisit': return withLock_(() => { const o = deleteById_(SHEET.VISITS, r.id); sigDel_(r.id); return o; });
@@ -171,13 +188,13 @@ function norm_(s) {
 function usersRows_(fresh) {
   const cache = CacheService.getScriptCache();
   if (!fresh) {
-    const hit = cache.get('users_v1');
+    const hit = cache.get('users_v2');
     if (hit) { try { return JSON.parse(hit); } catch (e) {} }
   }
   const sh = ss_().getSheetByName(SHEET.USERS);
   if (!sh) throw new Error('شغّلي setup() أولاً');
-  const rows = sh.getDataRange().getDisplayValues().slice(1).map(r => [norm_(r[0]).toLowerCase(), norm_(r[1])]);
-  try { cache.put('users_v1', JSON.stringify(rows), 120); } catch (e) {}
+  const rows = sh.getDataRange().getDisplayValues().slice(1).map(r => [norm_(r[0]).toLowerCase(), norm_(r[1]), norm_(r[2]), norm_(r[3]), norm_(r[4])]);
+  try { cache.put('users_v2', JSON.stringify(rows), 120); } catch (e) {}
   return rows;
 }
 function checkAuth_(user, pw) {
@@ -185,6 +202,19 @@ function checkAuth_(user, pw) {
   if (!u || !p) return false;
   const has = rows => rows.some(r => r[0] === u && r[1] === p);
   return has(usersRows_(false)) || has(usersRows_(true));
+}
+
+// الدور من نص الشيت: «مديرة عامة» ترى كل الوحدات، «مديرة وحدة» ترى وحدتها، وغير ذلك مشرفة
+function roleOf_(v) {
+  const t = norm_(v);
+  if (t.indexOf('عامة') > -1 || t.indexOf('عام') === 0) return ROLE_ADMIN;
+  if (t.indexOf('مديرة') > -1 || t.indexOf('إدارة') > -1) return ROLE_MGR;
+  return ROLE_SUP;
+}
+function profileOf_(user) {
+  const u = norm_(user).toLowerCase();
+  let row = usersRows_(false).filter(x => x[0] === u)[0] || usersRows_(true).filter(x => x[0] === u)[0] || [];
+  return { username: u, name: row[2] || norm_(user), unit: row[3] || DEFAULT_UNIT, role: roleOf_(row[4]) };
 }
 
 /* ============ القوائم ============ */
@@ -216,7 +246,7 @@ function getVisits_() {
     // الصفوف القديمة ما فيها حالة: نستنتجها من عمود «المديرة متغيبة»
     const status = r[10] || (absent ? VISIT_STATUS[1] : VISIT_STATUS[0]);
     return { id: r[0], center: r[1], type: r[2], date: r[3], hijri: r[4], day: r[5],
-      absent: absent, status: status, signature: r[7], counted: r[8] === 'نعم', at: r[9] };
+      absent: absent, status: status, signature: r[7], counted: r[8] === 'نعم', at: r[9], owner: r[11] || '', unit: r[12] || '' };
   }).reverse();
 }
 
@@ -260,12 +290,14 @@ function addVisit_(r) {
     sh.getRange(1, VISIT_STATUS_COL).setValue(VISIT_HEADERS[VISIT_STATUS_COL - 1])
       .setBackground('#7a1f2b').setFontColor('#ffffff').setFontWeight('bold').setHorizontalAlignment('center');
   }
+  ensureExtraHeaders_(sh, VISIT_HEADERS);
+  const me = profileOf_(r.username);
   const id = Utilities.getUuid();
   const row = sh.getLastRow() + 1;
   const vals = [[
     id, center, type, date, String(r.hijri || ''), day,
     status === VISIT_STATUS[1] ? 'نعم' : 'لا', sigUrl, notVisited ? 'لا' : 'نعم',
-    Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm'), status
+    Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm'), status, me.username, me.unit
   ]];
   const rg = sh.getRange(row, 1, 1, vals[0].length);
   rg.clearDataValidations(); // التحقق يمنع أنواع الزيارة المتعددة (مفصولة بـ «،») فنلغيه، والتحقق يتم داخل الكود أعلاه
@@ -279,12 +311,14 @@ function getFiles_() {
   const sh = ss_().getSheetByName(SHEET.FILES);
   const rows = sh.getDataRange().getDisplayValues().slice(1);
   return rows.filter(r => r[0]).map(r => ({
-    id: r[0], title: r[1], name: r[2], url: r[3], at: r[4]
+    id: r[0], title: r[1], name: r[2], url: r[3], at: r[4], owner: r[5] || '', unit: r[6] || ''
   })).reverse();
 }
 
 function addFile_(r) {
   const title = String(r.title || '').trim();
+  const me = profileOf_(r.username);
+  ensureExtraHeaders_(ss_().getSheetByName(SHEET.FILES), FILE_HEADERS);
   if (!title) throw new Error('اكتبي عنوان المرفق');
   const link = String(r.url || '').trim();
   if (link) {   // إرفاق رابط بدل ملف
@@ -292,7 +326,7 @@ function addFile_(r) {
     const lid = Utilities.getUuid();
     ss_().getSheetByName(SHEET.FILES).appendRow([
       lid, title, LINK_MARK, link,
-      Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm')
+      Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm'), me.username, me.unit
     ]);
     return { ok: true, id: lid, url: link };
   }
@@ -304,7 +338,7 @@ function addFile_(r) {
   const fid = Utilities.getUuid();
   sh.appendRow([
     fid, title, r.name || '', f.getUrl(),
-    Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm')
+    Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm'), me.username, me.unit
   ]);
   return { ok: true, id: fid, url: f.getUrl() };
 }
@@ -428,7 +462,7 @@ function getEvals_() {
     id: r[0], center: r[1], period: r[2], teacher: r[3], qual: r[4], cat: r[5], day: r[6], date: r[7],
     lesson: r[8], years: r[9], total: r[10], present: r[11], visitNo: r[12], supervisor: r[13],
     raw: r[14], weighted: r[15], grade: r[16], items: r[17], notes: r[18], recs: r[19],
-    signature: r[20], at: r[21], formType: evalTypeKey_(r[22]), extra: r[23] || ''
+    signature: r[20], at: r[21], formType: evalTypeKey_(r[22]), extra: r[23] || '', owner: r[24] || '', unit: r[25] || ''
   })).reverse();
 }
 
@@ -474,13 +508,13 @@ function evalTypeKey_(label) {
   return 'single';
 }
 
-function evalRow_(r, c, id, sigUrl, at, typeLabel) {
+function evalRow_(r, c, id, sigUrl, at, typeLabel, owner, unit) {
   const s = c.s;
   return [
     id, c.center, c.period, c.teacher, s(r.qual), s(r.cat), s(r.day), c.date,
     s(r.lesson), s(r.years), s(r.total), s(r.present), s(r.visitNo), s(r.supervisor),
     s(r.raw), s(r.weighted), s(r.grade), JSON.stringify(c.items), s(r.notes), s(r.recs), sigUrl,
-    at, typeLabel, s(r.extra).slice(0, 2000)
+    at, typeLabel, s(r.extra).slice(0, 2000), owner || '', unit || ''
   ];
 }
 
@@ -492,8 +526,10 @@ function addEval_(r) {
   const sh = ss_().getSheetByName(SHEET.EVALS);
   if (!sh) throw new Error('شغّلي setup() مرة أخرى لإنشاء ورقة الاستمارات');
   const row = sh.getLastRow() + 1;
+  ensureExtraHeaders_(sh, EVAL_HEADERS);
+  const me = profileOf_(r.username);
   const newId = Utilities.getUuid();
-  const vals = [evalRow_(r, c, newId, sigUrl, nowStr_(), evalTypeLabel_(c.s(r.formType)))];
+  const vals = [evalRow_(r, c, newId, sigUrl, nowStr_(), evalTypeLabel_(c.s(r.formType)), me.username, me.unit)];
   sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
   if (sigUrl) sigPut_(newId, r.signature);
   evalsBump_();
@@ -524,7 +560,7 @@ function updateEval_(r) {
     sigUrl = newUrl;
     sigPut_(id, r.signature);
   }
-  const vals = [evalRow_(r, c, id, sigUrl, String(old[21] || nowStr_()), String(old[22] || evalTypeLabel_(c.s(r.formType))))];
+  const vals = [evalRow_(r, c, id, sigUrl, String(old[21] || nowStr_()), String(old[22] || evalTypeLabel_(c.s(r.formType))), String(old[24] || ''), String(old[25] || ''))];
   sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
   evalsBump_();
   return { ok: true, id: id, signature: sigUrl };
@@ -637,4 +673,36 @@ function fixVisitValidation() {
   const sh = ss_().getSheetByName(SHEET.VISITS);
   sh.getRange(2, 1, Math.max(sh.getMaxRows() - 1, 1), VISIT_HEADERS.length).clearDataValidations();
   Logger.log('تمت إزالة قيود التحقق من كشف الخروج');
+}
+
+
+/* ============ إدارة الوحدات (لمديرات الوحدات فقط) ============ */
+// مديرة الوحدة ترى مشرفات وحدتها وكل ما سجّلنه، والمديرة العامة ترى كل الوحدات. السجلات القديمة (بلا وحدة) تُحسب على DEFAULT_UNIT.
+function getManage_(r) {
+  const me = profileOf_(r.username);
+  if (me.role === ROLE_SUP) throw new Error('هذه الصفحة لمديرات الوحدات فقط');
+  const all = me.role === ROLE_ADMIN;
+  const U = u => u || DEFAULT_UNIT;
+  const inScope = u => all || U(u) === me.unit;
+
+  const ush = ss_().getSheetByName(SHEET.USERS);
+  const users = ush.getDataRange().getDisplayValues().slice(1)
+    .filter(x => norm_(x[0]))
+    .map(x => ({ username: norm_(x[0]).toLowerCase(), name: norm_(x[2]) || norm_(x[0]), unit: U(norm_(x[3])), role: roleOf_(x[4]) }))
+    .filter(u => inScope(u.unit));
+
+  const visits = getVisits_().filter(v => inScope(v.unit)).map(v => ({
+    id: v.id, owner: v.owner, unit: U(v.unit), center: v.center, type: v.type, date: v.date, day: v.day,
+    status: v.status, counted: v.counted, signature: v.signature, at: v.at }));
+  const evals = getEvalsCached_().filter(e => inScope(e.unit)).map(e => ({
+    id: e.id, owner: e.owner, unit: U(e.unit), center: e.center, teacher: e.teacher, date: e.date, period: e.period,
+    type: evalTypeLabel_(e.formType), grade: e.grade, weighted: e.weighted, at: e.at }));
+  const files = getFiles_().filter(f => inScope(f.unit)).map(f => ({
+    id: f.id, owner: f.owner, unit: U(f.unit), title: f.title, name: f.name, url: f.url, at: f.at }));
+
+  const seen = {};
+  users.concat(visits, evals, files).forEach(x => { seen[x.unit] = 1; });
+  if (!all) seen[me.unit] = 1;
+  const units = Object.keys(seen).sort();
+  return { ok: true, me: me, units: units, users: users, visits: visits, evals: evals, files: files };
 }
