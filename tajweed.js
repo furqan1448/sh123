@@ -131,7 +131,7 @@ function tjOpenForm(type, fin) {
     document.getElementById('tjDay').innerHTML = evOpts(TJ.lists.day, 'اختاري اليوم');
     document.getElementById('tjCat').innerHTML = evOpts(TJ.lists.cat, 'اختاري الفئة');
     document.getElementById('tjCat2').innerHTML = evOpts(TJ.lists.cat, 'اختاري الفئة');
-    tjPad = makeSigWidget('tjSigW', { saved: true, none: true });
+    tjPad = makeSigWidget('tjSigW', { saved: true });
     tjBuilt = true;
   }
   document.getElementById('tjCenter').innerHTML = evOpts(LISTS.centers, 'اختاري المركز');

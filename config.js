@@ -132,10 +132,10 @@ function makeSigWidget(rootId, o) {
   const q = s => root.querySelector(s), qa = s => [...root.querySelectorAll(s)];
   const cv = q('canvas'), ctx = cv.getContext('2d'), tabs = q('.sigw-tabs');
   const fileIn = q('input[type=file]'), keep = q('.sigw-keep');
-  let mode = '', drawing = false, has = false, imgData = '', lastW = 0, noneText = 'بدون توقيع', noneHint = 'لن يُرفق توقيع مع هذه الاستمارة.';
+  let keepTab = false, mode = '', drawing = false, has = false, imgData = '', lastW = 0, noneText = 'بدون توقيع', noneHint = 'لن يُرفق توقيع مع هذه الاستمارة.';
 
   const defMode = () => (o.saved && mySig) ? 'saved' : 'draw';
-  const avail = () => (o.saved && mySig ? [['saved', 'توقيعي المحفوظ']] : []).concat([['draw', 'رسم'], ['image', 'إرفاق صورة']], o.none ? [[ 'none', noneText ]] : []);
+  const avail = () => (o.saved && mySig ? [['saved', 'توقيعي المحفوظ']] : []).concat([['draw', 'رسم'], ['image', 'إرفاق صورة']], (o.none || keepTab) ? [[ 'none', noneText ]] : []);
 
   function resize() {
     const r = cv.getBoundingClientRect(), ratio = window.devicePixelRatio || 1;
@@ -219,11 +219,11 @@ function makeSigWidget(rootId, o) {
     reset() {                           // استمارة جديدة
       ctx.clearRect(0, 0, cv.width, cv.height); has = false; setImage('');
       if (keep) keep.querySelector('input').checked = false;
-      noneText = 'بدون توقيع'; noneHint = 'لن يُرفق توقيع مع هذه الاستمارة.';
+      keepTab = false; noneText = 'بدون توقيع'; noneHint = 'لن يُرفق توقيع مع هذه الاستمارة.';
       renderTabs(); setMode(defMode());
     },
     keepOld(label) {                    // وضع التعديل: التوقيع السابق يبقى ما لم نختر غيره
-      noneText = label; noneHint = 'سيبقى التوقيع السابق المحفوظ مع هذه الاستمارة كما هو.';
+      keepTab = true; noneText = label; noneHint = 'سيبقى التوقيع السابق المحفوظ مع هذه الاستمارة كما هو.';
       renderTabs(); setMode('none');
     },
     draftData: () => (mode === 'draw' || mode === 'image') ? current() : '',

@@ -129,7 +129,7 @@ a.lnk{color:var(--primary);font-weight:700}
   .c1{grid-column:1}.c2{grid-column:2}.c3{grid-column:3}.c4{grid-column:4}.c5{grid-column:5}.c6{grid-column:6}
   .ev-more .ev-wide label{display:none}
   .ev-row b{font-size:13.5px}
-  .ev-sec .ev-item select{font-size:12.5px;padding:7px 6px}
+  .ev-sec .ev-item select,.ev-sec .ev-item .ev-why{font-size:12.5px;padding:7px 6px}
   .ev-sc{justify-content:center}
   .ev-sc input{padding:7px 4px}
   .ev-num{justify-self:center}

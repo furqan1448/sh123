@@ -92,7 +92,7 @@ function efOpenForm(type) {
     document.getElementById('efPeriod').innerHTML = evOpts(EV.lists.period, 'اختاري الفترة');
     document.getElementById('efQual').innerHTML = evOpts(EV.lists.qual, 'اختاري المؤهل');
     document.getElementById('efDay').innerHTML = evOpts(EV.lists.day, 'اختاري اليوم');
-    efPad = makeSigWidget('efSigW', { saved: true, none: true });
+    efPad = makeSigWidget('efSigW', { saved: true });
     efBuilt = true;
   }
   if (efTypeBuilt !== efType) { efBuild(); efTypeBuilt = efType; efFillCats(); }

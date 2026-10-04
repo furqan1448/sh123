@@ -103,7 +103,7 @@ function tbOpenForm(fin) {
     document.getElementById('tbDay').innerHTML = evOpts(TB.lists.day, 'اختاري اليوم');
     document.getElementById('tbCat').innerHTML = evOpts(TB.lists.cat, 'اختاري الفئة');
     document.getElementById('tbCat2').innerHTML = evOpts(TB.lists.cat, 'اختاري الفئة');
-    tbPad = makeSigWidget('tbSigW', { saved: true, none: true });
+    tbPad = makeSigWidget('tbSigW', { saved: true });
     tbBuilt = true;
   }
   document.getElementById('tbCenter').innerHTML = evOpts(LISTS.centers, 'اختاري المركز');

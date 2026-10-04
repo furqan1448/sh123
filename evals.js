@@ -29,6 +29,7 @@ function evSetVal(id, v) { const el = document.getElementById(id); if (el) el.va
 function evSetSel(id, v) {   // يضيف الخيار إن لم يكن في القائمة (قيم قديمة) ثم يحدده
   const el = typeof id === 'string' ? document.getElementById(id) : id; if (!el) return;
   v = v == null ? '' : String(v);
+  if (el.tagName !== 'SELECT') { el.value = v; return; }
   if (v && ![...el.options].some(o => o.value === v)) { const o = document.createElement('option'); o.textContent = v; o.value = v; el.appendChild(o); }
   el.value = v;
 }
@@ -47,7 +48,7 @@ function evSetEditUI(viewId, r) {
     (EDIT.sig ? ' التوقيع السابق يبقى كما هو إلا إذا اخترتِ توقيعاً جديداً.' : ''));
   const b = document.getElementById(EV_FORM_BTNS[viewId]); if (b) b.textContent = 'حفظ التعديلات';
   const d = document.getElementById(EV_DRAFT_BTNS[viewId]); if (d) d.classList.add('hidden');   // لا مسودة أثناء التعديل
-  const p = EV_PADS()[viewId]; if (p) p.keepOld(EDIT.sig ? 'إبقاء التوقيع السابق' : 'بدون توقيع');
+  const p = EV_PADS()[viewId]; if (p && EDIT.sig) p.keepOld('إبقاء التوقيع السابق');
 }
 function clearEdit() {
   EDIT = null; CUR_DRAFT = null;
@@ -191,7 +192,7 @@ function evBuild() {
   EV_SECTIONS.forEach((sec, si) => {
     html += '<details class="card ev-sec"' + (si === 0 || window.innerWidth >= 900 ? ' open' : '') + '><summary><span>' + esc(sec.title) +
       '</span><span class="ev-prog"><b id="evC_' + sec.key + '">0</b>/' + evD()[sec.key].length + '</span></summary>' +
-      '<div class="ev-head"><span>م</span><span>البند</span><span>التنفيذ</span><span>المعايير</span><span>الدرجة</span><span>الملاحظات والتوجيه</span></div>';
+      '<div class="ev-head"><span>م</span><span>البند</span><span>التنفيذ</span><span>المعايير</span><span>الدرجة</span><span>سبب الخصم</span></div>';
     evD()[sec.key].forEach((it, i) => {
       const id = n++;
       const hasMore = true;
@@ -201,7 +202,7 @@ function evBuild() {
         '<div class="ev-more hidden"><div class="ev-grid">' +
         '<div class="ev-wide c3"><label>التنفيذ</label><select data-i="' + id + '" data-f="e">' + evOpts(EV_EXEC, 'اختاري') + '</select></div>' +
         (it.crit.length ? '<div class="ev-wide c4"><label>المعايير</label><select data-i="' + id + '" data-f="c">' + evOpts(it.crit, 'بدون') + '</select></div>' : '') +
-        (it.note.length ? '<div class="ev-wide c6"><label>الملاحظات والتوجيه</label><select data-i="' + id + '" data-f="n">' + evOpts(it.note, 'بدون') + '</select></div>' : '') +
+        '<div class="ev-wide c6"><label>سبب الخصم</label><input type="text" class="ev-why" data-i="' + id + '" data-f="n" placeholder="اكتبي سبب الخصم" autocomplete="off"></div>' +
         '</div></div></div>';
     });
     html += '<div class="ev-sub">المجموع: <b id="evS_' + sec.key + '">0</b> من ' + evFmt(sec.maxSum) +
@@ -257,7 +258,7 @@ function evCalc() {
     rawTotal += sum; wTotal += w;
   });
   document.querySelectorAll('#evSections .ev-item').forEach(el => {
-    const has = [...el.querySelectorAll('.ev-more select')].some(s => s.value && s.dataset.f !== 'e' ? true : (s.dataset.f === 'e' && s.value));
+    const has = [...el.querySelectorAll('.ev-more select, .ev-more input')].some(s => !!s.value);
     el.querySelector('.ev-tg').classList.toggle('has', has);
   });
   const g = evGrade(wTotal);
@@ -280,7 +281,7 @@ function evOpenForm(type) {
     document.getElementById('evQual').innerHTML = evOpts(EV.lists.qual, 'اختاري المؤهل');
     document.getElementById('evCat').innerHTML = evOpts(EV.lists.cat, 'اختاري الفئة');
     document.getElementById('evDay').innerHTML = evOpts(EV.lists.day, 'اختاري اليوم');
-    evPad = makeSigWidget('evSigW', { saved: true, none: true });
+    evPad = makeSigWidget('evSigW', { saved: true });
     evBuilt = true;
   }
   document.getElementById('evCenter').innerHTML = evOpts(LISTS.centers, 'اختاري المركز');
@@ -558,7 +559,7 @@ function evView(i) {
     '<div class="ev-info">' + f('نوع الاستمارة', EV_TYPES[r.formType === 'multi' ? 'multi' : 'single']) + f('الفترة', r.period) + f('اليوم', r.day) + f('التاريخ', r.date) + f('الفئة', r.cat) + f('المؤهل', r.qual) +
     f('عنوان الدرس', r.lesson) + f('سنوات الخبرة', r.years) + f('العدد الكلي', r.total) + f('العدد الحاضر', r.present) +
     f('رقم الزيارة', r.visitNo) + f('اسم المشرفة', r.supervisor) + '</div>' +
-    '<div class="tbl-wrap"><table style="min-width:560px"><thead><tr><th>م</th><th>البند</th><th>التنفيذ</th><th>الدرجة</th><th>المعايير والتوجيه</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<div class="tbl-wrap"><table style="min-width:560px"><thead><tr><th>م</th><th>البند</th><th>التنفيذ</th><th>الدرجة</th><th>المعايير وسبب الخصم</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
     '<div class="stats" style="margin-top:14px"><div class="stat"><b>' + esc(r.raw) + '</b><span>الدرجة الكلية من 100</span></div></div>' +
     '<div class="stats"><div class="stat"><b>' + esc(r.weighted) + '</b><span>الدرجة الموزونة - التقدير: ' + gradeTag(r.grade) + '</span></div></div>' +
     f('ملاحظات المشرفة', r.notes) + f('توصيات المشرفة', r.recs) +
