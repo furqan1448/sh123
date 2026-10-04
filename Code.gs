@@ -12,13 +12,15 @@ const SHEET = {
   LISTS: 'القوائم',
   VISITS: 'كشف الخروج',
   FILES: 'المرفقات',
-  EVALS: 'استمارات التقييم'
+  EVALS: 'استمارات التقييم',
+  SIGS: 'التواقيع'   // نسخة مصغّرة من كل توقيع (للإكسل) + توقيع المشرفة المحفوظ، تُنشأ تلقائياً
 };
 
 const VISIT_HEADERS = ['الرقم', 'اسم المركز', 'نوع الزيارة', 'التاريخ', 'التاريخ الهجري', 'اليوم',
   'المديرة متغيبة', 'التوقيع', 'تُحسب يوم', 'وقت التسجيل', 'حالة الزيارة'];
-// حالات الزيارة: الأولى تحتاج توقيع المديرة، والباقي بدون توقيع (وكلها تُحسب يوماً واحداً)
-const VISIT_STATUS = ['تمت الزيارة', 'تمت الزيارة والمديرة متغيبة', 'تمت الزيارة وتعذر التوثيق لتعليق الموقع أو الشبكة', 'تمت الزيارة قبل توفر موقع النظام'];
+// حالات الزيارة: الأولى تحتاج توقيع المديرة، والباقي بدون توقيع (الأربع الأولى تُحسب يوم حضور، والأخيرة يوم غياب)
+const VISIT_STATUS = ['تمت الزيارة', 'تمت الزيارة والمديرة متغيبة', 'تمت الزيارة وتعذر التوثيق لتعليق الموقع أو الشبكة', 'تمت الزيارة قبل توفر موقع النظام', 'لم تتم الزيارة'];
+const VISIT_NONE = VISIT_STATUS[4]; // لم تتم الزيارة: تُحسب يوم غياب ولا تحتاج نوع زيارة ولا توقيع
 const VISIT_STATUS_COL = 11;
 const FILE_HEADERS = ['الرقم', 'العنوان', 'اسم الملف', 'الرابط', 'وقت الرفع'];
 const EVAL_HEADERS = ['الرقم', 'اسم المركز', 'الفترة', 'اسم المعلمة', 'المؤهل', 'الفئة', 'اليوم', 'التاريخ',
@@ -133,14 +135,18 @@ function route_(r) {
     case 'getLists': return { ok: true, data: getLists_() };
     case 'getVisits': return { ok: true, data: getVisits_() };
     case 'addVisit': return withLock_(() => addVisit_(r));
-    case 'deleteVisit': return withLock_(() => deleteById_(SHEET.VISITS, r.id));
+    case 'deleteVisit': return withLock_(() => { const o = deleteById_(SHEET.VISITS, r.id); sigDel_(r.id); return o; });
     case 'getFiles': return { ok: true, data: getFiles_() };
     case 'addFile': return withLock_(() => addFile_(r));
     case 'deleteFile': return withLock_(() => deleteFile_(r.id));
     case 'getEvals': return { ok: true, data: getEvals_() };
     case 'addEval': return withLock_(() => addEval_(r));
     case 'updateEval': return withLock_(() => updateEval_(r));
-    case 'deleteEval': return withLock_(() => deleteById_(SHEET.EVALS, r.id, true, EVAL_URL_COL));
+    case 'deleteEval': return withLock_(() => { const o = deleteById_(SHEET.EVALS, r.id, true, EVAL_URL_COL); sigDel_(r.id); return o; });
+    case 'getSigs': return { ok: true, data: getSigs_(r.items) };
+    case 'getMySig': return { ok: true, data: sigGet_('u:' + norm_(r.username).toLowerCase()) };
+    case 'saveMySig': return withLock_(() => { sigPut_('u:' + norm_(r.username).toLowerCase(), r.data); return { ok: true }; });
+    case 'deleteMySig': return withLock_(() => { sigDel_('u:' + norm_(r.username).toLowerCase()); return { ok: true }; });
     default: throw new Error('إجراء غير معروف');
   }
 }
@@ -216,16 +222,17 @@ function addVisit_(r) {
   // توافق مع النسخة القديمة من الواجهة (absent=true) إن لم تصل «الحالة»
   const status = String(r.status || (r.absent === true ? VISIT_STATUS[1] : VISIT_STATUS[0])).trim();
   if (!center) throw new Error('اختاري اسم المركز');
-  if (!type) throw new Error('اختاري نوع الزيارة');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('التاريخ غير صحيح');
   if (VISIT_STATUS.indexOf(status) < 0) throw new Error('حالة الزيارة غير صحيحة');
+  const notVisited = status === VISIT_NONE;   // لم تتم الزيارة: لا نوع زيارة ولا توقيع
+  if (!type && !notVisited) throw new Error('اختاري نوع الزيارة');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('التاريخ غير صحيح');
   const needSig = status === VISIT_STATUS[0];
   if (needSig && !r.signature) throw new Error('توقيع المديرة مطلوب، أو اختاري حالة أخرى للزيارة');
 
   let lists = getLists_(false);
-  if (lists.centers.indexOf(center) < 0 || lists.types.indexOf(type) < 0) lists = getLists_(true);
+  if (lists.centers.indexOf(center) < 0 || (!notVisited && lists.types.indexOf(type) < 0)) lists = getLists_(true);
   if (lists.centers.indexOf(center) < 0) throw new Error('اسم المركز غير موجود في القائمة');
-  if (lists.types.indexOf(type) < 0) throw new Error('نوع الزيارة غير موجود في القائمة');
+  if (!notVisited && lists.types.indexOf(type) < 0) throw new Error('نوع الزيارة غير موجود في القائمة');
 
   const p = date.split('-');
   const day = DAY_NAMES[new Date(+p[0], +p[1] - 1, +p[2]).getDay()];
@@ -249,10 +256,11 @@ function addVisit_(r) {
   const row = sh.getLastRow() + 1;
   const vals = [[
     id, center, type, date, String(r.hijri || ''), day,
-    status === VISIT_STATUS[1] ? 'نعم' : 'لا', sigUrl, 'نعم',
+    status === VISIT_STATUS[1] ? 'نعم' : 'لا', sigUrl, notVisited ? 'لا' : 'نعم',
     Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm'), status
   ]];
   sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
+  if (needSig && sigUrl) sigPut_(id, r.signature);
   return { ok: true, id: id, day: day, signature: sigUrl };
 }
 
@@ -303,6 +311,84 @@ function deleteFile_(id) {
     }
   }
   return deleteById_(SHEET.FILES, id, !isLink);
+}
+
+/* ============ التواقيع (نسخة مصغّرة لكل توقيع تُستخدم في الإكسل) ============ */
+function sigSheet_() {
+  const ss = ss_();
+  let sh = ss.getSheetByName(SHEET.SIGS);
+  if (!sh) {
+    sh = ss.insertSheet(SHEET.SIGS);
+    sh.getRange(1, 1, 1, 2).setValues([['المعرّف', 'التوقيع (نسخة مصغّرة)']]);
+    sh.setFrozenRows(1);
+    sh.setColumnWidth(1, 260);
+  }
+  return sh;
+}
+function sigRow_(sh, id) {
+  const last = sh.getLastRow();
+  if (last < 2) return 0;
+  const ids = sh.getRange(2, 1, last - 1, 1).getValues();
+  for (let i = 0; i < ids.length; i++) if (String(ids[i][0]) === String(id)) return i + 2;
+  return 0;
+}
+function sigPut_(id, data) {
+  data = String(data || '');
+  if (!id || data.indexOf('data:image/') !== 0 || data.length > 49000) return;   // خلية الشيت لا تتّسع لأكثر من ذلك
+  const sh = sigSheet_();
+  const row = sigRow_(sh, id) || sh.getLastRow() + 1;
+  sh.getRange(row, 1, 1, 2).setNumberFormat('@').setValues([[String(id), data]]);
+}
+function sigGet_(id) {
+  const sh = ss_().getSheetByName(SHEET.SIGS);
+  if (!sh) return '';
+  const row = sigRow_(sh, id);
+  return row ? String(sh.getRange(row, 2).getValue()) : '';
+}
+function sigDel_(id) {
+  try {
+    const sh = ss_().getSheetByName(SHEET.SIGS);
+    if (!sh) return;
+    const row = sigRow_(sh, id);
+    if (row) sh.deleteRow(row);
+  } catch (e) {}
+}
+// items = [{id, url}] → { id: dataURL }. إن لم توجد نسخة مصغّرة (سجلات قديمة) نقرأ الملف من الدرايف مرة واحدة ونحفظ نسخة منه
+function getSigs_(items) {
+  items = Array.isArray(items) ? items.slice(0, 120) : [];
+  const out = {};
+  if (!items.length) return out;
+  const sh = ss_().getSheetByName(SHEET.SIGS);
+  const last = sh ? sh.getLastRow() : 0;
+  const rowOf = {};
+  if (last > 1) {
+    const ids = sh.getRange(2, 1, last - 1, 1).getValues();
+    for (let i = 0; i < ids.length; i++) rowOf[String(ids[i][0])] = i + 2;
+  }
+  const need = items.filter(x => x && rowOf[String(x.id)]);
+  if (need.length > 15) {   // كثيرة: نقرأ العمود دفعة واحدة
+    const vals = sh.getRange(2, 2, last - 1, 1).getValues();
+    need.forEach(x => { out[x.id] = String(vals[rowOf[String(x.id)] - 2][0]); });
+  } else {
+    need.forEach(x => { out[x.id] = String(sh.getRange(rowOf[String(x.id)], 2).getValue()); });
+  }
+  let fb = 0, folderId = '';
+  items.forEach(x => {
+    if (!x || out[x.id] || !x.url || fb >= 25) return;
+    const m = String(x.url).match(/[-\w]{25,}/);
+    if (!m) return;
+    try {
+      if (!folderId) folderId = folder_().getId();
+      const f = DriveApp.getFileById(m[0]);
+      const ps = f.getParents(); let inside = false;
+      while (ps.hasNext()) if (ps.next().getId() === folderId) { inside = true; break; }
+      if (!inside) return;   // لا نقرأ إلا ملفات المنظومة
+      const blob = f.getBlob(), d = 'data:' + blob.getContentType() + ';base64,' + Utilities.base64Encode(blob.getBytes());
+      out[x.id] = d; fb++;
+      sigPut_(x.id, d);
+    } catch (e) {}
+  });
+  return out;
 }
 
 /* ============ حذف صف بالرقم ============ */
@@ -389,6 +475,7 @@ function addEval_(r) {
   const newId = Utilities.getUuid();
   const vals = [evalRow_(r, c, newId, sigUrl, nowStr_(), evalTypeLabel_(c.s(r.formType)))];
   sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
+  if (sigUrl) sigPut_(newId, r.signature);
   return { ok: true, id: newId, signature: sigUrl };
 }
 
@@ -414,6 +501,7 @@ function updateEval_(r) {
     const m = sigUrl.match(/[-\w]{25,}/);
     if (m) { try { DriveApp.getFileById(m[0]).setTrashed(true); } catch (e) {} }
     sigUrl = newUrl;
+    sigPut_(id, r.signature);
   }
   const vals = [evalRow_(r, c, id, sigUrl, String(old[21] || nowStr_()), String(old[22] || evalTypeLabel_(c.s(r.formType))))];
   sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);

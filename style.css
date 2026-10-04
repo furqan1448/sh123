@@ -189,3 +189,22 @@ a.lnk{color:var(--primary);font-weight:700}
 .btn.ico-btn svg{width:16px;height:16px;display:block}
 .edit-note{background:#fff7e6;border:1px solid #f0d9a6;color:#7a5a12;border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:14px;font-weight:600;line-height:1.6}
 #filesView .ev-tabs{margin-top:0}
+
+/* ===== التوقيع (رسم / صورة / محفوظ) + المسودات ===== */
+.sigw-tabs{margin:6px 0 10px}
+.sigw-tabs button{min-width:80px;padding:8px 6px;font-size:13px}
+.sigw-prev{border:2px dashed var(--gold);border-radius:14px;background:#fffdf8;padding:10px;text-align:center;margin-top:8px}
+.sigw-prev img{max-width:100%;max-height:150px;display:inline-block}
+.sigw input[type=file]{width:100%}
+.sigw-none{margin:8px 0;font-size:14px;color:var(--muted)}
+.sigw-keep{margin-top:10px}
+.draft-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.draft-row:first-child{border-top:0}
+.draft-row small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+
+#visitsView .stats{grid-template-columns:repeat(2,1fr)}
+#visitsView .stat b{font-size:26px}
+.tag.bad{background:#fdecea;color:#b71c1c}
+.pc-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--line)}
+.pc-row:first-child{border-top:0}
+.pc-row b{flex:1;min-width:140px}

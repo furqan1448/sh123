@@ -46,6 +46,194 @@ async function api(action, data = {}) {
   throw new Error('تعذّر الاتصال بالخادم، تأكدي من الإنترنت ورابط النشر');
 }
 
+/* ===== التوقيع: رسم أو إرفاق صورة (+ توقيع محفوظ تلقائياً في الاستمارات) ===== */
+const SIG_MAX_CHARS = 45000;      // حد حجم التوقيع المحفوظ داخل الشيت
+let mySig = '', mySigLoaded = false;   // توقيع المشرفة المحفوظ (للاستمارات فقط، وليس لتوقيع المديرة)
+const SIG_WIDGETS = [];
+const mySigKey = () => 'mush_sig_' + getUser();
+
+function loadMySig() {
+  try { mySig = localStorage.getItem(mySigKey()) || ''; } catch (e) {}
+  sigRefreshAll();
+  if (!mySig && !mySigLoaded) {   // جهاز جديد: نجلبه من الخادم مرة واحدة
+    mySigLoaded = true;
+    api('getMySig').then(o => {
+      if (o.data) { mySig = o.data; try { localStorage.setItem(mySigKey(), mySig); } catch (e) {} sigRefreshAll(); }
+    }).catch(() => {});
+  }
+}
+function saveMySig(d) {
+  mySig = d;
+  try { localStorage.setItem(mySigKey(), d); } catch (e) {}
+  api('saveMySig', { data: d }).catch(() => {});
+  sigRefreshAll();
+}
+function deleteMySig() {
+  mySig = '';
+  try { localStorage.removeItem(mySigKey()); } catch (e) {}
+  api('deleteMySig').catch(() => {});
+  sigRefreshAll();
+  toast('تم حذف التوقيع المحفوظ');
+}
+function clearMySigLocal() {
+  try { localStorage.removeItem(mySigKey()); } catch (e) {}
+  mySig = ''; mySigLoaded = false;
+}
+function sigRefreshAll() { SIG_WIDGETS.forEach(w => w.refresh()); }
+
+// يصغّر الرسم/الصورة حتى يتّسع في خلية الشيت (≤ 45 ألف حرف) مع بقاء الوضوح
+function sigFit(src, w0, h0, png) {
+  for (const W of [480, 400, 320, 260, 200, 150]) {
+    const sc = Math.min(1, W / w0), cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.round(w0 * sc)); cv.height = Math.max(1, Math.round(h0 * sc));
+    const x = cv.getContext('2d');
+    if (!png) { x.fillStyle = '#fff'; x.fillRect(0, 0, cv.width, cv.height); }
+    x.drawImage(src, 0, 0, cv.width, cv.height);
+    const d = png ? cv.toDataURL('image/png') : cv.toDataURL('image/jpeg', 0.8);
+    if (d.length <= SIG_MAX_CHARS) return d;
+  }
+  return '';
+}
+function sigFromFile(file) {
+  return new Promise((res, rej) => {
+    if (!/^image\//.test(file.type)) return rej(new Error('اختاري ملف صورة'));
+    if (file.size > 8 * 1024 * 1024) return rej(new Error('الصورة كبيرة، اختاري صورة أصغر'));
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      const w = img.naturalWidth, h = img.naturalHeight; URL.revokeObjectURL(url);
+      const d = (file.type === 'image/png' ? sigFit(img, w, h, true) : '') || sigFit(img, w, h, false);
+      d ? res(d) : rej(new Error('تعذّر تصغير الصورة، جرّبي صورة أبسط'));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('تعذّرت قراءة الصورة')); };
+    img.src = url;
+  });
+}
+
+/* o = { saved: يسمح بالتوقيع المحفوظ تلقائياً, none: يسمح بـ «بدون توقيع» } */
+function makeSigWidget(rootId, o) {
+  o = o || {};
+  const root = document.getElementById(rootId);
+  root.className = 'sigw';
+  root.innerHTML =
+    '<div class="ev-tabs sigw-tabs"></div>' +
+    '<div class="sigw-pane" data-p="saved"><div class="sigw-prev"><img alt="التوقيع المحفوظ"></div>' +
+      '<div class="sig-tools"><span>يُرفق تلقائياً مع كل استمارة جديدة</span>' +
+      '<button type="button" class="btn danger" style="padding:6px 14px;font-size:13px" data-act="del">حذف المحفوظ</button></div></div>' +
+    '<div class="sigw-pane" data-p="draw"><div class="sig-box"><canvas></canvas></div>' +
+      '<div class="sig-tools"><span>وقّعي داخل المربع بالإصبع أو الماوس</span>' +
+      '<button type="button" class="btn light" style="padding:6px 14px;font-size:13px" data-act="clr">مسح التوقيع</button></div></div>' +
+    '<div class="sigw-pane" data-p="image"><input type="file" accept="image/*">' +
+      '<div class="sigw-prev hidden"><img alt="صورة التوقيع"></div>' +
+      '<div class="sig-tools"><span>صورة واضحة للتوقيع (يفضّل خلفية بيضاء)</span>' +
+      '<button type="button" class="btn light" style="padding:6px 14px;font-size:13px" data-act="rm">إزالة الصورة</button></div></div>' +
+    '<div class="sigw-pane" data-p="none"><p class="sigw-none"></p></div>' +
+    (o.saved ? '<label class="check sigw-keep hidden"><input type="checkbox"> <span>حفظ هذا التوقيع لاستخدامه تلقائياً في الاستمارات القادمة</span></label>' : '');
+
+  const q = s => root.querySelector(s), qa = s => [...root.querySelectorAll(s)];
+  const cv = q('canvas'), ctx = cv.getContext('2d'), tabs = q('.sigw-tabs');
+  const fileIn = q('input[type=file]'), keep = q('.sigw-keep');
+  let mode = '', drawing = false, has = false, imgData = '', lastW = 0, noneText = 'بدون توقيع', noneHint = 'لن يُرفق توقيع مع هذه الاستمارة.';
+
+  const defMode = () => (o.saved && mySig) ? 'saved' : 'draw';
+  const avail = () => (o.saved && mySig ? [['saved', 'توقيعي المحفوظ']] : []).concat([['draw', 'رسم'], ['image', 'إرفاق صورة']], o.none ? [[ 'none', noneText ]] : []);
+
+  function resize() {
+    const r = cv.getBoundingClientRect(), ratio = window.devicePixelRatio || 1;
+    if (!r.width || (has && Math.round(r.width) === lastW)) return;
+    lastW = Math.round(r.width);
+    cv.width = r.width * ratio; cv.height = r.height * ratio;
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#1b1b1b';
+    has = false;
+  }
+  const pos = e => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  cv.addEventListener('pointerdown', e => { drawing = true; cv.setPointerCapture(e.pointerId); const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
+  cv.addEventListener('pointermove', e => { if (!drawing) return; const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); has = true; updKeep(); });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => cv.addEventListener(ev, () => drawing = false));
+
+  function drawn() {
+    if (!has) return '';
+    return sigFit(cv, cv.width, cv.height, true);
+  }
+  function current() {
+    if (mode === 'saved') return mySig;
+    if (mode === 'draw') return drawn();
+    if (mode === 'image') return imgData;
+    return '';
+  }
+  function updKeep() {
+    if (!keep) return;
+    const show = (mode === 'draw' && has) || (mode === 'image' && imgData);
+    keep.classList.toggle('hidden', !show);
+  }
+  function setMode(m) {
+    mode = m;
+    qa('.sigw-pane').forEach(p => p.classList.toggle('hidden', p.dataset.p !== m));
+    [...tabs.children].forEach(b => b.classList.toggle('on', b.dataset.m === m));
+    if (m === 'draw') setTimeout(resize, 30);
+    if (m === 'saved') q('[data-p=saved] img').src = mySig;
+    if (m === 'none') q('.sigw-none').textContent = noneHint;
+    updKeep();
+  }
+  function renderTabs() {
+    tabs.innerHTML = avail().map(a => '<button type="button" data-m="' + a[0] + '">' + esc(a[1]) + '</button>').join('');
+    [...tabs.children].forEach(b => b.onclick = () => setMode(b.dataset.m));
+  }
+  function refresh() {
+    renderTabs();
+    const ok = avail().some(a => a[0] === mode);
+    setMode(ok ? mode : defMode());
+  }
+  function setImage(d) {
+    imgData = d || '';
+    const box = q('[data-p=image] .sigw-prev');
+    box.classList.toggle('hidden', !imgData);
+    if (imgData) box.querySelector('img').src = imgData;
+    if (!imgData) fileIn.value = '';
+    updKeep();
+  }
+
+  fileIn.addEventListener('change', async () => {
+    const f = fileIn.files[0]; if (!f) return;
+    try { setImage(await sigFromFile(f)); } catch (e) { toast(e.message, false); fileIn.value = ''; }
+  });
+  root.addEventListener('click', e => {
+    const a = e.target.dataset && e.target.dataset.act; if (!a) return;
+    if (a === 'clr') { ctx.clearRect(0, 0, cv.width, cv.height); has = false; updKeep(); }
+    if (a === 'rm') setImage('');
+    if (a === 'del' && confirm('حذف التوقيع المحفوظ؟')) deleteMySig();
+  });
+
+  const api_ = {
+    resize,
+    refresh,
+    setMode,
+    get: current,                       // التوقيع الحالي (data URL) أو ''
+    has: () => !!current(),
+    // يُستدعى بعد نجاح الحفظ: إن علّمت «حفظ توقيعي» نثبّته للاستمارات القادمة
+    commit() {
+      if (o.saved && keep && keep.querySelector('input').checked && (mode === 'draw' || mode === 'image')) {
+        const d = current(); if (d) saveMySig(d);
+      }
+    },
+    reset() {                           // استمارة جديدة
+      ctx.clearRect(0, 0, cv.width, cv.height); has = false; setImage('');
+      if (keep) keep.querySelector('input').checked = false;
+      noneText = 'بدون توقيع'; noneHint = 'لن يُرفق توقيع مع هذه الاستمارة.';
+      renderTabs(); setMode(defMode());
+    },
+    keepOld(label) {                    // وضع التعديل: التوقيع السابق يبقى ما لم نختر غيره
+      noneText = label; noneHint = 'سيبقى التوقيع السابق المحفوظ مع هذه الاستمارة كما هو.';
+      renderTabs(); setMode('none');
+    },
+    draftData: () => (mode === 'draw' || mode === 'image') ? current() : '',
+    loadDraft(d) { if (d) { setImage(d); setMode('image'); } }
+  };
+  SIG_WIDGETS.push(api_);
+  api_.reset();
+  return api_;
+}
+
 // زر بحالة انتظار
 function setBtnBusy(btn, busy, text) {
   if (busy) { btn.dataset.t = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spin"></span> ' + (text || 'جارِ الحفظ...'); }

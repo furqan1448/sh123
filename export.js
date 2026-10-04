@@ -80,6 +80,34 @@ function exFormModel(r) {
   return m;
 }
 
+/* ---------- نموذج كشف الخروج: كل مركز وتحته أيام الحضور والغياب ---------- */
+function exVisitsModel(rows) {
+  const today = new Date().toISOString().slice(0, 10);
+  const centers = {};
+  rows.forEach(v => (centers[v.center] = centers[v.center] || []).push(v));
+  const m = {
+    title: 'كشف خروج المشرفة', file: 'كشف_الخروج_' + today, landscape: true, visits: true,
+    info: [['المشرفة', getUser()], ['تاريخ التقرير', today]],
+    cols: ['م', 'التاريخ', 'اليوم', 'الموافق', 'نوع الزيارة', 'الحالة', 'توقيع المديرة'],
+    widths: [6, 14, 12, 24, 22, 42, 28], sections: [], totals: [], notes: []
+  };
+  let att = 0, abs = 0;
+  Object.keys(centers).sort((a, b) => a.localeCompare(b, 'ar')).forEach(c => {
+    const list = centers[c].slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    const a1 = list.filter(v => !vIsAbsent(v)).length, a2 = list.length - a1;
+    att += a1; abs += a2;
+    m.sections.push({
+      title: c,
+      rows: list.map((v, i) => [i + 1, v.date, v.day, v.hijri || '', v.type || '—', vStatusOf(v), '']),
+      sigIds: list.map(v => v.signature ? { id: v.id, url: v.signature } : null),
+      footer: [['إجمالي أيام الحضور', a1], ['إجمالي أيام الغياب', a2]]
+    });
+  });
+  m.info.push(['المراكز', Object.keys(centers).length ? String(Object.keys(centers).length) : '0']);
+  m.totals = [['إجمالي أيام الحضور (كل المراكز)', att], ['إجمالي أيام الغياب (كل المراكز)', abs]];
+  return m;
+}
+
 /* ---------- نموذج بيانات السجل (الجدول المعروض حالياً) ---------- */
 function exListModel() {
   const tabLabel = { quran: 'القرآن الكريم', tabyan: 'التبيان', tajweed: 'التجويد', teachers: 'سجل المعلمات' }[evTab];
@@ -150,6 +178,15 @@ async function exBuildXlsx(m, imgBuf, ExcelJS) {
     for (let c = c1 + 1; c <= c2; c++) ws.getCell(r, c).border = border;
     if (height) ws.getRow(r).height = height;
   };
+  // إدراج توقيع (صورة) داخل خلية: sg = { data, w, h }
+  const colPx = i => Math.round(m.widths[i] * 7 + 5);
+  const putSig = (sg, r0, c0, boxW, boxH, rowPx) => {
+    if (!sg || !sg.data) return;
+    const k = Math.min(boxW / (sg.w || boxW), boxH / (sg.h || boxH), 1.6), w = Math.round((sg.w || boxW) * k), h = Math.round((sg.h || boxH) * k);
+    const png = sg.data.indexOf('data:image/png') === 0;
+    const id = wb.addImage({ base64: sg.data.split(',')[1], extension: png ? 'png' : 'jpeg' });
+    ws.addImage(id, { tl: { col: c0 + Math.max(0, (boxW - w) / 2) / colPx(c0), row: r0 + Math.max(0, (rowPx - h) / 2) / rowPx }, ext: { width: w, height: h } });
+  };
   const lines = (txt, width) => Math.max(1, Math.ceil(String(txt).length / Math.max(10, width)));
   const split = Math.min(2, n - 1);   // أول عمودين للعنوان والباقي للقيمة
   const valWidth = m.widths.slice(split).reduce((a, w) => a + w, 0);
@@ -192,8 +229,16 @@ async function exBuildXlsx(m, imgBuf, ExcelJS) {
         const wide = m.widths[i] > 30;
         style(cell, { h: wide ? 'right' : 'center', fill: ri % 2 ? 'FAF7F8' : undefined });
       });
+      const sg = sec.sigs && sec.sigs[ri];
+      if (sg) { ws.getRow(row).height = 56; putSig(sg, row - 1, n - 1, colPx(n - 1) - 8, 66, 75); }
       row++;
     });
+    (sec.footer || []).forEach(([l, v]) => {
+      merged(row, 1, split, l, { bold: true, fill: 'EFE3E6', color: EX_PRIMARY });
+      merged(row, split + 1, n, v, { bold: true, size: 12, h: 'center', fill: 'EFE3E6' }, 22);
+      row++;
+    });
+    if (sec.footer) row++;
   });
   row++;
   m.totals.forEach(([l, v]) => {
@@ -207,6 +252,14 @@ async function exBuildXlsx(m, imgBuf, ExcelJS) {
     merged(row, 1, split, l, { bold: true, fill: 'F6F0F2' });
     merged(row, split + 1, n, v, {}, Math.max(24, lines(v, valWidth) * 16)); row++;
   });
+  if (m.signature && m.signature.data) {   // توقيع المشرفة
+    row++;
+    merged(row, 1, split, 'توقيع المشرفة', { bold: true, fill: 'F6F0F2' });
+    merged(row, split + 1, n, '', {}, 78);
+    const boxW = m.widths.slice(split).reduce((a, w) => a + Math.round(w * 7 + 5), 0) - 12;
+    putSig(m.signature, row - 1, split, Math.min(boxW, 260), 80, 104);
+    row++;
+  }
   return wb.xlsx.writeBuffer();
 }
 
@@ -218,9 +271,10 @@ function exSave(blob, name) {
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
 }
 
-async function exRun(m, btn) {
+async function exRun(m, btn, pre) {
   if (btn) setBtnBusy(btn, true, 'جارِ التجهيز...');
   try {
+    if (pre) await pre(m);   // مثلاً جلب التواقيع قبل البناء
     await exLoad();
     if (!exLetterBuf) {
       const resp = await fetch(EX_LETTERHEAD);
@@ -234,8 +288,42 @@ async function exRun(m, btn) {
   finally { if (btn) setBtnBusy(btn, false); }
 }
 
-// تحميل استمارة واحدة من السجل
-function exRow(i, btn) { const r = evRows[i]; if (r) exRun(exFormModel(r), btn); }
+// أبعاد صورة التوقيع (لتناسبها داخل الخلية)
+function exImgDims(d) {
+  return new Promise(res => { const im = new Image(); im.onload = () => res({ data: d, w: im.naturalWidth, h: im.naturalHeight }); im.onerror = () => res(null); im.src = d; });
+}
+// جلب التواقيع من الخادم: items = [{id, url}] → { id: {data,w,h} }
+async function exFetchSigs(items) {
+  items = items.filter(Boolean);
+  const out = {};
+  if (!items.length) return out;
+  const res = await api('getSigs', { items });
+  const map = res.data || {};
+  await Promise.all(Object.keys(map).map(async id => { const d = await exImgDims(map[id]); if (d) out[id] = d; }));
+  return out;
+}
+
+// تحميل استمارة واحدة من السجل (مع التوقيع إن وُجد)
+function exRow(i, btn) {
+  const r = evRows[i];
+  if (!r) return;
+  exRun(exFormModel(r), btn, async m => {
+    if (r.signature) { const sg = await exFetchSigs([{ id: r.id, url: r.signature }]); m.signature = sg[r.id] || null; }
+  });
+}
+// تحميل كشف الخروج: كل مركز وتحته أيام الحضور والغياب (حسب تصفية المركز المعروضة)
+function exVisits(btn) {
+  const f = document.getElementById('fCenter').value;
+  const rows = VISITS.filter(v => !f || v.center === f);
+  if (!rows.length) return toast('لا توجد زيارات للتحميل', false);
+  exRun(exVisitsModel(rows), btn, async m => {
+    const items = [];
+    m.sections.forEach(sec => sec.sigIds.forEach(x => x && items.push(x)));
+    if (!items.length) return;
+    const sg = await exFetchSigs(items);
+    m.sections.forEach(sec => { sec.sigs = sec.sigIds.map(x => (x && sg[x.id]) || null); });
+  });
+}
 // تحميل الجدول المعروض (سجل المعلمات)
 function exList(btn) { exRun(exListModel(), btn); }
 

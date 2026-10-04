@@ -98,8 +98,7 @@ function tbOpenForm() {
     document.getElementById('tbDay').innerHTML = evOpts(TB.lists.day, 'اختاري اليوم');
     document.getElementById('tbCat').innerHTML = evOpts(TB.lists.cat, 'اختاري الفئة');
     document.getElementById('tbCat2').innerHTML = evOpts(TB.lists.cat, 'اختاري الفئة');
-    tbPad = makeSigPad(document.getElementById('tbSig'));
-    document.getElementById('tbSigBox').addEventListener('toggle', e => { if (e.target.open) setTimeout(() => tbPad.resize(), 30); });
+    tbPad = makeSigWidget('tbSigW', { saved: true, none: true });
     tbBuilt = true;
   }
   document.getElementById('tbCenter').innerHTML = evOpts(LISTS.centers, 'اختاري المركز');
@@ -151,10 +150,11 @@ async function tbSave() {
       years: val('tbYears'), total: val('tbTotalN'), present: val('tbPresent'), visitNo: '',
       supervisor: val('tbSupervisor'), notes: '', recs: val('tbRecs'),
       extra: JSON.stringify(extra),
-      signature: tbPad.has() ? tbPad.data() : ''
+      signature: tbPad.get()
     };
     const res = await api(editing ? 'updateEval' : 'addEval', payload);
     toast(editing ? 'تم تحديث الاستمارة' : 'تم حفظ الاستمارة');
+    tbPad.commit();
     evAfterSave(payload, res, editing);
     tbReset();
     show('evalsView');
@@ -168,7 +168,7 @@ function tbReset() {
     .forEach(id => document.getElementById(id).value = '');
   document.querySelectorAll('#tbItems input').forEach(el => el.value = '');
   document.getElementById('tbDate').value = todayStr(); tbDateChange();
-  if (tbPad) tbPad.clear();
+  if (tbPad) tbPad.reset();
   tbCalc();
 }
 

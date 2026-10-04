@@ -46,7 +46,8 @@
     <button class="back" onclick="show('homeView')">← رجوع</button>
 
     <div class="stats">
-      <div class="stat"><b id="stDays">0</b><span>إجمالي عدد الزيارات</span></div>
+      <div class="stat"><b id="stDays">0</b><span>أيام الحضور (الزيارات)</span></div>
+      <div class="stat"><b id="stAbs">0</b><span>أيام الغياب</span></div>
     </div>
 
     <div class="card">
@@ -55,8 +56,10 @@
       <label for="vCenter">اسم المركز</label>
       <select id="vCenter"><option value="">جارِ التحميل...</option></select>
 
-      <label for="vType">نوع الزيارة</label>
-      <select id="vType"><option value="">جارِ التحميل...</option></select>
+      <div id="vTypeBox">
+        <label for="vType">نوع الزيارة</label>
+        <select id="vType"><option value="">جارِ التحميل...</option></select>
+      </div>
 
       <div class="row2">
         <div>
@@ -75,11 +78,7 @@
 
       <div id="sigSection">
         <label>توقيع المديرة</label>
-        <div class="sig-box"><canvas id="sigCanvas"></canvas></div>
-        <div class="sig-tools">
-          <span>وقّعي داخل المربع بالإصبع أو الماوس</span>
-          <button type="button" class="btn light" style="padding:6px 14px;font-size:13px" onclick="sigClear()">مسح التوقيع</button>
-        </div>
+        <div id="vSigW"></div>
       </div>
       <p id="absentNote" class="hidden" style="margin-top:12px;font-size:14px;color:var(--muted)">التوقيع غير مطلوب في هذه الحالة، وتُحسب الزيارة يوماً واحداً.</p>
 
@@ -91,6 +90,9 @@
       <label for="fCenter" style="margin-top:0">تصفية حسب المركز</label>
       <select id="fCenter" onchange="renderVisits()"><option value="">كل المراكز</option></select>
       <div id="perCenter" style="margin:14px 0"></div>
+      <div class="ex-bar">
+        <button class="btn light" onclick="exVisits(this)">تحميل كشف الخروج Excel</button>
+      </div>
       <div class="tbl-wrap">
         <table>
           <thead><tr><th>م</th><th>المركز</th><th>نوع الزيارة</th><th>التاريخ</th><th>اليوم</th><th>الحالة</th><th>التوقيع</th><th></th></tr></thead>
@@ -137,6 +139,11 @@
   <!-- استمارات التقييم: السجل -->
   <div id="evalsView" class="hidden">
     <button class="back" onclick="show('homeView')">← رجوع</button>
+    <div class="card hidden" id="draftsCard">
+      <h2>المسودات <span class="tag warn" id="draftCnt">0</span></h2>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:8px">مسودات محفوظة على هذا الجهاز، اضغطي «متابعة» لإكمالها.</div>
+      <div id="draftList"></div>
+    </div>
     <div class="card">
       <h2>استمارات التقييم الأسبوعية</h2>
       <h3 class="ev-grp">استمارة تقييم القرآن الكريم</h3>
@@ -227,15 +234,10 @@
         <label for="evRecs">توصيات المشرفة</label>
         <textarea id="evRecs" rows="2"></textarea>
       </details>
-      <details class="ev-extra" id="evSigBox">
-        <summary>التوقيع (اختياري)</summary>
-        <div class="sig-box"><canvas id="evSig"></canvas></div>
-        <div class="sig-tools">
-          <span>وقّعي داخل المربع بالإصبع أو الماوس</span>
-          <button type="button" class="btn light" style="padding:6px 14px;font-size:13px" onclick="evPad.clear()">مسح التوقيع</button>
-        </div>
-      </details>
+      <label>التوقيع</label>
+      <div id="evSigW"></div>
       <button id="evSaveBtn" class="btn block" onclick="evSave()">حفظ الاستمارة</button>
+      <button id="evDraftBtn" type="button" class="btn light block" style="margin-top:10px" onclick="draftSave('evalFormView')">حفظ مسودة</button>
     </div>
   </div>
 
@@ -302,15 +304,10 @@
         <summary>التوصيات (اختياري)</summary>
         <textarea id="tbRecs" rows="3"></textarea>
       </details>
-      <details class="ev-extra" id="tbSigBox">
-        <summary>التوقيع (اختياري)</summary>
-        <div class="sig-box"><canvas id="tbSig"></canvas></div>
-        <div class="sig-tools">
-          <span>وقّعي داخل المربع بالإصبع أو الماوس</span>
-          <button type="button" class="btn light" style="padding:6px 14px;font-size:13px" onclick="tbPad.clear()">مسح التوقيع</button>
-        </div>
-      </details>
+      <label>التوقيع</label>
+      <div id="tbSigW"></div>
       <button id="tbSaveBtn" class="btn block" onclick="tbSave()">حفظ الاستمارة</button>
+      <button id="tbDraftBtn" type="button" class="btn light block" style="margin-top:10px" onclick="draftSave('tbFormView')">حفظ مسودة</button>
     </div>
   </div>
 
@@ -377,15 +374,10 @@
         <summary>التوصيات (اختياري)</summary>
         <textarea id="tjRecs" rows="3"></textarea>
       </details>
-      <details class="ev-extra" id="tjSigBox">
-        <summary>التوقيع (اختياري)</summary>
-        <div class="sig-box"><canvas id="tjSig"></canvas></div>
-        <div class="sig-tools">
-          <span>وقّعي داخل المربع بالإصبع أو الماوس</span>
-          <button type="button" class="btn light" style="padding:6px 14px;font-size:13px" onclick="tjPad.clear()">مسح التوقيع</button>
-        </div>
-      </details>
+      <label>التوقيع</label>
+      <div id="tjSigW"></div>
       <button id="tjSaveBtn" class="btn block" onclick="tjSave()">حفظ الاستمارة</button>
+      <button id="tjDraftBtn" type="button" class="btn light block" style="margin-top:10px" onclick="draftSave('tjFormView')">حفظ مسودة</button>
     </div>
   </div>
 
@@ -413,8 +405,11 @@ let LISTS = { centers: [], types: [], teachers: [] };
 let VISITS = [], FILES = [];
 
 // حالات الزيارة (الأولى تحتاج توقيع المديرة، والباقي بدون توقيع وتُحسب يوماً واحداً)
-const V_STATUS = ['تمت الزيارة', 'تمت الزيارة والمديرة متغيبة', 'تمت الزيارة وتعذر التوثيق لتعليق الموقع أو الشبكة', 'تمت الزيارة قبل توفر موقع النظام'];
+const V_STATUS = ['تمت الزيارة', 'تمت الزيارة والمديرة متغيبة', 'تمت الزيارة وتعذر التوثيق لتعليق الموقع أو الشبكة', 'تمت الزيارة قبل توفر موقع النظام', 'لم تتم الزيارة'];
 const V_SIGNED = V_STATUS[0];
+const V_NONE = V_STATUS[4];   // لم تتم الزيارة: تُحسب يوم غياب، بدون نوع زيارة وبدون توقيع
+const vStatusOf = v => v.status || (v.absent ? V_STATUS[1] : V_STATUS[0]);
+const vIsAbsent = v => vStatusOf(v) === V_NONE;
 
 /* ---------- التنقل ---------- */
 function show(id) {
@@ -438,6 +433,7 @@ async function doLogin() {
   try {
     const out = await api('getLists');   // نفس الطلب يتحقق من الدخول ويجلب القوائم (طلب واحد بدل اثنين)
     applyLists(out.data);
+    loadMySig();
     show('homeView');
   } catch (e) {
     localStorage.removeItem(PW_KEY);
@@ -451,7 +447,7 @@ function logout() {
   localStorage.removeItem(PW_KEY);
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem('mush_view');
-  cacheClear();
+  cacheClear(); clearMySigLocal(); sigRefreshAll();
   VISITS = []; FILES = []; evRows = [];
   document.getElementById('un').value = '';
   document.getElementById('pw').value = '';
@@ -477,6 +473,7 @@ async function preload() {
   const c = cacheGet('lists');
   if (c) { LISTS = c; fillLists(); }
   fillVStatus();
+  loadMySig();
   try {
     const out = await api('getLists');
     const vc = document.getElementById('vCenter').value, vt = document.getElementById('vType').value;
@@ -513,41 +510,20 @@ function onDateChange() {
 document.getElementById('vDate').value = todayStr();
 onDateChange();
 
-/* ---------- لوحة التوقيع ---------- */
-const canvas = document.getElementById('sigCanvas');
-const ctx = canvas.getContext('2d');
-let drawing = false, hasSig = false;
-
-function sizeCanvas() {
-  const r = canvas.getBoundingClientRect();
-  const ratio = window.devicePixelRatio || 1;
-  if (!r.width) return;
-  canvas.width = r.width * ratio;
-  canvas.height = r.height * ratio;
-  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-  ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#1b1b1b';
-  hasSig = false;
-}
-function pos(e) {
-  const r = canvas.getBoundingClientRect();
-  return { x: e.clientX - r.left, y: e.clientY - r.top };
-}
-canvas.addEventListener('pointerdown', e => {
-  drawing = true; canvas.setPointerCapture(e.pointerId);
-  const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y);
-});
-canvas.addEventListener('pointermove', e => {
-  if (!drawing) return;
-  const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); hasSig = true;
-});
-['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => canvas.addEventListener(ev, () => drawing = false));
-function sigClear() { ctx.clearRect(0, 0, canvas.width, canvas.height); hasSig = false; }
-window.addEventListener('resize', () => { if (!document.getElementById('visitsView').classList.contains('hidden') && !hasSig) sizeCanvas(); });
+/* ---------- توقيع المديرة: رسم أو صورة ---------- */
+const vSig = makeSigWidget('vSigW', {});
+const sizeCanvas = () => vSig.resize();
+window.addEventListener('resize', () => { if (!document.getElementById('visitsView').classList.contains('hidden')) vSig.resize(); });
 
 function onStatusChange() {
-  const needSig = document.getElementById('vStatus').value === V_SIGNED;
+  const st = document.getElementById('vStatus').value;
+  const needSig = st === V_SIGNED, none = st === V_NONE;
   document.getElementById('sigSection').classList.toggle('hidden', !needSig);
-  document.getElementById('absentNote').classList.toggle('hidden', needSig);
+  document.getElementById('vTypeBox').classList.toggle('hidden', none);
+  const note = document.getElementById('absentNote');
+  note.classList.toggle('hidden', needSig);
+  note.textContent = none ? 'لم تتم الزيارة: تُسجَّل يوم غياب، ولا حاجة لنوع الزيارة أو التوقيع.'
+    : 'التوقيع غير مطلوب في هذه الحالة، وتُحسب الزيارة يوم حضور.';
   if (needSig) setTimeout(sizeCanvas, 30);
 }
 
@@ -565,22 +541,33 @@ async function loadVisits() {
 }
 
 function statusTag(v) {
-  const st = v.status || (v.absent ? V_STATUS[1] : V_STATUS[0]);
-  return '<span class="tag ' + (st === V_SIGNED ? 'ok' : 'warn') + '">' + esc(st) + '</span>';
+  const st = vStatusOf(v);
+  const cls = st === V_SIGNED ? 'ok' : st === V_NONE ? 'bad' : 'warn';
+  return '<span class="tag ' + cls + '">' + esc(st) + '</span>';
+}
+
+// حضور/غياب لكل مركز (على كل السجلات)
+function vCenterStats() {
+  const per = {};
+  VISITS.forEach(v => {
+    const p = per[v.center] || (per[v.center] = { att: 0, abs: 0 });
+    if (vIsAbsent(v)) p.abs++; else p.att++;
+  });
+  return per;
 }
 
 function renderVisits() {
   const f = document.getElementById('fCenter').value;
 
   // الإحصائيات (على كل السجلات)
-  const counted = VISITS.filter(v => v.counted);
-  const per = {};
-  counted.forEach(v => per[v.center] = (per[v.center] || 0) + 1);
-  document.getElementById('stDays').textContent = counted.length;
+  const per = vCenterStats();
+  const att = VISITS.filter(v => !vIsAbsent(v)).length;
+  document.getElementById('stDays').textContent = att;
+  document.getElementById('stAbs').textContent = VISITS.length - att;
 
   document.getElementById('perCenter').innerHTML = Object.keys(per).length
     ? Object.keys(per).sort().map(c =>
-        '<span class="tag warn" style="margin:3px">' + esc(c) + ': ' + per[c] + ' يوم</span>').join('')
+        '<div class="pc-row"><b>' + esc(c) + '</b><span class="tag ok">حضور: ' + per[c].att + '</span><span class="tag bad">غياب: ' + per[c].abs + '</span></div>').join('')
     : '';
 
   const rows = VISITS.filter(v => !f || v.center === f);
@@ -589,7 +576,7 @@ function renderVisits() {
   body.innerHTML = rows.map((v, i) => '<tr>' +
     '<td>' + (i + 1) + '</td>' +
     '<td>' + esc(v.center) + '</td>' +
-    '<td>' + esc(v.type) + '</td>' +
+    '<td>' + (esc(v.type) || '—') + '</td>' +
     '<td>' + esc(v.date) + '</td>' +
     '<td>' + esc(v.day) + '</td>' +
     '<td>' + statusTag(v) + '</td>' +
@@ -600,35 +587,34 @@ function renderVisits() {
 
 async function saveVisit() {
   const center = document.getElementById('vCenter').value;
-  const type = document.getElementById('vType').value;
-  const date = document.getElementById('vDate').value;
   const status = document.getElementById('vStatus').value;
+  const none = status === V_NONE;
+  const type = none ? '' : document.getElementById('vType').value;
+  const date = document.getElementById('vDate').value;
   const needSig = status === V_SIGNED;
+  const sig = needSig ? vSig.get() : '';
 
   if (!center) return toast('اختاري اسم المركز', false);
-  if (!type) return toast('اختاري نوع الزيارة', false);
-  if (!date) return toast('اختاري التاريخ', false);
   if (!status) return toast('اختاري حالة الزيارة', false);
-  if (needSig && !hasSig) return toast('توقيع المديرة مطلوب، أو اختاري حالة أخرى للزيارة', false);
+  if (!none && !type) return toast('اختاري نوع الزيارة', false);
+  if (!date) return toast('اختاري التاريخ', false);
+  if (needSig && !sig) return toast('توقيع المديرة مطلوب (رسم أو صورة)، أو اختاري حالة أخرى للزيارة', false);
 
   const btn = document.getElementById('saveVisitBtn');
   setBtnBusy(btn, true);
   try {
     const hijri = document.getElementById('vHijri').textContent;
-    const res = await api('addVisit', {
-      center, type, date, status, hijri,
-      signature: needSig && hasSig ? canvas.toDataURL('image/png') : ''
-    });
+    const res = await api('addVisit', { center, type, date, status, hijri, signature: sig });
     toast('تم حفظ الزيارة');
     // نضيفها للجدول فوراً ثم نحدّث بالخلفية
     VISITS.unshift({ id: res.id || ('tmp' + Date.now()), center, type, date, hijri, day: res.day || document.getElementById('vDay').value,
-      absent: status === V_STATUS[1], status, signature: res.signature || '', counted: true, at: '' });
+      absent: status === V_STATUS[1], status, signature: res.signature || '', counted: !none, at: '' });
     cacheSet('visits', VISITS);
     document.getElementById('vCenter').value = '';
     document.getElementById('vType').value = '';
     document.getElementById('vStatus').value = V_SIGNED;
     onStatusChange();
-    sigClear();
+    vSig.reset();
     renderVisits();
     loadVisits();
   } catch (e) { toast(e.message, false); }

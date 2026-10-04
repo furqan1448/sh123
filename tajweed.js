@@ -127,8 +127,7 @@ function tjOpenForm(type) {
     document.getElementById('tjDay').innerHTML = evOpts(TJ.lists.day, 'اختاري اليوم');
     document.getElementById('tjCat').innerHTML = evOpts(TJ.lists.cat, 'اختاري الفئة');
     document.getElementById('tjCat2').innerHTML = evOpts(TJ.lists.cat, 'اختاري الفئة');
-    tjPad = makeSigPad(document.getElementById('tjSig'));
-    document.getElementById('tjSigBox').addEventListener('toggle', e => { if (e.target.open) setTimeout(() => tjPad.resize(), 30); });
+    tjPad = makeSigWidget('tjSigW', { saved: true, none: true });
     tjBuilt = true;
   }
   document.getElementById('tjCenter').innerHTML = evOpts(LISTS.centers, 'اختاري المركز');
@@ -180,10 +179,11 @@ async function tjSave() {
       years: val('tjYears'), total: val('tjTotalN'), present: val('tjPresent'), visitNo: '',
       supervisor: val('tjSupervisor'), notes: '', recs: val('tjRecs'),
       extra: JSON.stringify(extra),
-      signature: tjPad.has() ? tjPad.data() : ''
+      signature: tjPad.get()
     };
     const res = await api(editing ? 'updateEval' : 'addEval', payload);
     toast(editing ? 'تم تحديث الاستمارة' : 'تم حفظ الاستمارة');
+    tjPad.commit();
     evAfterSave(payload, res, editing);
     tjReset();
     show('evalsView');
@@ -197,7 +197,7 @@ function tjReset() {
     .forEach(id => document.getElementById(id).value = '');
   document.querySelectorAll('#tjItems input').forEach(el => el.value = '');
   document.getElementById('tjDate').value = todayStr(); tjDateChange();
-  if (tjPad) tjPad.clear();
+  if (tjPad) tjPad.reset();
   tjCalc();
 }
 
