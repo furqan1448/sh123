@@ -192,17 +192,18 @@ function evBuild() {
   EV_SECTIONS.forEach((sec, si) => {
     html += '<details class="card ev-sec"' + (si === 0 || window.innerWidth >= 900 ? ' open' : '') + '><summary><span>' + esc(sec.title) +
       '</span><span class="ev-prog"><b id="evC_' + sec.key + '">0</b>/' + evD()[sec.key].length + '</span></summary>' +
-      '<div class="ev-head"><span>م</span><span>البند</span><span>التنفيذ</span><span>المعايير</span><span>الدرجة</span><span>سبب الخصم</span></div>';
+      '<div class="ev-head"><span>م</span><span>البند</span><span>التنفيذ</span><span>الدرجة</span><span>سبب الخصم</span></div>';
     evD()[sec.key].forEach((it, i) => {
       const id = n++;
       const hasMore = true;
       html += '<div class="ev-item"><div class="ev-row"><span class="ev-num c1">' + (i + 1) + '</span><b class="c2">' + esc(it.t) + '</b>' +
-        '<span class="ev-sc c5"><input type="text" inputmode="decimal" min="0" max="' + it.max + '" step="0.5" data-i="' + id + '" data-f="s" placeholder="0"><small>/' + it.max + '</small></span></div>' +
+        '<span class="ev-sc c4"><input type="text" inputmode="decimal" min="0" max="' + it.max + '" step="0.5" data-i="' + id + '" data-f="s" placeholder="0"><small>/' + it.max + '</small></span></div>' +
         '<button type="button" class="ev-tg" onclick="evMore(this)">تفاصيل التنفيذ والملاحظات ▾</button>' +
         '<div class="ev-more hidden"><div class="ev-grid">' +
         '<div class="ev-wide c3"><label>التنفيذ</label><select data-i="' + id + '" data-f="e">' + evOpts(EV_EXEC, 'اختاري') + '</select></div>' +
-        (it.crit.length ? '<div class="ev-wide c4"><label>المعايير</label><select data-i="' + id + '" data-f="c">' + evOpts(it.crit, 'بدون') + '</select></div>' : '') +
-        '<div class="ev-wide c6"><label>سبب الخصم</label><input type="text" class="ev-why" data-i="' + id + '" data-f="n" placeholder="اكتبي سبب الخصم" autocomplete="off"></div>' +
+        '<div class="ev-wide c5 ev-whybox"><label>سبب الخصم</label>' +
+        (it.crit.length ? '<select data-i="' + id + '" data-f="c">' + evOpts(it.crit.indexOf('أخرى') > -1 ? it.crit : it.crit.concat(['أخرى']), 'بدون') + '</select>' : '') +
+        '<input type="text" class="ev-why' + (it.crit.length ? ' hidden' : '') + '" data-i="' + id + '" data-f="n" placeholder="اكتبي سبب الخصم" autocomplete="off"></div>' +
         '</div></div></div>';
     });
     html += '<div class="ev-sub">المجموع: <b id="evS_' + sec.key + '">0</b> من ' + evFmt(sec.maxSum) +
@@ -214,6 +215,13 @@ function evBuild() {
 function evBind() {
   document.getElementById('evSections').addEventListener('input', evCalc);
   document.getElementById('evSections').addEventListener('change', e => {
+    if (e.target.dataset.f === 'c') {
+      const why = e.target.closest('.ev-item').querySelector('.ev-why');
+      if (why && e.target.value !== 'أخرى') why.value = '';
+      evCalc();
+      if (why && e.target.value === 'أخرى') why.focus();
+      return;
+    }
     if (e.target.dataset.f === 's') {
       const max = +e.target.max;
       if (e.target.value !== '') {
@@ -258,6 +266,8 @@ function evCalc() {
     rawTotal += sum; wTotal += w;
   });
   document.querySelectorAll('#evSections .ev-item').forEach(el => {
+    const csel = el.querySelector('select[data-f="c"]'), why = el.querySelector('.ev-why');
+    if (csel && why) why.classList.toggle('hidden', !(csel.value === 'أخرى' || why.value));
     const has = [...el.querySelectorAll('.ev-more select, .ev-more input')].some(s => !!s.value);
     el.querySelector('.ev-tg').classList.toggle('has', has);
   });
@@ -550,7 +560,7 @@ function evView(i) {
     D[sec.key].forEach((it, k) => {
       const x = items[n++] || {};
       rows += '<tr><td>' + (k + 1) + '</td><td style="text-align:right">' + esc(it.t) + '</td><td>' + esc(x.e || '') + '</td>' +
-        '<td>' + esc(x.s) + ' / ' + it.max + '</td><td style="text-align:right">' + esc([x.c, x.n].filter(Boolean).join(' | ')) + '</td></tr>';
+        '<td>' + esc(x.s) + ' / ' + it.max + '</td><td style="text-align:right">' + esc([x.c === 'أخرى' ? '' : x.c, x.n].filter(Boolean).join(' | ')) + '</td></tr>';
     });
   });
   const f = (l, v) => v ? '<div><b>' + l + ':</b> ' + esc(v) + '</div>' : '';
@@ -559,7 +569,7 @@ function evView(i) {
     '<div class="ev-info">' + f('نوع الاستمارة', EV_TYPES[r.formType === 'multi' ? 'multi' : 'single']) + f('الفترة', r.period) + f('اليوم', r.day) + f('التاريخ', r.date) + f('الفئة', r.cat) + f('المؤهل', r.qual) +
     f('عنوان الدرس', r.lesson) + f('سنوات الخبرة', r.years) + f('العدد الكلي', r.total) + f('العدد الحاضر', r.present) +
     f('رقم الزيارة', r.visitNo) + f('اسم المشرفة', r.supervisor) + '</div>' +
-    '<div class="tbl-wrap"><table style="min-width:560px"><thead><tr><th>م</th><th>البند</th><th>التنفيذ</th><th>الدرجة</th><th>المعايير وسبب الخصم</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<div class="tbl-wrap"><table style="min-width:560px"><thead><tr><th>م</th><th>البند</th><th>التنفيذ</th><th>الدرجة</th><th>سبب الخصم</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
     '<div class="stats" style="margin-top:14px"><div class="stat"><b>' + esc(r.raw) + '</b><span>الدرجة الكلية من 100</span></div></div>' +
     '<div class="stats"><div class="stat"><b>' + esc(r.weighted) + '</b><span>الدرجة الموزونة - التقدير: ' + gradeTag(r.grade) + '</span></div></div>' +
     f('ملاحظات المشرفة', r.notes) + f('توصيات المشرفة', r.recs) +

@@ -110,6 +110,7 @@ a.lnk{color:var(--primary);font-weight:700}
 .ev-tg{background:none;border:0;color:var(--muted);font:inherit;font-size:12.5px;cursor:pointer;padding:4px 34px 0 0}
 .ev-tg.has{color:var(--primary);font-weight:700}
 .ev-more{margin-top:6px}
+.ev-whybox{display:flex;flex-direction:column;gap:6px}
 .ev-more .ev-grid{grid-template-columns:1fr}
 .ev-extra{margin-top:12px;border:1px dashed var(--line);border-radius:12px;padding:0 12px}
 .ev-extra>summary{cursor:pointer;padding:10px 0;font-size:14px;font-weight:700;color:var(--primary)}
@@ -118,15 +119,15 @@ a.lnk{color:var(--primary);font-weight:700}
 /* ===== شكل الجدول (مثل الإكسل) على الشاشات الكبيرة ===== */
 .ev-head{display:none}
 @media (min-width:900px){
-  .ev-head,.ev-sec .ev-item{display:grid;grid-template-columns:34px minmax(0,2.4fr) 100px minmax(0,1.6fr) 92px minmax(0,1.6fr);gap:8px;align-items:center}
+  .ev-head,.ev-sec .ev-item{display:grid;grid-template-columns:34px minmax(0,2.4fr) 100px 92px minmax(0,3.2fr);gap:8px;align-items:center}
   .ev-head{background:var(--primary);color:#fff;font-size:13px;font-weight:700;padding:8px 14px;text-align:center}
   .ev-sec .ev-item{padding:5px 14px}
   .ev-sec .ev-item:nth-of-type(even){background:#faf7f8}
   .ev-row,.ev-more,.ev-more .ev-grid{display:contents}
   .ev-more.hidden{display:contents!important}
   .ev-tg{display:none}
-  .c1,.c2,.c3,.c4,.c5,.c6{grid-row:1}
-  .c1{grid-column:1}.c2{grid-column:2}.c3{grid-column:3}.c4{grid-column:4}.c5{grid-column:5}.c6{grid-column:6}
+  .c1,.c2,.c3,.c4,.c5{grid-row:1}
+  .c1{grid-column:1}.c2{grid-column:2}.c3{grid-column:3}.c4{grid-column:4}.c5{grid-column:5}
   .ev-more .ev-wide label{display:none}
   .ev-row b{font-size:13.5px}
   .ev-sec .ev-item select,.ev-sec .ev-item .ev-why{font-size:12.5px;padding:7px 6px}
