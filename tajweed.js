@@ -182,7 +182,7 @@ async function tjSave() {
       raw: tjFmt(calc.sum), weighted: '', grade: calc.grade,
       qual: val('tjQual'), cat: val('tjCat'), day: val('tjDay'), lesson: val('tjLesson'),
       years: val('tjYears'), total: val('tjTotalN'), present: val('tjPresent'), visitNo: '',
-      supervisor: val('tjSupervisor'), notes: '', recs: val('tjRecs'),
+      supervisor: val('tjSupervisor'), notes: '', recs: val('tjRecs'), send: document.getElementById('tjSend').checked ? 'نعم' : '', phone: document.getElementById('tjPhone').value.trim(), tid: document.getElementById('tjTid').value,
       extra: JSON.stringify(extra),
       signature: tjPad.get()
     };
@@ -198,8 +198,8 @@ async function tjSave() {
 
 function tjReset() {
   ['tjCenter', 'tjPeriod', 'tjTeacher', 'tjQual', 'tjDay', 'tjKind', 'tjCat', 'tjTotalN', 'tjPresent', 'tjGroups',
-    'tjCat2', 'tjTotal2', 'tjPresent2', 'tjYears', 'tjLesson', 'tjSupervisor', 'tjRecs']
-    .forEach(id => document.getElementById(id).value = '');
+    'tjCat2', 'tjTotal2', 'tjPresent2', 'tjYears', 'tjLesson', 'tjSupervisor', 'tjRecs', 'tjSend', 'tjPhone', 'tjTid']
+    .forEach(id => evSetVal(id, ''));
   document.querySelectorAll('#tjItems input').forEach(el => el.value = '');
   document.getElementById('tjDate').value = todayStr(); tjDateChange();
   if (tjPad) tjPad.reset();
@@ -239,7 +239,7 @@ function tjEdit(r) {
   evSetSel('tjDay', r.day); evSetVal('tjKind', ex.kind); evSetSel('tjQual', r.qual); evSetVal('tjYears', r.years);
   evSetSel('tjCat', r.cat); evSetVal('tjGroups', ex.groups); evSetVal('tjTotalN', r.total); evSetVal('tjPresent', r.present);
   evSetSel('tjCat2', ex.cat2); evSetVal('tjSupervisor', r.supervisor); evSetVal('tjTotal2', ex.total2); evSetVal('tjPresent2', ex.present2);
-  evSetVal('tjLesson', r.lesson); evSetVal('tjRecs', r.recs);
+  evSetVal('tjLesson', r.lesson); evSetVal('tjRecs', r.recs); evSetVal('tjTid', r.tid); evSetVal('tjSend', r.send);
   const ins = document.querySelectorAll('#tjItems input');
   evJson(r.items, []).forEach((x, k) => { if (ins[k]) ins[k].value = x.s == null ? '' : x.s; });
   tjCalc();

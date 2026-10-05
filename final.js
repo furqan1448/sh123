@@ -147,7 +147,7 @@ async function efSave() {
       raw: evFmt(calc.rawTotal), weighted: evFmt(calc.wTotal), grade: calc.grade,
       qual: val('efQual'), cat: val('efCat'), day: val('efDay'), lesson: val('efLesson'),
       years: val('efYears'), total: val('efTotalN'), present: val('efPresent'), visitNo: val('efVisitNo'),
-      supervisor: val('efSupervisor'), notes: val('efNotes'), recs: val('efRecs'),
+      supervisor: val('efSupervisor'), notes: val('efNotes'), recs: val('efRecs'), send: document.getElementById('efSend').checked ? 'نعم' : '', phone: document.getElementById('efPhone').value.trim(), tid: document.getElementById('efTid').value,
       extra: JSON.stringify(extra),
       signature: efPad.get()
     };
@@ -163,8 +163,8 @@ async function efSave() {
 
 function efReset() {
   ['efCenter', 'efPeriod', 'efTeacher', 'efQual', 'efCat', 'efDay', 'efKind', 'efTotalN', 'efPresent', 'efGroups',
-    'efCat2', 'efTotal2', 'efPresent2', 'efYears', 'efLesson', 'efVisitNo', 'efNotes', 'efRecs']
-    .forEach(id => document.getElementById(id).value = '');
+    'efCat2', 'efTotal2', 'efPresent2', 'efYears', 'efLesson', 'efVisitNo', 'efNotes', 'efRecs', 'efSend', 'efPhone', 'efTid']
+    .forEach(id => evSetVal(id, ''));
   document.querySelectorAll('#efSections input').forEach(el => el.value = '');
   document.getElementById('efDate').value = todayStr(); efDateChange();
   if (efPad) efPad.reset();
@@ -180,7 +180,7 @@ function efEdit(r) {
   evSetSel('efCat', r.cat); evSetVal('efYears', r.years); evSetVal('efLesson', r.lesson); evSetVal('efSupervisor', r.supervisor);
   evSetVal('efTotalN', r.total); evSetVal('efPresent', r.present); evSetVal('efGroups', ex.groups);
   evSetSel('efCat2', ex.cat2); evSetVal('efTotal2', ex.total2); evSetVal('efPresent2', ex.present2);
-  evSetVal('efNotes', r.notes); evSetVal('efRecs', r.recs);
+  evSetVal('efNotes', r.notes); evSetVal('efRecs', r.recs); evSetVal('efTid', r.tid); evSetVal('efSend', r.send);
   const ins = document.querySelectorAll('#efSections input');
   evJson(r.items, []).forEach((x, k) => { if (ins[k]) ins[k].value = x.s == null ? '' : x.s; });
   efCalc();

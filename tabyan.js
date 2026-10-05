@@ -154,7 +154,7 @@ async function tbSave() {
       raw: tbFmt(calc.sum), weighted: '', grade: calc.grade,
       qual: val('tbQual'), cat: val('tbCat'), day: val('tbDay'), lesson: val('tbLesson'),
       years: val('tbYears'), total: val('tbTotalN'), present: val('tbPresent'), visitNo: '',
-      supervisor: val('tbSupervisor'), notes: '', recs: val('tbRecs'),
+      supervisor: val('tbSupervisor'), notes: '', recs: val('tbRecs'), send: document.getElementById('tbSend').checked ? 'نعم' : '', phone: document.getElementById('tbPhone').value.trim(), tid: document.getElementById('tbTid').value,
       extra: JSON.stringify(extra),
       signature: tbPad.get()
     };
@@ -170,8 +170,8 @@ async function tbSave() {
 
 function tbReset() {
   ['tbCenter', 'tbPeriod', 'tbTeacher', 'tbQual', 'tbDay', 'tbKind', 'tbCat', 'tbTotalN', 'tbPresent', 'tbGroups',
-    'tbCat2', 'tbTotal2', 'tbPresent2', 'tbYears', 'tbLesson', 'tbSupervisor', 'tbRecs']
-    .forEach(id => document.getElementById(id).value = '');
+    'tbCat2', 'tbTotal2', 'tbPresent2', 'tbYears', 'tbLesson', 'tbSupervisor', 'tbRecs', 'tbSend', 'tbPhone', 'tbTid']
+    .forEach(id => evSetVal(id, ''));
   document.querySelectorAll('#tbItems input').forEach(el => el.value = '');
   document.getElementById('tbDate').value = todayStr(); tbDateChange();
   if (tbPad) tbPad.reset();
@@ -210,7 +210,7 @@ function tbEdit(r) {
   evSetSel('tbDay', r.day); evSetVal('tbKind', ex.kind); evSetSel('tbQual', r.qual); evSetVal('tbYears', r.years);
   evSetSel('tbCat', r.cat); evSetVal('tbGroups', ex.groups); evSetVal('tbTotalN', r.total); evSetVal('tbPresent', r.present);
   evSetSel('tbCat2', ex.cat2); evSetVal('tbSupervisor', r.supervisor); evSetVal('tbTotal2', ex.total2); evSetVal('tbPresent2', ex.present2);
-  evSetVal('tbLesson', r.lesson); evSetVal('tbRecs', r.recs);
+  evSetVal('tbLesson', r.lesson); evSetVal('tbRecs', r.recs); evSetVal('tbTid', r.tid); evSetVal('tbSend', r.send);
   const ins = document.querySelectorAll('#tbItems input');
   evJson(r.items, []).forEach((x, k) => { if (ins[k]) ins[k].value = x.s == null ? '' : x.s; });
   tbCalc();

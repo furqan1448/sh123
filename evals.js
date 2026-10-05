@@ -25,7 +25,7 @@ const EV_EXEC = ['نفذ', 'لم ينفذ', 'نوعاً ما'];
 let EDIT = null;   // { id, sig } أثناء تعديل استمارة محفوظة، وإلا null
 const EV_FORM_BTNS = { evalFormView: 'evSaveBtn', tbFormView: 'tbSaveBtn', tjFormView: 'tjSaveBtn', evfFormView: 'efSaveBtn' };
 const EV_PENCIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
-function evSetVal(id, v) { const el = document.getElementById(id); if (el) el.value = v == null ? '' : v; }
+function evSetVal(id, v) { const el = document.getElementById(id); if (!el) return; if (el.type === 'checkbox') { el.checked = !!v; el.dispatchEvent(new Event('change')); } else el.value = v == null ? '' : v; }
 function evSetSel(id, v) {   // يضيف الخيار إن لم يكن في القائمة (قيم قديمة) ثم يحدده
   const el = typeof id === 'string' ? document.getElementById(id) : id; if (!el) return;
   v = v == null ? '' : String(v);
@@ -345,7 +345,7 @@ async function evSave() {
       raw: evFmt(calc.rawTotal), weighted: evFmt(calc.wTotal), grade: calc.grade,
       qual: val('evQual'), cat: val('evCat'), day: val('evDay'), lesson: val('evLesson'),
       years: val('evYears'), total: val('evTotalN'), present: val('evPresent'), visitNo: val('evVisitNo'),
-      supervisor: val('evSupervisor'), notes: val('evNotes'), recs: val('evRecs'),
+      supervisor: val('evSupervisor'), notes: val('evNotes'), recs: val('evRecs'), send: document.getElementById('evSend').checked ? 'نعم' : '', phone: document.getElementById('evPhone').value.trim(), tid: document.getElementById('evTid').value,
       signature: evPad.get()
     };
     const res = await api(editing ? 'updateEval' : 'addEval', payload);
@@ -359,8 +359,8 @@ async function evSave() {
 }
 
 function evReset() {
-  ['evCenter', 'evPeriod', 'evTeacher', 'evQual', 'evCat', 'evDay', 'evLesson', 'evYears', 'evTotalN', 'evPresent', 'evVisitNo', 'evNotes', 'evRecs']
-    .forEach(id => document.getElementById(id).value = '');
+  ['evCenter', 'evPeriod', 'evTeacher', 'evQual', 'evCat', 'evDay', 'evLesson', 'evYears', 'evTotalN', 'evPresent', 'evVisitNo', 'evNotes', 'evRecs', 'evSend', 'evPhone', 'evTid']
+    .forEach(id => evSetVal(id, ''));
   document.getElementById('evDate').value = todayStr(); evDateChange();
   document.querySelectorAll('#evSections select, #evSections input').forEach(el => el.value = '');
   if (evPad) evPad.reset();
@@ -379,7 +379,7 @@ function evEdit(i) {
   evSetSel('evCenter', r.center); evSetSel('evPeriod', r.period); evSetVal('evTeacher', r.teacher); evSetVal('evDate', r.date);
   evSetSel('evDay', r.day); evSetVal('evVisitNo', r.visitNo); evSetSel('evQual', r.qual); evSetSel('evCat', r.cat);
   evSetVal('evLesson', r.lesson); evSetVal('evYears', r.years); evSetVal('evSupervisor', r.supervisor);
-  evSetVal('evTotalN', r.total); evSetVal('evPresent', r.present); evSetVal('evNotes', r.notes); evSetVal('evRecs', r.recs);
+  evSetVal('evTotalN', r.total); evSetVal('evPresent', r.present); evSetVal('evNotes', r.notes); evSetVal('evRecs', r.recs); evSetVal('evTid', r.tid); evSetVal('evSend', r.send);
   evJson(r.items, []).forEach((x, k) => {
     const q = f => document.querySelector('#evSections [data-i="' + k + '"][data-f="' + f + '"]');
     if (q('s')) q('s').value = x.s == null ? '' : x.s;
@@ -585,3 +585,32 @@ async function evDelete(id) {
   try { await api('deleteEval', { id }); toast('تم الحذف'); }
   catch (e) { toast(e.message, false); evLoadList(true); }
 }
+
+
+/* ===== إرسال للمعلمة: التحقق من رقم الجوال وعرض اسم المعلمة ===== */
+function sendWire(p) {
+  const chk = document.getElementById(p + 'Send'), box = document.getElementById(p + 'SendBox');
+  const ph = document.getElementById(p + 'Phone'), who = document.getElementById(p + 'Who'), tid = document.getElementById(p + 'Tid');
+  let timer = 0;
+  const show = () => {
+    box.classList.toggle('hidden', !chk.checked);
+    who.textContent = chk.checked && tid.value ? 'مرتبطة بالمعلمة ' + tid.value + ' (اتركي الجوال فارغًا للإبقاء عليها، أو اكتبي جوالًا آخر لتغييرها)' : '';
+  };
+  chk.addEventListener('change', show);
+  ph.addEventListener('input', () => {
+    clearTimeout(timer);
+    const v = ph.value.replace(/\D/g, '');
+    who.style.color = '';
+    if (v.length < 9) { who.textContent = ''; return; }
+    who.textContent = 'جارٍ البحث...';
+    timer = setTimeout(async () => {
+      try {
+        const r = await api('lookupTeacher', { phone: ph.value });
+        who.textContent = r.found ? '✓ المعلمة: ' + r.name : '✗ لا توجد معلمة بهذا الرقم في السجل';
+        who.style.color = r.found ? '#1f7a4d' : '#b3261e';
+      } catch (e) { who.textContent = ''; }
+    }, 400);
+  });
+  show();
+}
+['ev', 'ef', 'tb', 'tj'].forEach(sendWire);
