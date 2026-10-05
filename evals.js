@@ -608,7 +608,7 @@ function sendWire(p) {
         const r = await api('lookupTeacher', { phone: ph.value });
         who.textContent = r.found ? '✓ المعلمة: ' + r.name : '✗ لا توجد معلمة بهذا الرقم في السجل';
         who.style.color = r.found ? '#1f7a4d' : '#b3261e';
-      } catch (e) { who.textContent = ''; }
+      } catch (e) { who.textContent = '✗ تعذر البحث: ' + (e && e.message ? e.message : 'خطأ غير معروف'); who.style.color = '#b3261e'; }
     }, 400);
   });
   show();
