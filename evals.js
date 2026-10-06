@@ -588,28 +588,50 @@ async function evDelete(id) {
 
 
 /* ===== إرسال للمعلمة: التحقق من رقم الجوال وعرض اسم المعلمة ===== */
+// نتائج البحث تُحفظ في المتصفح، فلا يتكرر الطلب لنفس الرقم
+const teacherLookupCache = new Map();
+function normPhone(v) {
+  let p = String(v || '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/\D/g, '');
+  if (p.indexOf('966') === 0) p = '0' + p.slice(3);
+  if (p.length === 9 && p[0] === '5') p = '0' + p;
+  return p;
+}
 function sendWire(p) {
   const chk = document.getElementById(p + 'Send'), box = document.getElementById(p + 'SendBox');
   const ph = document.getElementById(p + 'Phone'), who = document.getElementById(p + 'Who'), tid = document.getElementById(p + 'Tid');
-  let timer = 0;
+  let timer = 0, seq = 0;
   const show = () => {
     box.classList.toggle('hidden', !chk.checked);
     who.textContent = chk.checked && tid.value ? 'مرتبطة بالمعلمة ' + tid.value + ' (اتركي الجوال فارغًا للإبقاء عليها، أو اكتبي جوالًا آخر لتغييرها)' : '';
   };
+  const render = r => {
+    who.textContent = r.found ? '✓ المعلمة: ' + r.name : '✗ لا توجد معلمة بهذا الرقم في السجل';
+    who.style.color = r.found ? '#1f7a4d' : '#b3261e';
+  };
   chk.addEventListener('change', show);
   ph.addEventListener('input', () => {
     clearTimeout(timer);
-    const v = ph.value.replace(/\D/g, '');
+    const my = ++seq;
+    const v = normPhone(ph.value);
     who.style.color = '';
-    if (v.length < 9) { who.textContent = ''; return; }
+    // لا نبحث إلا بعد اكتمال الرقم (10 أرقام تبدأ بـ 05)
+    if (v.length < 10 || v.indexOf('05') !== 0) {
+      who.textContent = v.length >= 10 ? '✗ رقم الجوال غير صحيح' : '';
+      if (v.length >= 10) who.style.color = '#b3261e';
+      return;
+    }
+    if (teacherLookupCache.has(v)) { render(teacherLookupCache.get(v)); return; }
     who.textContent = 'جارٍ البحث...';
     timer = setTimeout(async () => {
       try {
-        const r = await api('lookupTeacher', { phone: ph.value });
-        who.textContent = r.found ? '✓ المعلمة: ' + r.name : '✗ لا توجد معلمة بهذا الرقم في السجل';
-        who.style.color = r.found ? '#1f7a4d' : '#b3261e';
-      } catch (e) { who.textContent = '✗ تعذر البحث: ' + (e && e.message ? e.message : 'خطأ غير معروف'); who.style.color = '#b3261e'; }
-    }, 400);
+        const r = await api('lookupTeacher', { phone: v });
+        teacherLookupCache.set(v, { found: r.found, name: r.name });
+        if (my === seq) render(r);   // نتجاهل ردًّا قديمًا إذا تغيّر الرقم أثناء البحث
+      } catch (e) {
+        if (my !== seq) return;
+        who.textContent = '✗ تعذر البحث: ' + (e && e.message ? e.message : 'خطأ غير معروف'); who.style.color = '#b3261e';
+      }
+    }, 150);
   });
   show();
 }
