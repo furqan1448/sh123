@@ -271,3 +271,49 @@ table{font-size:15px}
 .mg-row:hover td{background:#faf3ee}
 .mg-note{font-size:13px;color:var(--muted);margin-top:8px}
 #mgStats{margin-bottom:16px}
+
+/* ===== خلاصة التقارير ===== */
+.rp-hint{font-size:14px;color:var(--muted);line-height:1.8}
+.rp-item{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px;background:#fffdf9}
+.rp-item-main{display:flex;flex-direction:column;gap:4px;min-width:0}
+.rp-item-main b{color:var(--primary);font-size:15px}
+.rp-item-main span{font-size:13px;color:var(--muted)}
+.rp-item-btns{display:flex;gap:8px;flex-shrink:0}
+.rp-item-btns .btn{padding:8px 14px;font-size:13px}
+.rp-mode{margin-top:16px;background:#fbf3e0;border:1.5px solid var(--gold);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:4px}
+.rp-mode b{color:var(--primary)}
+.rp-mode span{font-size:13px;color:var(--muted)}
+.rp-card{border:1.5px solid var(--line);border-radius:14px;margin-bottom:10px;background:#fff;overflow:hidden}
+.rp-card.open{border-color:var(--gold)}
+.rp-head{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;background:#fdf9f6}
+.rp-head b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rp-num{width:28px;height:28px;border-radius:50%;background:var(--primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+.rp-arrow{color:var(--muted);font-size:12px}
+.rp-body{padding:4px 14px 14px}
+.rp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:0 12px}
+.rp-f.rp-wide{grid-column:1/-1}
+@media(max-width:560px){.rp-grid{grid-template-columns:1fr}}
+.rp-scores{margin-top:14px;background:#fbf3e0;border:1.5px solid var(--gold);border-radius:12px;padding:4px 12px 12px}
+.rp-sc-title{font-weight:700;color:var(--primary);margin-top:10px}
+.rp-btns{margin-top:12px;text-align:left}
+.rp-actions{display:flex;flex-wrap:wrap;gap:10px}
+.rp-actions .btn{flex:1;min-width:140px}
+.rp-table{min-width:900px;font-size:12px}
+.rp-table th,.rp-table td{border:1px solid var(--line);padding:6px 8px}
+.rp-table th{white-space:normal}
+.rp-print-title{display:none}
+@media print{
+  @page{size:A4 landscape;margin:10mm}
+  body{background:#fff}
+  .topbar,.back{display:none!important}
+  .wrap > *:not(#reportEditView){display:none!important}
+  #reportEditView > *:not(#rpPreviewCard){display:none!important}
+  #rpPreviewCard{border:0;box-shadow:none;padding:0}
+  #rpPreviewCard h2{display:none}
+  .rp-print-title{display:block;text-align:center;margin-bottom:10px;line-height:1.9}
+  .tbl-wrap{overflow:visible;border:0}
+  .rp-table{min-width:0;width:100%;font-size:9px}
+  .rp-table th{background:#7a1f2b!important;color:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+
+.rp-src{margin-top:10px;font-size:12px;color:var(--muted)}

@@ -38,6 +38,7 @@
       <button class="tile" onclick="show('filesView'); loadFiles()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5l-8 8a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L9.7 17.2a1.7 1.7 0 0 1-2.4-2.4L15 7"/></svg><b>المرفقات</b></button>
       <button class="tile" onclick="show('evalsView'); evLoadList()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M8.5 12l1.5 1.5 2.5-3"/><path d="M8.5 17.5h7"/></svg><b>استمارات التقييم الأسبوعية</b></button>
       <button class="tile" onclick="show('evalsFinalView'); evLoadList()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M9 8h6"/><path d="M9 11.5h6"/><circle cx="12" cy="16" r="2"/></svg><b>استمارات التقييم النهائية</b></button>
+      <button class="tile" onclick="show('reportsView'); loadReports()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M9 8h6"/><path d="M9 17v-2.5"/><path d="M12 17v-5"/><path d="M15 17v-3.5"/></svg><b>خلاصة التقارير</b></button>
     </div>
     <p style="text-align:center;margin-top:22px"><button class="btn light" onclick="logout()">تسجيل الخروج</button></p>
   </div>
@@ -516,6 +517,91 @@
     </div>
   </div>
 
+  <!-- خلاصة التقارير: القائمة -->
+  <div id="reportsView" class="hidden">
+    <button class="back" onclick="show('homeView')">← رجوع</button>
+    <div class="card">
+      <h2>خلاصة التقارير</h2>
+      <p class="rp-hint">تجمع هذه الصفحة تقييمات المعلمات في جدول واحد، وتسحب الدرجات من استمارات التقييم المحفوظة، وتحسب المجموع والتقدير تلقائيًا بحسب نوع التقييم، ثم تصدّره بصيغة Excel.</p>
+      <button class="btn block" onclick="newReport()">＋ خلاصة جديدة</button>
+    </div>
+    <div class="card">
+      <h2>الخلاصات المحفوظة</h2>
+      <div id="rpList"><p class="empty">جارِ التحميل...</p></div>
+    </div>
+  </div>
+
+  <!-- خلاصة التقارير: المحرّر -->
+  <div id="reportEditView" class="hidden">
+    <button class="back" onclick="backToReports()">← رجوع إلى الخلاصات</button>
+
+    <div class="card">
+      <h2>بيانات الخلاصة</h2>
+      <label for="rpSup">اسم المشرفة</label>
+      <input id="rpSup" onchange="rpMetaChanged()" placeholder="اسم المشرفة">
+      <div class="row2">
+        <div><label for="rpPeriod">الفترة</label>
+          <select id="rpPeriod" onchange="rpMetaChanged()"><option>صباحية</option><option>مسائية</option></select></div>
+        <div><label for="rpSem">الفصل الدراسي</label>
+          <select id="rpSem" onchange="rpMetaChanged()"><option>الأول</option><option>الثاني</option><option>الثالث</option></select></div>
+      </div>
+      <label for="rpYear">العام الهجري</label>
+      <input id="rpYear" inputmode="numeric" maxlength="4" onchange="rpMetaChanged()" placeholder="1447">
+
+      <h2 style="margin-top:20px">نوع التقييم</h2>
+      <label class="check"><input type="checkbox" id="rpQuran" onchange="rpMetaChanged()"><span>يوجد تقييم من المشرفة في القرآن</span></label>
+      <label for="rpSubject">تقييم مادة إضافية</label>
+      <select id="rpSubject" onchange="rpMetaChanged()">
+        <option value="none">بدون مادة</option>
+        <option value="tajweed">التجويد (من 100)</option>
+        <option value="tabyan">التبيان (من 40)</option>
+      </select>
+      <label class="check"><input type="checkbox" id="rpMgr" onchange="rpMetaChanged()"><span>يوجد تقييم من المديرة</span></label>
+      <div class="rp-mode"><b id="rpMode"></b><span id="rpWeights"></span></div>
+    </div>
+
+    <div class="card">
+      <h2>جلب الدرجات من الاستمارات</h2>
+      <p class="rp-hint">تُضاف المعلمات ودرجاتهن تلقائيًا من استمارات التقييم المحفوظة، ويمكن تعديل أي قيمة بعد الجلب. المعلمات المضافة يدويًا لا تتأثر إلا بدرجاتها.</p>
+      <label for="rpSrc">مصدر الدرجات</label>
+      <select id="rpSrc">
+        <option value="final">الاستمارات النهائية</option>
+        <option value="last">الاستمارات الأسبوعية — آخر استمارة لكل معلمة</option>
+        <option value="avg">الاستمارات الأسبوعية — متوسط الاستمارات</option>
+      </select>
+      <div class="row2">
+        <div><label for="rpFrom">من تاريخ (اختياري)</label><input id="rpFrom" type="date"></div>
+        <div><label for="rpTo">إلى تاريخ (اختياري)</label><input id="rpTo" type="date"></div>
+      </div>
+      <label class="check"><input type="checkbox" id="rpSamePeriod" checked><span>استمارات الفترة المحددة أعلاه فقط</span></label>
+      <label class="check"><input type="checkbox" id="rpMine" checked><span>استمارات حسابي فقط</span></label>
+      <button id="rpFetchBtn" class="btn block" onclick="rpFetchEvals()">⬇ جلب الدرجات</button>
+    </div>
+
+    <div class="card">
+      <h2>المعلمات</h2>
+      <div id="rpCards"></div>
+      <button class="btn light block" onclick="rpAdd()">＋ إضافة معلمة يدويًا</button>
+    </div>
+
+    <div class="card">
+      <h2>الملخص</h2>
+      <div class="stats" id="rpStats"></div>
+      <div id="rpDist" style="margin-bottom:12px"></div>
+      <div class="rp-actions">
+        <button id="rpSaveBtn" class="btn" onclick="saveReport()">💾 حفظ الخلاصة</button>
+        <button id="rpXlsBtn" class="btn light" onclick="exportReport()">⬇ تصدير Excel</button>
+        <button class="btn light" onclick="printReport()">🖨 طباعة / PDF</button>
+      </div>
+    </div>
+
+    <div class="card" id="rpPreviewCard">
+      <h2>معاينة الجدول</h2>
+      <div id="rpPrintTitle" class="rp-print-title"></div>
+      <div class="tbl-wrap"><table id="rpPreview" class="rp-table"></table></div>
+    </div>
+  </div>
+
 </div>
 
 <script src="logo-config.js"></script>
@@ -525,6 +611,7 @@
 <script src="tajweed.js"></script>
 <script src="final.js"></script>
 <script src="export.js"></script>
+<script src="reports.js"></script>
 <script>
 const DAYS = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 let LISTS = { centers: [], types: [], teachers: [] };
@@ -540,7 +627,7 @@ const vIsAbsent = v => vStatusOf(v) === V_NONE;
 
 /* ---------- التنقل ---------- */
 function show(id) {
-  ['loginView','homeView','visitsView','filesView','evalsView','evalFormView','tbFormView','tjFormView','evalsFinalView','evfFormView'].forEach(v => document.getElementById(v).classList.add('hidden'));
+  ['loginView','homeView','visitsView','filesView','evalsView','evalFormView','tbFormView','tjFormView','evalsFinalView','evfFormView','reportsView','reportEditView'].forEach(v => document.getElementById(v).classList.add('hidden'));
   document.getElementById(id).classList.remove('hidden');
   if (id !== 'loginView') localStorage.setItem('mush_view', id);
   window.scrollTo(0, 0);
@@ -842,12 +929,13 @@ async function delFile(id) {
   if (!getPw() || !getUser()) return;
   // نعرض آخر صفحة فوراً دون انتظار الخادم
   const last = localStorage.getItem('mush_view');
-  const view = last === 'evfFormView' ? 'evalsFinalView' : (last === 'tbFormView' || last === 'tjFormView') ? (localStorage.getItem('mush_fin') ? 'evalsFinalView' : 'evalsView') : (last === 'evalFormView') ? 'evalsView' : (['homeView', 'visitsView', 'filesView', 'evalsView', 'evalsFinalView'].indexOf(last) > -1 ? last : 'homeView');
+  const view = last === 'evfFormView' ? 'evalsFinalView' : (last === 'tbFormView' || last === 'tjFormView') ? (localStorage.getItem('mush_fin') ? 'evalsFinalView' : 'evalsView') : (last === 'evalFormView') ? 'evalsView' : (last === 'reportEditView') ? 'reportsView' : (['homeView', 'visitsView', 'filesView', 'evalsView', 'evalsFinalView', 'reportsView'].indexOf(last) > -1 ? last : 'homeView');
   show(view);
   preload();   // يتحقق من الدخول أيضاً (طلب getLists) فلا حاجة لطلب login منفصل
   if (view !== 'evalsView' && view !== 'evalsFinalView') evLoadList(true, true);   // تحميل مسبق بالخلفية
   if (view === 'visitsView') loadVisits();
   if (view === 'filesView') loadFiles();
+  if (view === 'reportsView') loadReports();
   if (view === 'evalsView' || view === 'evalsFinalView') evLoadList();
 })();
 </script>
