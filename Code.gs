@@ -45,17 +45,17 @@ const LISTS_IDARI_TYPES = 'أنواع الزيارة (الإشراف الإدا�
 function setup() {
   const ss = ss_();
 
-  // المستخدمات (اسم المستخدم + كلمة المرور)
+  // المستخدمات: اسم المستخدم (هو نفسه الاسم الظاهر) + كلمة المرور + الوحدة
   const us = getOrCreate_(ss, SHEET.USERS);
   if (us.getLastRow() === 0) {
-    us.getRange(1, 1, 1, 4).setValues([['اسم المستخدم', 'كلمة المرور', 'الاسم', 'الوحدة']]);
-    us.getRange(2, 1, 1, 2).setNumberFormat('@').setValues([['مشرفة1', '1234']]);
+    us.getRange(1, 1, 1, 3).setValues([['اسم المستخدم', 'كلمة المرور', 'الوحدة']]);
+    us.getRange(2, 1, 1, 3).setNumberFormat('@').setValues([['مشرفة1', '1234', DEFAULT_UNIT]]);
   }
-  [['اسم المستخدم', 1], ['كلمة المرور', 2], ['الاسم', 3], ['الوحدة', 4]].forEach(h => { if (!us.getRange(1, h[1]).getValue()) us.getRange(1, h[1]).setValue(h[0]); });
-  styleHeader_(us, 4);
-  us.setColumnWidth(3, 200); us.setColumnWidth(4, 220);
+  const uh = usersCols_(us.getRange(1, 1, 1, Math.max(us.getLastColumn(), 1)).getDisplayValues()[0]);
+  if (uh.unit < 0) us.getRange(1, us.getLastColumn() + 1).setValue('الوحدة');   // ورقة قديمة بلا عمود الوحدة
+  styleHeader_(us, us.getLastColumn());
   us.getRange('A2:B500').setNumberFormat('@');
-  us.setColumnWidth(1, 200); us.setColumnWidth(2, 200);
+  us.setColumnWidths(1, us.getLastColumn(), 220);
 
   // مديرات الوحدات (دخول مستقل لصفحة «إدارة الوحدات»: الاسم + كلمة المرور + الوحدة)
   const ms = getOrCreate_(ss, SHEET.MANAGERS);
@@ -211,16 +211,28 @@ function norm_(s) {
     .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
 }
 // المستخدمات تُحفظ في كاش قصير (دقيقتان) لتسريع كل طلب؛ وإن لم يطابق الكاش نقرأ الشيت مباشرة (مستخدمة جديدة أو كلمة مرور جديدة تعمل فوراً)
+// أعمدة ورقة المستخدمات تُعرف من عناوينها: اسم المستخدم | كلمة المرور | الوحدة (وعمود «الاسم» القديم اختياري إن بقي)
+function usersCols_(head) {
+  const h = head.map(x => norm_(x));
+  const at = (name, def) => { const i = h.indexOf(name); return i > -1 ? i : def; };
+  return { user: at('اسم المستخدم', 0), pw: at('كلمة المرور', 1), name: at('الاسم', -1), unit: at('الوحدة', -1) };
+}
+// كل صف: [اسم الدخول بحروف صغيرة, كلمة المرور, الاسم الظاهر, الوحدة, اسم الدخول كما كُتب]
 function usersRows_(fresh) {
   const cache = CacheService.getScriptCache();
   if (!fresh) {
-    const hit = cache.get('users_v2');
+    const hit = cache.get('users_v3');
     if (hit) { try { return JSON.parse(hit); } catch (e) {} }
   }
   const sh = ss_().getSheetByName(SHEET.USERS);
   if (!sh) throw new Error('شغّلي setup() أولاً');
-  const rows = sh.getDataRange().getDisplayValues().slice(1).map(r => [norm_(r[0]).toLowerCase(), norm_(r[1]), norm_(r[2]), norm_(r[3]), norm_(r[4])]);
-  try { cache.put('users_v2', JSON.stringify(rows), 120); } catch (e) {}
+  const all = sh.getDataRange().getDisplayValues();
+  const c = usersCols_(all[0] || []);
+  const rows = all.slice(1).filter(r => norm_(r[c.user])).map(r => {
+    const u = norm_(r[c.user]);
+    return [u.toLowerCase(), norm_(r[c.pw]), (c.name > -1 && norm_(r[c.name])) || u, (c.unit > -1 && norm_(r[c.unit])) || DEFAULT_UNIT, u];
+  });
+  try { cache.put('users_v3', JSON.stringify(rows), 120); } catch (e) {}
   return rows;
 }
 function checkAuth_(user, pw) {
@@ -710,10 +722,18 @@ function fixVisitValidation() {
 // unit = أسماء هذه الوحدة فقط، exclude = إخفاء أسماء هذه الوحدة (للمشرفات فقط)
 function listNames_(kind, unit, exclude) {
   const isM = kind === 'managers';
-  const sh = ss_().getSheetByName(isM ? SHEET.MANAGERS : SHEET.USERS);
-  if (!sh) throw new Error('شغّلي setup() أولاً');
   const seen = {}, out = [];
   unit = norm_(unit); exclude = norm_(exclude);
+  if (!isM) {   // المشرفات: اسم المستخدم هو نفسه الاسم الظاهر
+    usersRows_(true).forEach(r => {
+      if (seen[r[0]] || (unit && r[3] !== unit) || (exclude && r[3] === exclude)) return;
+      seen[r[0]] = 1;
+      out.push({ u: r[4], n: r[2] });
+    });
+    return out;
+  }
+  const sh = ss_().getSheetByName(SHEET.MANAGERS);
+  if (!sh) throw new Error('شغّلي setup() أولاً');
   sh.getDataRange().getDisplayValues().slice(1).forEach(r => {
     const u = norm_(r[0]);
     if (!u || seen[u.toLowerCase()]) return;
@@ -746,10 +766,8 @@ function getManage_(me) {
   const U = u => u || DEFAULT_UNIT;
   const inScope = u => all || U(u) === me.unit;
 
-  const ush = ss_().getSheetByName(SHEET.USERS);
-  const users = ush.getDataRange().getDisplayValues().slice(1)
-    .filter(x => norm_(x[0]))
-    .map(x => ({ username: norm_(x[0]).toLowerCase(), name: norm_(x[2]) || norm_(x[0]), unit: U(norm_(x[3])) }))
+  const users = usersRows_(true)
+    .map(x => ({ username: x[0], name: x[2], unit: U(x[3]) }))
     .filter(u => inScope(u.unit));
 
   const visits = getVisits_().filter(v => inScope(v.unit)).map(v => ({
