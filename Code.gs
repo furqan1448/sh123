@@ -15,10 +15,12 @@ const SHEET = {
   FILES: 'المرفقات',
   EVALS: 'استمارات التقييم',
   DRAFTS: 'المسودات',   // مسودات الاستمارات لكل مشرفة (تظهر من أي جهاز)، تُنشأ تلقائياً
-  SIGS: 'التواقيع'   // نسخة مصغّرة من كل توقيع (للإكسل) + توقيع المشرفة المحفوظ، تُنشأ تلقائياً
+  SIGS: 'التواقيع',   // نسخة مصغّرة من كل توقيع (للإكسل) + توقيع المشرفة المحفوظ، تُنشأ تلقائياً
+  IDARI: 'نماذج الإشراف الإداري'   // نماذج وحدة الإشراف الإداري (تقرير الزيارة، برنامج مشرفة مقيمة، الاقتراحات والصعوبات)، تُنشأ تلقائياً
 };
 
-const DEFAULT_UNIT = 'وحدة الإشراف التربوي';   // وحدة السجلات القديمة والمستخدمات اللاتي لم تُكتب لهن وحدة
+const DEFAULT_UNIT = 'وحدة الإشراف التربوي';
+const IDARI_UNIT = 'وحدة الإشراف الإداري';   // تُكتب بهذا النص في عمود «الوحدة» لمشرفات الإشراف الإداري ومديرة وحدتهن   // وحدة السجلات القديمة والمستخدمات اللاتي لم تُكتب لهن وحدة
 const ALL_UNITS = 'الكل';   // إذا كتبتِ «الكل» في وحدة مديرة الوحدات ترى كل الوحدات
 const OWNER_HEADERS = ['المسجِّلة', 'الوحدة'];
 
@@ -36,7 +38,8 @@ const EVAL_URL_COL = 21; // عمود التوقيع (رابط ملف في الد
 
 const DAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 const DRIVE_FOLDER_NAME = 'منظومة مشرفات - الملفات';
-const LINK_MARK = 'رابط'; // يُكتب في عمود «اسم الملف» للمرفقات من نوع رابط (لا يوجد ملف في الدرايف ليُحذف)
+const LINK_MARK = 'رابط';
+const LISTS_IDARI_TYPES = 'أنواع الزيارة (الإشراف الإداري)';   // العمود D في «القوائم»: إن تُرك فارغاً تُستخدم «أنواع الزيارة» العامة // يُكتب في عمود «اسم الملف» للمرفقات من نوع رابط (لا يوجد ملف في الدرايف ليُحذف)
 
 /* ============ الإعداد الأولي (شغّليه مرة واحدة) ============ */
 function setup() {
@@ -72,8 +75,9 @@ function setup() {
     ls.getRange(2, 1, 2, 2).setValues([['مركز تجريبي 1', 'زيارة دورية'], ['مركز تجريبي 2', 'زيارة مفاجئة']]);
   }
   if (!ls.getRange(1, 3).getValue()) ls.getRange(1, 3).setValue('أسماء المعلمات');
-  styleHeader_(ls, 3);
-  ls.setColumnWidth(1, 220); ls.setColumnWidth(2, 220); ls.setColumnWidth(3, 220);
+  if (!ls.getRange(1, 4).getValue()) ls.getRange(1, 4).setValue(LISTS_IDARI_TYPES);
+  styleHeader_(ls, 4);
+  ls.setColumnWidth(1, 220); ls.setColumnWidth(2, 220); ls.setColumnWidth(3, 220); ls.setColumnWidth(4, 260);
 
   // كشف الخروج
   const vs = getOrCreate_(ss, SHEET.VISITS);
@@ -104,6 +108,7 @@ function setup() {
   styleHeader_(es, EVAL_HEADERS.length);
   es.setColumnWidths(1, EVAL_HEADERS.length, 140);
 
+  idariSheet_(); // نماذج الإشراف الإداري
   folder_(); // ينشئ مجلد الدرايف
   Logger.log('تم الإعداد بنجاح');
 }
@@ -144,7 +149,7 @@ function doPost(e) {
   try {
     const req = JSON.parse(e.postData.contents);
     if (req.action === 'listNames') {   // قائمة الأسماء لشاشة الدخول (أسماء فقط، بلا كلمات مرور)
-      out = { ok: true, data: listNames_(req.kind) };
+      out = { ok: true, data: listNames_(req.kind, req.unit, req.exclude) };
     } else if (req.action === 'getManage' || (req.action === 'getSigs' && req.mgr)) {   // صفحة إدارة الوحدات لها دخول مستقل (ورقة «مديرات الوحدات»)
       const mgr = mgrAuth_(req.username, req.password);
       if (!mgr) out = { ok: false, error: 'الاسم أو كلمة المرور غير صحيحة' };
@@ -169,7 +174,7 @@ function route_(r) {
   switch (r.action) {
     case 'login': return { ok: true, profile: profileOf_(r.username) };
     case 'getLists': return { ok: true, data: getLists_(), profile: profileOf_(r.username) };
-    case 'getVisits': return { ok: true, data: getVisits_() };
+    case 'getVisits': return { ok: true, data: visitsFor_(r) };
     case 'addVisit': return withLock_(() => addVisit_(r));
     case 'deleteVisit': return withLock_(() => { const o = deleteById_(SHEET.VISITS, r.id); sigDel_(r.id); return o; });
     case 'getFiles': return { ok: true, data: getFiles_() };
@@ -187,6 +192,9 @@ function route_(r) {
     case 'getMySig': return { ok: true, data: sigGet_('u:' + norm_(r.username).toLowerCase()) };
     case 'saveMySig': return withLock_(() => { sigPut_('u:' + norm_(r.username).toLowerCase(), r.data); return { ok: true }; });
     case 'deleteMySig': return withLock_(() => { sigDel_('u:' + norm_(r.username).toLowerCase()); return { ok: true }; });
+    case 'getIdari': return { ok: true, data: getIdariFor_(r.username) };
+    case 'saveIdari': return withLock_(() => saveIdari_(r));
+    case 'deleteIdari': return withLock_(() => deleteIdari_(r));
     default: throw new Error('إجراء غير معروف');
   }
 }
@@ -232,19 +240,20 @@ function profileOf_(user) {
 function getLists_(fresh) {
   const cache = CacheService.getScriptCache();
   if (!fresh) {
-    const hit = cache.get('lists_v1');
+    const hit = cache.get('lists_v2');
     if (hit) { try { return JSON.parse(hit); } catch (e) {} }
   }
   const sh = ss_().getSheetByName(SHEET.LISTS);
   const rows = sh.getDataRange().getDisplayValues().slice(1);
-  const centers = [], types = [], teachers = [];
+  const centers = [], types = [], teachers = [], typesIdari = [];
   rows.forEach(r => {
     if (String(r[0]).trim()) centers.push(String(r[0]).trim());
     if (String(r[1]).trim()) types.push(String(r[1]).trim());
     if (r[2] != null && String(r[2]).trim()) teachers.push(String(r[2]).trim());
+    if (r[3] != null && String(r[3]).trim()) typesIdari.push(String(r[3]).trim());
   });
-  const out = { centers: centers, types: types, teachers: teachers };
-  try { cache.put('lists_v1', JSON.stringify(out), 120); } catch (e) {}
+  const out = { centers: centers, types: types, teachers: teachers, typesIdari: typesIdari };
+  try { cache.put('lists_v2', JSON.stringify(out), 120); } catch (e) {}
   return out;
 }
 
@@ -278,7 +287,9 @@ function addVisit_(r) {
   if (needSig && !r.signature) throw new Error('توقيع المديرة مطلوب، أو اختاري حالة أخرى للزيارة');
 
   let lists = getLists_(false);
-  const badType = l => typeList.some(t => l.types.indexOf(t) < 0);
+  const meU = profileOf_(r.username).unit;
+  const typesOf = l => (meU === IDARI_UNIT && l.typesIdari && l.typesIdari.length) ? l.typesIdari : l.types;
+  const badType = l => typeList.some(t => typesOf(l).indexOf(t) < 0);
   if ((center && lists.centers.indexOf(center) < 0) || (!notVisited && badType(lists))) lists = getLists_(true);
   if (center && lists.centers.indexOf(center) < 0) throw new Error('اسم المركز غير موجود في القائمة');
   if (!notVisited && badType(lists)) throw new Error('نوع الزيارة غير موجود في القائمة');
@@ -315,6 +326,12 @@ function addVisit_(r) {
   rg.setNumberFormat('@').setValues(vals);
   if (needSig && sigUrl) sigPut_(id, r.signature);
   return { ok: true, id: id, day: day, signature: sigUrl };
+}
+
+// كشف الخروج لكل مشرفة: زيارات وحدتها فقط، و mine = زياراتها هي فقط (صفحة الإشراف الإداري)
+function visitsFor_(r) {
+  const me = profileOf_(r.username);
+  return getVisits_().filter(v => (v.unit || DEFAULT_UNIT) === me.unit && (!r.mine || v.owner === me.username));
 }
 
 /* ============ المرفقات ============ */
@@ -690,14 +707,20 @@ function fixVisitValidation() {
 /* ============ إدارة الوحدات (دخول مستقل لمديرات الوحدات) ============ */
 // ورقة «مديرات الوحدات»: الاسم | كلمة المرور | الوحدة. كل مديرة ترى مشرفات وحدتها وما سجّلنه. وحدة «الكل» ترى كل الوحدات.
 // أسماء القائمة المنسدلة في شاشة الدخول: kind = 'users' (المشرفات) أو 'managers' (مديرات الوحدات)
-function listNames_(kind) {
+// unit = أسماء هذه الوحدة فقط، exclude = إخفاء أسماء هذه الوحدة (للمشرفات فقط)
+function listNames_(kind, unit, exclude) {
   const isM = kind === 'managers';
   const sh = ss_().getSheetByName(isM ? SHEET.MANAGERS : SHEET.USERS);
   if (!sh) throw new Error('شغّلي setup() أولاً');
   const seen = {}, out = [];
+  unit = norm_(unit); exclude = norm_(exclude);
   sh.getDataRange().getDisplayValues().slice(1).forEach(r => {
     const u = norm_(r[0]);
     if (!u || seen[u.toLowerCase()]) return;
+    if (!isM) {
+      const un = norm_(r[3]) || DEFAULT_UNIT;
+      if ((unit && un !== unit) || (exclude && un === exclude)) return;
+    }
     seen[u.toLowerCase()] = 1;
     out.push({ u: u, n: (!isM && norm_(r[2])) || u });   // القيمة = اسم الدخول، والنص = الاسم الظاهر إن وُجد
   });
@@ -736,9 +759,129 @@ function getManage_(me) {
   const evals = getEvalsCached_().filter(e => inScope(e.unit)).map(e => Object.assign({}, e, { unit: U(e.unit) }));
   const files = getFiles_().filter(f => inScope(f.unit)).map(f => ({
     id: f.id, owner: f.owner, unit: U(f.unit), title: f.title, name: f.name, url: f.url, at: f.at }));
+  const idari = getIdari_().filter(x => inScope(x.unit)).map(x => Object.assign({}, x, { unit: U(x.unit) }));
 
   const seen = {};
-  users.concat(visits, evals, files).forEach(x => { seen[x.unit] = 1; });
+  users.concat(visits, evals, files, idari).forEach(x => { seen[x.unit] = 1; });
   if (!all) seen[me.unit] = 1;
-  return { ok: true, me: me, units: Object.keys(seen).sort(), users: users, visits: visits, evals: evals, files: files };
+  return { ok: true, me: me, units: Object.keys(seen).sort(), users: users, visits: visits, evals: evals, files: files, idari: idari };
+}
+
+
+/* ============ نماذج وحدة الإشراف الإداري ============ */
+// الأنواع: visit = تقرير زيارة المشرفة، program = تخطيط وتنفيذ ونتائج لبرنامج مشرفة مقيمة، suggest = الاقتراحات والمرئيات – الصعوبات
+const IDARI_TYPES = { visit: 'تقرير زيارة المشرفة', program: 'برنامج مشرفة مقيمة', suggest: 'الاقتراحات والصعوبات' };
+const IDARI_HEADERS = ['الرقم', 'النموذج', 'اسم المركز', 'الفصل الدراسي', 'العام', 'الفترة', 'التاريخ', 'اليوم', 'رقم الزيارة',
+  'اسم المشرفة', 'اسم المديرة', 'البيانات', 'وقت التسجيل', 'المسجِّلة', 'الوحدة'];
+const IDARI_SIGS = ['sup', 'mgr', 'ack'];   // توقيع المشرفة، توقيع المديرة، توقيع بالعلم (تُحفظ في ورقة «التواقيع» بالمعرّف: الرقم|النوع)
+
+function idariSheet_() {
+  const ss = ss_();
+  let sh = ss.getSheetByName(SHEET.IDARI);
+  if (!sh) {
+    sh = ss.insertSheet(SHEET.IDARI);
+    sh.getRange(1, 1, 1, IDARI_HEADERS.length).setValues([IDARI_HEADERS]);
+    styleHeader_(sh, IDARI_HEADERS.length);
+    sh.setColumnWidths(1, IDARI_HEADERS.length, 150);
+    sh.setColumnWidth(12, 320);
+    const ls = ss.getSheetByName(SHEET.LISTS);   // عمود أنواع زيارة الإشراف الإداري في «القوائم»
+    if (ls && !ls.getRange(1, 4).getValue()) { ls.getRange(1, 4).setValue(LISTS_IDARI_TYPES); styleHeader_(ls, 4); ls.setColumnWidth(4, 260); }
+  }
+  return sh;
+}
+
+function getIdari_() {
+  const sh = ss_().getSheetByName(SHEET.IDARI);
+  if (!sh || sh.getLastRow() < 2) return [];
+  const rows = sh.getRange(2, 1, sh.getLastRow() - 1, IDARI_HEADERS.length).getDisplayValues();
+  return rows.filter(r => r[0]).map(r => {
+    let data = {};
+    try { data = JSON.parse(r[11] || '{}'); } catch (e) {}
+    return { id: r[0], kind: idariKey_(r[1]), center: r[2], sem: r[3], year: r[4], period: r[5], date: r[6], day: r[7],
+      visitNo: r[8], supName: r[9], mgrName: r[10], data: data, at: r[12], owner: r[13] || '', unit: r[14] || '' };
+  }).reverse();
+}
+function getIdariFor_(username) {
+  const u = norm_(username).toLowerCase();
+  return getIdari_().filter(x => x.owner === u);
+}
+function idariKey_(label) {
+  for (const k in IDARI_TYPES) if (IDARI_TYPES[k] === label) return k;
+  return '';
+}
+
+function saveIdari_(r) {
+  const s = v => String(v == null ? '' : v).trim().slice(0, 3000);
+  const kind = s(r.kind);
+  if (!IDARI_TYPES[kind]) throw new Error('نوع النموذج غير معروف');
+  const me = profileOf_(r.username);
+  if (me.unit !== IDARI_UNIT) throw new Error('هذا الحساب ليس من ' + IDARI_UNIT);
+  const date = s(r.date);
+  if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('التاريخ غير صحيح');
+  const center = s(r.center);
+  if (kind !== 'suggest' && !center) throw new Error('اختاري اسم المركز');
+  if (center) {
+    let lists = getLists_(false);
+    if (lists.centers.indexOf(center) < 0) lists = getLists_(true);
+    if (lists.centers.indexOf(center) < 0) throw new Error('اسم المركز غير موجود في القائمة');
+  }
+  // البيانات: صفوف الجدول وما شابه (نصوص فقط)
+  const d = r.data && typeof r.data === 'object' ? r.data : {};
+  const clean = v => Array.isArray(v) ? v.slice(0, 60).map(clean) : (v && typeof v === 'object') ? Object.keys(v).slice(0, 40).reduce((o, k) => { o[k] = clean(v[k]); return o; }, {}) : s(v);
+  const data = clean(d);
+  const sigs = r.sigs && typeof r.sigs === 'object' ? r.sigs : {};   // { sup|mgr|ack: dataURL | 'keep' | '' }
+  let day = '';
+  if (date) { const p = date.split('-'); day = DAY_NAMES[new Date(+p[0], +p[1] - 1, +p[2]).getDay()]; }
+
+  const sh = idariSheet_();
+  let id = s(r.id), row = 0, old = null;
+  if (id) {
+    const last = sh.getLastRow();
+    if (last > 1) {
+      const ids = sh.getRange(2, 1, last - 1, 1).getValues();
+      for (let i = 0; i < ids.length; i++) if (String(ids[i][0]) === id) { row = i + 2; break; }
+    }
+    if (!row) throw new Error('السجل غير موجود');
+    old = sh.getRange(row, 1, 1, IDARI_HEADERS.length).getDisplayValues()[0];
+    if (String(old[13]) !== me.username) throw new Error('لا يمكن تعديل نموذج سجّلته مشرفة أخرى');
+  } else {
+    id = Utilities.getUuid();
+    row = sh.getLastRow() + 1;
+  }
+  let oldData = {};
+  if (old) { try { oldData = JSON.parse(old[11] || '{}'); } catch (e) {} }
+  const has = {};
+  IDARI_SIGS.forEach(k => {
+    const v = String(sigs[k] || '');
+    if (v === 'keep') { if (oldData.sigs && oldData.sigs[k]) has[k] = '1'; return; }
+    if (v.indexOf('data:image/') === 0) { sigPut_(id + '|' + k, v); has[k] = '1'; }
+    else if (old) sigDel_(id + '|' + k);
+  });
+  data.sigs = has;
+  const json = JSON.stringify(data);
+  if (json.length > 45000) throw new Error('النموذج طويل جداً، اختصري النصوص');
+
+  const vals = [[id, IDARI_TYPES[kind], center, s(r.sem), s(r.year), s(r.period), date, day, s(r.visitNo),
+    s(r.supName), s(r.mgrName), json, old ? String(old[12] || nowStr_()) : nowStr_(), me.username, me.unit]];
+  sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
+  return { ok: true, id: id, day: day, sigs: has };
+}
+
+function deleteIdari_(r) {
+  const id = String(r.id || '');
+  const sh = ss_().getSheetByName(SHEET.IDARI);
+  if (!sh || !id) throw new Error('السجل غير موجود');
+  const me = profileOf_(r.username);
+  const last = sh.getLastRow();
+  if (last > 1) {
+    const rows = sh.getRange(2, 1, last - 1, 14).getValues();
+    for (let i = 0; i < rows.length; i++) {
+      if (String(rows[i][0]) !== id) continue;
+      if (String(rows[i][13]) !== me.username) throw new Error('لا يمكن حذف نموذج سجّلته مشرفة أخرى');
+      sh.deleteRow(i + 2);
+      IDARI_SIGS.forEach(k => sigDel_(id + '|' + k));
+      return { ok: true };
+    }
+  }
+  throw new Error('السجل غير موجود');
 }

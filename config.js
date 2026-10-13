@@ -241,10 +241,12 @@ function setBtnBusy(btn, busy, text) {
 }
 
 /* ===== قائمة الأسماء المنسدلة في شاشة الدخول (كاش محلي ثم تحديث من الخادم) ===== */
-async function loadLoginNames(kind, id) {
+// f = { unit: أسماء وحدة واحدة فقط, exclude: إخفاء أسماء وحدة } (لقائمة المشرفات)
+async function loadLoginNames(kind, id, f) {
   const sel = document.getElementById(id);
   if (!sel) return;
-  const key = 'mush_names_' + kind;
+  f = f || {};
+  const key = 'mush_names_' + kind + (f.unit ? '_u_' + f.unit : '') + (f.exclude ? '_x_' + f.exclude : '');
   const ph = kind === 'managers' ? 'اختاري الاسم' : 'اختاري اسم المستخدم';
   const fill = list => {
     const cur = sel.value;
@@ -256,7 +258,7 @@ async function loadLoginNames(kind, id) {
   for (let i = 0; i < 3; i++) {
     const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), 15000);
     try {
-      const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'listNames', kind }), signal: ctrl.signal });
+      const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'listNames', kind, unit: f.unit || '', exclude: f.exclude || '' }), signal: ctrl.signal });
       clearTimeout(t);
       const out = await res.json();
       if (!out.ok) throw Object.assign(new Error(out.error || 'خطأ'), { final: true });

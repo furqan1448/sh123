@@ -60,7 +60,7 @@
       <h2>المشرفات</h2>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>المشرفة</th><th>أيام الحضور</th><th>أيام الغياب</th><th>الاستمارات</th><th>المرفقات</th><th>آخر نشاط</th></tr></thead>
+          <thead><tr><th>المشرفة</th><th>أيام الحضور</th><th>أيام الغياب</th><th>الاستمارات والنماذج</th><th>المرفقات</th><th>آخر نشاط</th></tr></thead>
           <tbody id="mgSum"><tr><td colspan="6" class="empty">جارِ التحميل...</td></tr></tbody>
         </table>
       </div>
@@ -75,6 +75,7 @@
         <button class="on" data-t="visits" onclick="mgTabSet('visits')">كشف الخروج</button>
         <button data-t="evals" onclick="mgTabSet('evals')">الاستمارات</button>
         <button data-t="files" onclick="mgTabSet('files')">المرفقات</button>
+        <button data-t="idari" onclick="mgTabSet('idari')">نماذج الإشراف الإداري</button>
       </div>
       <div class="ex-bar" id="mgBar"></div>
       <div class="tbl-wrap">
@@ -95,6 +96,13 @@
   </div>
 </div>
 
+<div id="idModal" class="modal hidden" onclick="if (event.target === this) idCloseModal()">
+  <div class="modal-box" style="max-width:1140px">
+    <button class="btn light" style="margin-bottom:10px" onclick="idCloseModal()">إغلاق ✕</button>
+    <div id="idModalBody"></div>
+  </div>
+</div>
+
 <script src="logo-config.js"></script>
 <script src="config.js"></script>
 <script src="evals.js"></script>
@@ -102,6 +110,7 @@
 <script src="tajweed.js"></script>
 <script src="final.js"></script>
 <script src="export.js"></script>
+<script src="idari-print.js"></script>
 <script src="manage.js"></script>
 </body>
 </html>

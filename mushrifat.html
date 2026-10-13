@@ -614,6 +614,14 @@
 <script src="reports.js"></script>
 <script>
 const DAYS = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+const IDARI_UNIT = 'وحدة الإشراف الإداري';
+// حساب من وحدة الإشراف الإداري: نحوّله لصفحته (الدخول يبقى محفوظاً)
+function goIdari(p) {
+  if (!p || p.unit !== IDARI_UNIT) return false;
+  toast('هذا الحساب من ' + IDARI_UNIT + '، جارِ التحويل لصفحتها');
+  setTimeout(() => { location.href = 'idari.html'; }, 1200);
+  return true;
+}
 let LISTS = { centers: [], types: [], teachers: [] };
 let VISITS = [], FILES = [];
 
@@ -646,6 +654,7 @@ async function doLogin() {
   setBtnBusy(btn, true, 'جارِ التحقق...');
   try {
     const out = await api('getLists');   // نفس الطلب يتحقق من الدخول ويجلب القوائم (طلب واحد بدل اثنين)
+    if (goIdari(out.profile)) return;   // مشرفة الإشراف الإداري لها صفحتها الخاصة
     applyLists(out.data);
     loadMySig();
     show('homeView');
@@ -691,6 +700,7 @@ async function preload() {
   loadMySig();
   try {
     const out = await api('getLists');
+    if (goIdari(out.profile)) return;
     const vc = document.getElementById('vCenter').value;
     applyLists(out.data);
     if (vc) document.getElementById('vCenter').value = vc;
@@ -925,7 +935,7 @@ async function delFile(id) {
 
 /* ---------- استعادة الجلسة (البقاء داخل الموقع عند التحديث) ---------- */
 (function init() {
-  loadLoginNames('users', 'un');
+  loadLoginNames('users', 'un', { exclude: IDARI_UNIT });
   if (!getPw() || !getUser()) return;
   // نعرض آخر صفحة فوراً دون انتظار الخادم
   const last = localStorage.getItem('mush_view');

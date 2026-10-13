@@ -317,3 +317,10 @@ table{font-size:15px}
 }
 
 .rp-src{margin-top:10px;font-size:12px;color:var(--muted)}
+
+/* ===== نماذج وحدة الإشراف الإداري ===== */
+.id-row{border:1.5px solid var(--line);border-radius:14px;padding:4px 14px 14px;margin-bottom:12px;background:#fffdf9}
+.id-row-h{display:flex;justify-content:space-between;align-items:center;padding-top:10px}
+.id-row-h b{color:var(--primary)}
+.id-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}
+#idListView .act{flex-wrap:wrap;justify-content:center}
