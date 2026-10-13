@@ -1,4 +1,4 @@
-/* ===== نماذج وحدة الإشراف الإداري: الطباعة وتحميل PDF بالكليشة الحمراء (letterhead.jpg) ===== */
+/* ===== نماذج وحدة الإشراف الإداري: الطباعة وتحميل PDF والمشاركة بالكليشة الحمراء (letterhead.jpg) ===== */
 // يُستخدم في صفحة المشرفات (idari.html) وفي صفحة إدارة الوحدات (units.html)
 const ID_LETTERHEAD = 'letterhead.jpg';
 const ID_UNIT = 'وحدة الإشراف الإداري';
@@ -10,104 +10,136 @@ const ID_KINDS = {
 };
 const ID_PROGRAM_ROWS = [['day', 'اليوم / التاريخ'], ['center', 'المركز'], ['content', 'المحتوى'], ['plan', 'التخطيط'],
   ['method', 'طريقة التنفيذ'], ['tools', 'الوسائل'], ['results', 'النتائج'], ['ratio', 'نسبة الاستفادة']];
+const ID_DAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
 // جلب التواقيع (تُستبدل في صفحة إدارة الوحدات بدخول المديرة)
 let idSigFetch = items => api('getSigs', { items }).then(o => o.data || {});
 
 const idDigits = s => String(s == null ? '' : s).replace(/[0-9]/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
-function idHijri(date) {
-  if (!date) return '';
-  const p = String(date).split('-');
+
+/* ---------- التاريخ الهجري (مثل تقرير الزيارة في نظام المقاصف: يوم / شهر / سنة تُقرأ من اليمين) ---------- */
+// أجزاء التاريخ الهجري (أم القرى) لتاريخ ميلادي
+function idHParts(dt) {
   try {
-    return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', { day: 'numeric', month: 'numeric', year: 'numeric' })
-      .format(new Date(+p[0], +p[1] - 1, +p[2])).replace(/‏/g, '').replace(/\s*هـ$/, '') + 'هـ';
-  } catch (e) { return date; }
+    const o = {};
+    new Intl.DateTimeFormat('en-u-ca-islamic-umalqura-nu-latn', { day: 'numeric', month: 'numeric', year: 'numeric' })
+      .formatToParts(dt).forEach(p => { if (p.type === 'day' || p.type === 'month' || p.type === 'year') o[p.type] = parseInt(p.value, 10); });
+    return o.day ? { d: o.day, m: o.month, y: o.year } : null;
+  } catch (e) { return null; }
 }
+const idYmd = dt => dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+// التاريخ الميلادي المقابل لتاريخ هجري (للترتيب والتصفية فقط) أو '' إن لم يوجد
+function idHToG(y, m, d) {
+  y = +y; m = +m; d = +d;
+  if (!y || !m || !d) return '';
+  const now = new Date(), t = idHParts(now);
+  if (!t) return '';
+  const est = Math.round((y - t.y) * 354.367 + (m - t.m) * 29.53 + (d - t.d));
+  for (let k = 0; k <= 6; k++) {
+    for (const s of k ? [k, -k] : [0]) {
+      const dt = new Date(now.getFullYear(), now.getMonth(), now.getDate() + est + s);
+      const h = idHParts(dt);
+      if (h && h.y === y && h.m === m && h.d === d) return idYmd(dt);
+    }
+  }
+  return '';
+}
+// نص التاريخ: كل جزء معزول حتى يبقى الترتيب من اليمين لليسار (اليوم ثم الشهر ثم السنة)
+function idHDate(rec) {
+  const d = (rec && rec.data) || {};
+  let p = d.hd ? { d: d.hd, m: d.hm, y: d.hy } : null;
+  if (!p && rec && rec.date) { const q = rec.date.split('-'); p = idHParts(new Date(+q[0], +q[1] - 1, +q[2])); }
+  if (!p) return '';
+  return '<span class="idc-date"><bdi>' + idDigits(p.d) + '</bdi> / <bdi>' + idDigits(p.m) + '</bdi> / <bdi>' + idDigits(p.y) + 'هـ</bdi></span>';
+}
+const idDayName = rec => ((rec.data && rec.data.dayName) || rec.day || '');
+
 const idNl = s => esc(s).replace(/\n/g, '<br>');
 const idBox = on => '<span class="idc-box">' + (on ? '✓' : '') + '</span>';
 const idSig = d => d ? '<img class="idc-sig" src="' + d + '" alt="">' : '';
 
 const ID_CSS = `
-.idoc{width:1090px;background:#fff;color:#222;font-family:'Tajawal','Segoe UI',Tahoma,Arial,sans-serif;direction:rtl;font-size:15px;line-height:1.55;padding:0 4px}
+.idoc{width:1090px;background:#fff;color:#222;font-family:'Tajawal','Segoe UI',Tahoma,Arial,sans-serif;direction:rtl;font-size:15px;line-height:1.6;padding:0 4px}
 .idoc *{box-sizing:border-box}
+.idoc bdi{unicode-bidi:isolate}
 .idoc .idc-lh{width:100%;display:block}
-.idoc .idc-unit{display:flex;justify-content:flex-end;margin:6px 0 0}
-.idoc .idc-unit span{background:#7a1f2b;color:#fff;font-weight:700;border-radius:0 20px 20px 0;padding:5px 26px;font-size:15px}
-.idoc .idc-title{text-align:center;font-size:22px;font-weight:800;color:#7a1f2b;margin:0 0 8px}
-.idoc .idc-title.u{text-decoration:underline;text-underline-offset:6px}
-.idoc .idc-line{display:flex;flex-wrap:wrap;gap:6px 26px;align-items:center;margin:0 6px 10px;font-size:15.5px}
-.idoc .idc-line b{color:#7a1f2b}
-.idoc .idc-v{font-weight:700;color:#7a1f2b;border-bottom:1px dotted #999;padding:0 6px;min-width:90px;display:inline-block}
-.idoc .idc-box{display:inline-flex;width:15px;height:15px;border:1.3px solid #444;align-items:center;justify-content:center;font-size:12px;margin-left:4px;vertical-align:middle;color:#7a1f2b;font-weight:800}
-.idoc table{width:100%;border-collapse:collapse;font-size:14.5px}
-.idoc th,.idoc td{border:1px solid #555;padding:6px 8px;vertical-align:middle}
-.idoc th{background:#f3e3e6;color:#5c1620;font-weight:800;text-align:center}
-.idoc td{text-align:right}
-.idoc td.c{text-align:center}
-.idoc tr.idc-r td{height:30px;padding:4px 8px}
-.idoc .idc-lbl{color:#7a1f2b;font-weight:800;text-align:center;background:#fcf6f7;width:190px}
-.idoc .idc-sig{max-height:54px;max-width:170px;vertical-align:middle}
-.idoc td .idc-sig{max-height:110px;max-width:100%}
-.idoc .idc-note{font-size:13.5px;margin:5px 6px 0}
-.idoc .idc-foot{display:flex;justify-content:space-between;gap:30px;margin:10px 6px 0;font-size:15.5px}
-.idoc .idc-foot>div{display:flex;flex-direction:column;gap:6px;min-width:280px}
-.idoc .idc-foot>.idc-row{flex-direction:row;min-width:0}
-.idoc .idc-foot b{color:#7a1f2b}
-.idoc .idc-row{display:flex;align-items:center;gap:8px;min-height:30px}
+.idoc .idc-body{padding:0 28px}
+.idoc .idc-title{text-align:center;font-size:25px;font-weight:800;color:#7a1f2b;margin:22px 0 18px}
+.idoc .idc-meta{display:flex;justify-content:space-between;align-items:center;gap:20px;font-weight:800;font-size:15.5px;margin:0 0 14px}
+.idoc .idc-meta>span{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.idoc .idc-m{color:#7a1f2b}
+.idoc .idc-date{display:inline-block;direction:rtl}
+.idoc .idc-box{display:inline-flex;width:14px;height:14px;border:1.6px solid #222;align-items:center;justify-content:center;font-size:12px;margin-left:5px;vertical-align:middle;font-weight:900;line-height:1}
+.idoc .idc-per{display:inline-flex;gap:16px;align-items:center}
+.idoc table{width:100%;border-collapse:collapse;font-size:15px}
+.idoc th,.idoc td{border:1px solid #444;padding:8px 10px;vertical-align:middle;text-align:center}
+.idoc th{background:#f2f2f2;color:#222;font-weight:800}
+.idoc .idc-info td{background:#f2f2f2;font-weight:800;padding:10px}
+.idoc .idc-info{margin-bottom:-1px}
+.idoc tr.idc-r td{height:44px}
+.idoc .idc-prog td{padding:6px 10px}
+.idoc .idc-n{color:#7a1f2b;font-weight:800;width:54px}
+.idoc .idc-lbl{font-weight:800;background:#f2f2f2;width:200px}
+.idoc td.r{text-align:right}
+.idoc .idc-sig{max-height:62px;max-width:190px;display:block;margin:4px auto 0}
+.idoc .idc-foot{display:flex;justify-content:space-around;gap:30px;margin:28px 0 0;align-items:flex-start}
+.idoc .idc-foot>div{text-align:center;font-weight:800;font-size:16px;min-width:240px;line-height:1.8}
+.idoc .idc-note{font-size:14px;margin:12px 0 0;font-weight:700}
 .idoc .idc-avoid{page-break-inside:avoid;break-inside:avoid}
 `;
 
-/* ---------- محتوى النموذج (نفس الشكل للطباعة والـ PDF) ---------- */
+/* ---------- محتوى النموذج (نفس الشكل للعرض والطباعة والـ PDF) ---------- */
 function idDocHtml(rec, sigs, lhUrl) {
   sigs = sigs || {};
   const d = rec.data || {};
   const per = String(rec.period || '');
-  const head = '<img class="idc-lh" src="' + esc(lhUrl || ID_LETTERHEAD) + '" alt="">' +
-    '<div class="idc-unit"><span>' + ID_UNIT + '</span></div>';
-  const v = x => '<span class="idc-v">' + (x ? esc(x) : '&nbsp;') + '</span>';
-  const vd = x => '<span class="idc-v">' + (x ? esc(idDigits(x)) : '&nbsp;') + '</span>';
-  const periodBoxes = idBox(per.indexOf('صباحي') > -1) + 'صباحي &nbsp;&nbsp; ' + idBox(per.indexOf('مسائي') > -1) + 'مسائي';
+  const head = '<img class="idc-lh" src="' + esc(lhUrl || ID_LETTERHEAD) + '" alt="">';
+  const m = x => '<span class="idc-m">' + x + '</span>';   // القيم باللون العنابي
+  const periodBoxes = '<span class="idc-per"><span>' + idBox(per.indexOf('صباحي') > -1) + 'صباحي</span><span>' + idBox(per.indexOf('مسائي') > -1) + 'مسائي</span></span>';
+  const yearSem = (rec.year ? 'لعام ' + idDigits(rec.year) + 'هـ' : '') + (rec.sem ? ' للفصل الدراسي ' + esc(rec.sem) : '');
+  const sigCol = (lbl, name, sg) => '<div>' + lbl + (name ? '<br>' + esc(name) : '') + idSig(sg) + '</div>';
   let h = '';
 
   if (rec.kind === 'visit') {
     const rows = (d.rows || []).filter(r => r && (r.about || r.note || r.rec));
-    const n = Math.max(rows.length, 6);
+    const n = Math.max(rows.length, 3);
+    const ack = d.ackCol === '1' || !!sigs.ack;   // عمود «توقيع بالعلم» اختياري (يُوقَّع ورقياً)
     let body = '';
     for (let i = 0; i < n; i++) {
       const r = rows[i] || {};
-      body += '<tr class="idc-r"><td class="c">' + (rows[i] ? idDigits(i + 1) : '') + '</td><td>' + idNl(r.about) + '</td><td>' + idNl(r.note) + '</td><td>' + idNl(r.rec) + '</td>' +
-        (i === 0 ? '<td class="c" rowspan="' + n + '">' + idSig(sigs.ack) + '</td>' : '') + '</tr>';
+      body += '<tr class="idc-r"><td class="idc-n">' + (rows[i] ? idDigits(i + 1) : '') + '</td><td>' + idNl(r.about) + '</td><td>' + idNl(r.note) + '</td><td>' + idNl(r.rec) + '</td>' +
+        (ack && i === 0 ? '<td rowspan="' + n + '">' + idSig(sigs.ack) + '</td>' : '') + '</tr>';
     }
-    h = head + '<div class="idc-title">تقرير زيارة المشرفة *</div>' +
-      '<div class="idc-line"><span><b>بمركز:</b> ' + v(rec.center) + '</span><span><b>لعام:</b> ' + vd(rec.year) + '</span><span><b>الفصل الدراسي:</b> ' + v(rec.sem) + '</span><span>' + periodBoxes + '</span></div>' +
-      '<table><colgroup><col style="width:44px"><col style="width:23%"><col style="width:31%"><col style="width:26%"><col></colgroup>' +
-      '<tr><td colspan="2"><b>اليوم:</b> ' + esc(rec.day || '') + '</td><td><b>التاريخ:</b> ' + esc(d.hijri || idHijri(rec.date)) + '</td><td><b>رقم الزيارة:</b> ' + esc(idDigits(rec.visitNo)) + '</td><td class="c"><b>نوع الزيارة:</b> ' + esc(d.vtype || 'إداري') + '</td></tr>' +
-      '<tr><th>م</th><th>بشأن</th><th>الملاحظة</th><th>التوصية</th><th>توقيع بالعلم</th></tr>' + body + '</table>' +
-      '<div class="idc-avoid"><div class="idc-note">* تحدد المشرفة (التعليمية / الإدارية) في بند الشأن كما هو موضح في ملف المشرفة.</div>' +
-      '<div class="idc-note">يتم أرشفة التقرير في الدرايف مجلد الزيارات.</div>' +
-      '<div class="idc-foot"><div class="idc-row"><b>اسم المديرة:</b> ' + v(rec.mgrName) + ' &nbsp; <b>التوقيع:</b> ' + (idSig(sigs.mgr) || v('')) + '</div>' +
-      '<div class="idc-row"><b>اسم المشرفة:</b> ' + v(rec.supName) + ' &nbsp; <b>التوقيع:</b> ' + (idSig(sigs.sup) || v('')) + '</div></div></div>';
+    h = head + '<div class="idc-body"><div class="idc-title">تقرير زيارة المشرفة</div>' +
+      '<div class="idc-meta"><span><span>المركز: ' + esc(rec.center) + '</span>' + periodBoxes + '</span><span>' + yearSem + '</span></div>' +
+      '<table class="idc-info"><tr><td>اليوم: ' + m(esc(idDayName(rec))) + '</td><td>التاريخ: ' + m(idHDate(rec)) + '</td><td>رقم الزيارة: ' + m(esc(idDigits(rec.visitNo))) + '</td><td>نوع الزيارة: ' + m(esc(d.vtype || 'إداري')) + '</td></tr></table>' +
+      '<table><colgroup><col style="width:54px"><col style="width:' + (ack ? '20%' : '22%') + '"><col style="width:' + (ack ? '32%' : '38%') + '"><col>' + (ack ? '<col style="width:140px">' : '') + '</colgroup>' +
+      '<tr><th>م</th><th>بشأن</th><th>الملاحظة</th><th>التوصية</th>' + (ack ? '<th>توقيع بالعلم</th>' : '') + '</tr>' + body + '</table>' +
+      '<div class="idc-foot idc-avoid">' + sigCol('المشرفة', rec.supName, sigs.sup) + sigCol('مديرة المركز', rec.mgrName, sigs.mgr) + '</div></div>';
 
   } else if (rec.kind === 'program') {
-    const val = k => k === 'day' ? [rec.day, d.hijri || idHijri(rec.date)].filter(Boolean).join(' — ') : k === 'center' ? rec.center : d[k];
-    h = head + '<div class="idc-title u">تخطيط وتنفيذ ونتائج لبرنامج مشرفة مقيمة:</div>' +
-      '<table><colgroup><col style="width:50px"><col style="width:200px"><col></colgroup>' +
+    const val = k => k === 'day' ? [esc(idDayName(rec)), idHDate(rec)].filter(Boolean).join(' &nbsp;—&nbsp; ') : k === 'center' ? esc(rec.center) : idNl(d[k]);
+    h = head + '<div class="idc-body"><div class="idc-title">تخطيط وتنفيذ ونتائج لبرنامج مشرفة مقيمة</div>' +
+      '<table class="idc-prog"><colgroup><col style="width:54px"><col style="width:200px"><col></colgroup>' +
       '<tr><th>م</th><th>البيان</th><th>المحتوى</th></tr>' +
-      ID_PROGRAM_ROWS.map((r, i) => '<tr class="idc-r"><td class="c">' + idDigits(i + 1) + '</td><td class="idc-lbl">' + r[1] + '</td><td>' + idNl(val(r[0])) + '</td></tr>').join('') +
+      ID_PROGRAM_ROWS.map((r, i) => '<tr><td class="idc-n">' + idDigits(i + 1) + '</td><td class="idc-lbl">' + r[1] + '</td><td class="r">' + val(r[0]) + '</td></tr>').join('') +
       '</table>' +
-      (rec.supName || sigs.sup ? '<div class="idc-foot idc-avoid"><div></div><div><div class="idc-row"><b>اسم المشرفة:</b> ' + v(rec.supName) + '</div><div class="idc-row"><b>التوقيع:</b> ' + (idSig(sigs.sup) || v('')) + '</div></div></div>' : '');
+      (rec.supName || sigs.sup ? '<div class="idc-foot idc-avoid">' + sigCol('المشرفة', rec.supName, sigs.sup) + '<div></div></div>' : '') + '</div>';
 
   } else {
     const rows = (d.rows || []).filter(r => r && (r.sug || r.dif));
-    const n = Math.max(rows.length, 6);
+    const n = Math.max(rows.length, 4);
     let body = '';
-    for (let i = 0; i < n; i++) { const r = rows[i] || {}; body += '<tr class="idc-r"><td>' + idNl(r.sug) + '</td><td>' + idNl(r.dif) + '</td></tr>'; }
-    h = head + '<div class="idc-title">الاقتراحات والمرئيات – الصعوبات التي تواجه المشرفة الإدارية *</div>' +
-      '<div class="idc-line"><span><b>الفصل الدراسي/</b> ' + v(rec.sem) + '</span><span><b>لعام</b> ' + vd(rec.year) + '</span><span><b>الفترة /</b> ' + periodBoxes + '</span></div>' +
-      '<table><colgroup><col style="width:50%"><col style="width:50%"></colgroup><tr><th>الاقتراحات والمرئيات</th><th>الصعوبات التي تواجه المشرفة</th></tr>' + body + '</table>' +
-      '<div class="idc-avoid"><div class="idc-foot" style="justify-content:space-between"><div class="idc-row"><b>اسم المشرفة:</b> ' + v(rec.supName) + '</div>' +
-      '<div class="idc-row"><b>التوقيع:</b> ' + (idSig(sigs.sup) || v('')) + '</div><div class="idc-row"><b>التاريخ:</b> ' + esc(d.hijri || idHijri(rec.date)) + '</div></div>' +
-      '<div class="idc-note">* تطالب المشرفة تسليمها آخر الفصل الدراسي.</div></div>';
+    for (let i = 0; i < n; i++) {
+      const r = rows[i] || {};
+      body += '<tr class="idc-r"><td class="idc-n">' + (rows[i] ? idDigits(i + 1) : '') + '</td><td>' + idNl(r.sug) + '</td><td>' + idNl(r.dif) + '</td></tr>';
+    }
+    h = head + '<div class="idc-body"><div class="idc-title">الاقتراحات والمرئيات – الصعوبات التي تواجه المشرفة الإدارية</div>' +
+      '<div class="idc-meta"><span><span>الفترة:</span>' + periodBoxes + '</span><span>' + yearSem + '</span></div>' +
+      '<table class="idc-info"><tr><td>اليوم: ' + m(esc(idDayName(rec))) + '</td><td>التاريخ: ' + m(idHDate(rec)) + '</td></tr></table>' +
+      '<table><colgroup><col style="width:54px"><col><col></colgroup><tr><th>م</th><th>الاقتراحات والمرئيات</th><th>الصعوبات التي تواجه المشرفة</th></tr>' + body + '</table>' +
+      '<div class="idc-avoid"><div class="idc-note">تُطالَب المشرفة بتسليمها آخر الفصل الدراسي.</div>' +
+      '<div class="idc-foot">' + sigCol('المشرفة', rec.supName, sigs.sup) + '<div></div></div></div></div>';
   }
   return '<div class="idoc">' + h + '</div>';
 }
@@ -123,7 +155,11 @@ async function idLoadSigs(rec) {
   return out;
 }
 
-const idFileName = rec => (ID_KINDS[rec.kind] + ' ' + (rec.center || rec.sem || '') + ' ' + (rec.date || '')).trim().replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, '_');
+const idFileName = rec => {
+  const d = rec.data || {};
+  const dt = d.hd ? d.hd + '-' + d.hm + '-' + d.hy : (rec.date || '');
+  return (ID_KINDS[rec.kind] + ' ' + (rec.center || rec.sem || '') + ' ' + dt).trim().replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, '_');
+};
 
 /* ---------- طباعة (ومنها «حفظ PDF» من نافذة الطباعة) ---------- */
 async function idPrint(rec, btn, sigs) {
@@ -147,7 +183,7 @@ async function idPrint(rec, btn, sigs) {
   finally { if (btn) setBtnBusy(btn, false); }
 }
 
-/* ---------- تحميل PDF مباشرة ---------- */
+/* ---------- PDF ---------- */
 let idPdfLoading = null;
 function idLoadPdfLib() {
   if (window.html2pdf) return Promise.resolve();
@@ -161,26 +197,64 @@ function idLoadPdfLib() {
   });
   return idPdfLoading;
 }
-async function idPdf(rec, btn, sigs) {
-  if (btn) setBtnBusy(btn, true, 'جارِ التجهيز...');
+// يبني ملف PDF ويعيده كـ Blob
+async function idPdfBlob(rec, sigs) {
+  if (!sigs) sigs = await idLoadSigs(rec);
+  await idLoadPdfLib();
   const box = document.createElement('div');
+  box.style.cssText = 'position:fixed;top:0;left:-20000px;z-index:-1;background:#fff';
+  box.innerHTML = '<style>' + ID_CSS + '</style>' + idDocHtml(rec, sigs);
+  document.body.appendChild(box);
   try {
-    if (!sigs) sigs = await idLoadSigs(rec);
-    await idLoadPdfLib();
-    box.style.cssText = 'position:fixed;top:0;left:-20000px;z-index:-1;background:#fff';
-    box.innerHTML = '<style>' + ID_CSS + '</style>' + idDocHtml(rec, sigs);
-    document.body.appendChild(box);
     await Promise.all([...box.querySelectorAll('img')].map(im => im.complete ? 0 : new Promise(r => { im.onload = im.onerror = r; })));
-    await window.html2pdf().set({
-      margin: [6, 6, 6, 6], filename: idFileName(rec) + '.pdf',
-      image: { type: 'jpeg', quality: 0.95 },
+    return await window.html2pdf().set({
+      margin: [6, 6, 6, 6], image: { type: 'jpeg', quality: 0.95 },
       html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
       pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.idc-avoid'] }
-    }).from(box.querySelector('.idoc')).save();
-    toast('تم التحميل');
-  } catch (e) { toast(e.message || 'تعذّر تحميل PDF', false); }
-  finally { box.remove(); if (btn) setBtnBusy(btn, false); }
+    }).from(box.querySelector('.idoc')).outputPdf('blob');
+  } finally { box.remove(); }
+}
+function idSaveBlob(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+async function idPdf(rec, btn, sigs) {
+  if (btn) setBtnBusy(btn, true, 'جارِ التجهيز...');
+  try { idSaveBlob(await idPdfBlob(rec, sigs), idFileName(rec) + '.pdf'); toast('تم التحميل'); }
+  catch (e) { toast(e.message || 'تعذّر تحميل PDF', false); }
+  finally { if (btn) setBtnBusy(btn, false); }
+}
+
+/* ---------- مشاركة (واتساب وغيره): مثل نظام المقاصف، تختارين جهة الإرسال بنفسك ---------- */
+async function idShare(rec, btn, sigs) {
+  // الضغطة الثانية بعد التجهيز: نفتح المشاركة مباشرة (بعض الأجهزة تشترط ضغطة جديدة)
+  if (btn && btn._file) { const f = btn._file; btn._file = null; btn.innerHTML = btn.dataset.t0 || 'مشاركة'; return idShareFile(f, rec); }
+  if (btn) setBtnBusy(btn, true, 'جارِ التجهيز...');
+  let file;
+  try {
+    const blob = await idPdfBlob(rec, sigs);
+    file = new File([blob], idFileName(rec) + '.pdf', { type: 'application/pdf' });
+  } catch (e) { toast(e.message || 'تعذّر تجهيز الملف', false); if (btn) setBtnBusy(btn, false); return; }
+  if (btn) setBtnBusy(btn, false);
+  try { await idShareFile(file, rec, true); }
+  catch (e) {
+    if (btn) { btn.dataset.t0 = btn.innerHTML; btn._file = file; btn.innerHTML = 'اضغطي للإرسال'; }
+    toast('الملف جاهز، اضغطي «اضغطي للإرسال»');
+  }
+}
+async function idShareFile(file, rec, rethrow) {
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: ID_KINDS[rec.kind] }); return; }
+    catch (e) {
+      if (e && e.name === 'AbortError') return;   // ألغت المشاركة
+      if (rethrow && e && e.name === 'NotAllowedError') throw e;
+    }
+  }
+  idSaveBlob(file, file.name);
+  toast('المشاركة غير مدعومة في هذا المتصفح، تم تحميل الملف لإرساله يدوياً');
 }
 
 /* ---------- عرض داخل الصفحة (نافذة) ---------- */
@@ -191,9 +265,10 @@ async function idView(rec) {
   m.classList.remove('hidden');
   let sigs = {};
   try { sigs = await idLoadSigs(rec); } catch (e) {}
-  b.innerHTML = '<div class="ex-bar"><button class="btn light" id="idVPrint">طباعة</button><button class="btn light" id="idVPdf">تحميل PDF</button></div>' +
+  b.innerHTML = '<div class="ex-bar"><button class="btn light" id="idVPrint">طباعة</button><button class="btn light" id="idVPdf">تحميل PDF</button><button class="btn light" id="idVShare">مشاركة (واتساب)</button></div>' +
     '<style>' + ID_CSS + '</style><div class="id-scroll">' + idDocHtml(rec, sigs) + '</div>';
   document.getElementById('idVPrint').onclick = e => idPrint(rec, e.currentTarget, sigs);
   document.getElementById('idVPdf').onclick = e => idPdf(rec, e.currentTarget, sigs);
+  document.getElementById('idVShare').onclick = e => idShare(rec, e.currentTarget, sigs);
 }
 function idCloseModal() { const m = document.getElementById('idModal'); if (m) m.classList.add('hidden'); }
