@@ -96,11 +96,46 @@ const dayOf = v => { if (!v) return ''; const p = v.split('-'); return DAYS[new 
 function hijriYear() {
   try { return String(parseInt(new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', { year: 'numeric' }).format(new Date()), 10) || ''); } catch (e) { return ''; }
 }
-function idDateInfo(p) {
-  const v = $(p + 'Date').value;
-  if ($(p + 'Day')) $(p + 'Day').textContent = dayOf(v) || '—';
-  $(p + 'Hijri').textContent = v ? idHijri(v) : '—';
+/* ---------- خانات التاريخ الهجري (اليوم + اليوم/الشهر/السنة) مثل تقرير الزيارة في نظام المقاصف ---------- */
+const arD = n => idDigits(n);
+function hdBuild(p) {
+  const opt = (n, a) => '<option value="' + n + '">' + (a ? arD(n) : n) + '</option>';
+  let dd = '', mm = '';
+  for (let i = 1; i <= 30; i++) dd += opt(i, true);
+  for (let i = 1; i <= 12; i++) mm += opt(i, true);
+  $(p + 'DateBox').innerHTML =
+    '<div class="hd-grid">' +
+      '<div><label for="' + p + 'DayN">اليوم</label><select id="' + p + 'DayN">' + DAYS.map(x => '<option>' + x + '</option>').join('') + '</select></div>' +
+      '<div><label for="' + p + 'HD">التاريخ: اليوم</label><select id="' + p + 'HD" onchange="hdChanged(\'' + p + '\')">' + dd + '</select></div>' +
+      '<div><label for="' + p + 'HM">الشهر</label><select id="' + p + 'HM" onchange="hdChanged(\'' + p + '\')">' + mm + '</select></div>' +
+      '<div><label for="' + p + 'HY">السنة</label><input id="' + p + 'HY" inputmode="numeric" maxlength="4" onchange="hdChanged(\'' + p + '\')"></div>' +
+    '</div><div class="hd-prev">يظهر في التقرير: <b id="' + p + 'HPrev"></b></div>';
 }
+// عند تغيير التاريخ الهجري نختار اسم اليوم تلقائياً (ويمكن تعديله)
+function hdChanged(p) {
+  const g = idHToG($(p + 'HY').value, $(p + 'HM').value, $(p + 'HD').value);
+  if (g) $(p + 'DayN').value = dayOf(g);
+  hdPrev(p);
+}
+function hdPrev(p) {
+  const y = $(p + 'HY').value.trim();
+  $(p + 'HPrev').innerHTML = '<span dir="rtl">' + (y ? idHDate({ data: { hd: $(p + 'HD').value, hm: $(p + 'HM').value, hy: y } }) : '—') + '</span>';
+}
+function hdSet(p, rec) {
+  const d = (rec && rec.data) || {};
+  let h = d.hd ? { d: +d.hd, m: +d.hm, y: +d.hy } : null;
+  if (!h && rec && rec.date) { const q = rec.date.split('-'); h = idHParts(new Date(+q[0], +q[1] - 1, +q[2])); }
+  if (!h) h = idHParts(new Date()) || { d: 1, m: 1, y: '' };
+  $(p + 'HD').value = h.d; $(p + 'HM').value = h.m; $(p + 'HY').value = h.y;
+  const g = idHToG(h.y, h.m, h.d);
+  $(p + 'DayN').value = (rec && idDayName(rec)) || (g ? dayOf(g) : DAYS[new Date().getDay()]);
+  hdPrev(p);
+}
+function hdGet(p) {
+  const hd = $(p + 'HD').value, hm = $(p + 'HM').value, hy = $(p + 'HY').value.trim().replace(/[٠-٩]/g, x => '٠١٢٣٤٥٦٧٨٩'.indexOf(x));
+  return { hd, hm, hy, dayName: $(p + 'DayN').value, greg: idHToG(hy, hm, hd) };
+}
+['iv', 'ip', 'is'].forEach(hdBuild);
 
 /* ======================= كشف الخروج (نفس فكرة الإشراف التربوي) ======================= */
 const V_STATUS = ['تمت الزيارة', 'تمت الزيارة والمديرة متغيبة', 'تمت الزيارة وتعذر التوثيق لتعليق الموقع أو الشبكة', 'تمت الزيارة قبل توفر موقع النظام', 'لم تتم الزيارة'];
@@ -209,15 +244,13 @@ async function delVisit(id) {
 
 /* ======================= النماذج الثلاثة ======================= */
 const SIGW = {
-  ivAck: makeSigWidget('ivAckW', { none: true }),
-  ivMgr: makeSigWidget('ivMgrW', { none: true }),
   ivSup: makeSigWidget('ivSupW', { saved: true, none: true }),
   ipSup: makeSigWidget('ipSupW', { saved: true, none: true }),
   isSup: makeSigWidget('isSupW', { saved: true, none: true })
 };
-const SIGS_OF = { visit: { ack: 'ivAck', mgr: 'ivMgr', sup: 'ivSup' }, program: { sup: 'ipSup' }, suggest: { sup: 'isSup' } };
+const SIGS_OF = { visit: { sup: 'ivSup' }, program: { sup: 'ipSup' }, suggest: { sup: 'isSup' } };
 const ID_HINT = {
-  visit: 'تقرير الزيارة الإدارية للمركز بالملاحظات والتوصيات وتوقيع المديرة، ويُطبع أو يُحمَّل PDF بالكليشة.',
+  visit: 'تقرير الزيارة الإدارية للمركز بالملاحظات والتوصيات، ويُطبع أو يُحمَّل PDF بالكليشة أو يُرسَل للمديرة للتوقيع عليه.',
   program: 'تخطيط وتنفيذ ونتائج برنامج المشرفة المقيمة، ويُطبع أو يُحمَّل PDF بالكليشة.',
   suggest: 'الاقتراحات والمرئيات والصعوبات التي تواجه المشرفة، وتُسلَّم آخر الفصل الدراسي.'
 };
@@ -255,8 +288,8 @@ function renderIdari() {
   $('idBody').innerHTML = L.map((r, i) => {
     const id = esc(r.id);
     const acts = '<td><div class="act">' + sBtn('عرض', 'idOpen(\'' + id + '\')') + sBtn('طباعة', 'idDo(\'' + id + '\', this, \'print\')') +
-      sBtn('PDF', 'idDo(\'' + id + '\', this, \'pdf\')') + sBtn('تعديل', 'idEditRec(\'' + id + '\')') + sBtn('حذف', 'idDel(\'' + id + '\')', 'danger') + '</div></td>';
-    const date = esc(r.date) + (r.day ? ' ' + esc(r.day) : '');
+      sBtn('PDF', 'idDo(\'' + id + '\', this, \'pdf\')') + sBtn('مشاركة', 'idDo(\'' + id + '\', this, \'share\')') + sBtn('تعديل', 'idEditRec(\'' + id + '\')') + sBtn('حذف', 'idDel(\'' + id + '\')', 'danger') + '</div></td>';
+    const date = (esc(idDayName(r)) + ' ' + idHDate(r)).trim();
     if (idKind === 'visit') return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.center) + '</td><td>' + date + '</td><td>' + (esc(r.visitNo) || '—') + '</td><td>' + cnt(r) + '</td>' + acts + '</tr>';
     if (idKind === 'program') return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.center) + '</td><td>' + date + '</td><td>' + esc(short(r.data && r.data.content)) + '</td>' + acts + '</tr>';
     return '<tr><td>' + (i + 1) + '</td><td>' + (esc(r.sem) || '—') + '</td><td>' + (esc(r.year) || '—') + '</td><td>' + (date || '—') + '</td><td>' + cnt(r) + '</td>' + acts + '</tr>';
@@ -264,7 +297,7 @@ function renderIdari() {
 }
 const recById = id => IDR.find(r => r.id === id);
 function idOpen(id) { const r = recById(id); if (r) idView(r); }
-function idDo(id, btn, what) { const r = recById(id); if (!r) return; what === 'pdf' ? idPdf(r, btn) : idPrint(r, btn); }
+function idDo(id, btn, what) { const r = recById(id); if (!r) return; what === 'pdf' ? idPdf(r, btn) : what === 'share' ? idShare(r, btn) : idPrint(r, btn); }
 async function idDel(id) {
   if (!confirm('هل تريدين حذف هذا النموذج؟')) return;
   IDR = IDR.filter(r => r.id !== id);
@@ -277,7 +310,7 @@ async function idDel(id) {
 function ivRowHtml(r) {
   r = r || {};
   return '<div class="id-row"><div class="id-row-h"><b>بند</b><button type="button" class="btn danger" onclick="idRowDel(this)">حذف البند</button></div>' +
-    '<label>بشأن</label><input data-k="about" list="ivAboutList" placeholder="تعليمية / إدارية" value="' + esc(r.about) + '">' +
+    '<label>بشأن</label><input data-k="about" autocomplete="off" value="' + esc(r.about) + '">' +
     '<div class="row2"><div><label>الملاحظة</label><textarea data-k="note" rows="2">' + esc(r.note) + '</textarea></div>' +
     '<div><label>التوصية</label><textarea data-k="rec" rows="2">' + esc(r.rec) + '</textarea></div></div></div>';
 }
@@ -307,7 +340,6 @@ function idRowsGet(boxId) {
 }
 const periodGet = id => [...document.querySelectorAll('#' + id + ' input:checked')].map(i => i.value).join(' / ');
 const periodSet = (id, v) => document.querySelectorAll('#' + id + ' input').forEach(i => { i.checked = String(v || '').indexOf(i.value) > -1; });
-document.body.insertAdjacentHTML('beforeend', '<datalist id="ivAboutList"><option value="إدارية"><option value="تعليمية"></datalist>');
 
 /* ---------- فتح نموذج جديد / تعديل ---------- */
 function idFill(kind, r) {
@@ -319,22 +351,20 @@ function idFill(kind, r) {
     $('ivCenter').value = r.center || '';
     $('ivSem').value = r.sem || ''; $('ivYear').value = r.year || hijriYear();
     periodSet('ivPeriod', r.period);
-    $('ivDate').value = r.date || todayStr(); $('ivVisitNo').value = r.visitNo || '';
+    hdSet('iv', edit ? r : null); $('ivVisitNo').value = r.visitNo || '';
     $('ivType').value = d.vtype || 'إداري';
+    $('ivAckCol').checked = d.ackCol === '1';
     $('ivMgrName').value = r.mgrName || ''; $('ivSupName').value = r.supName || myName();
     idRowsSet('ivRows', d.rows, ivRowHtml);
-    idDateInfo('iv');
   } else if (kind === 'program') {
-    $('ipDate').value = r.date || todayStr(); $('ipCenter').value = r.center || '';
+    hdSet('ip', edit ? r : null); $('ipCenter').value = r.center || '';
     ['content', 'plan', 'method', 'tools', 'results', 'ratio'].forEach(k => { $('ip' + k[0].toUpperCase() + k.slice(1)).value = d[k] || ''; });
     $('ipSupName').value = edit ? (r.supName || '') : myName();
-    idDateInfo('ip');
   } else {
     $('isSem').value = r.sem || ''; $('isYear').value = r.year || hijriYear();
     periodSet('isPeriod', r.period);
-    $('isSupName').value = r.supName || myName(); $('isDate').value = r.date || todayStr();
+    $('isSupName').value = r.supName || myName(); hdSet('is', edit ? r : null);
     idRowsSet('isRows', d.rows, isRowHtml);
-    idDateInfo('is');
   }
   const has = d.sigs || {};
   Object.keys(SIGS_OF[kind]).forEach(k => {
@@ -353,23 +383,26 @@ function idBack() { idEdit = null; show('idListView'); renderIdari(); }
 /* ---------- الحفظ ---------- */
 async function idSave(kind, btn) {
   const req = { kind, id: idEdit ? idEdit.id : '' };
+  const p = { visit: 'iv', program: 'ip', suggest: 'is' }[kind];
+  const hd = hdGet(p);
+  if (!/^\d{4}$/.test(hd.hy)) return toast('اكتبي سنة التاريخ الهجري (مثال: 1448)', false);
+  const dateData = { hd: hd.hd, hm: hd.hm, hy: hd.hy, dayName: hd.dayName };
+  req.date = hd.greg;   // الميلادي المقابل (للترتيب والتصفية فقط)
   if (kind === 'visit') {
     Object.assign(req, { center: $('ivCenter').value, sem: $('ivSem').value, year: $('ivYear').value.trim(), period: periodGet('ivPeriod'),
-      date: $('ivDate').value, visitNo: $('ivVisitNo').value.trim(), mgrName: $('ivMgrName').value.trim(), supName: $('ivSupName').value.trim(),
-      data: { vtype: $('ivType').value.trim() || 'إداري', hijri: $('ivDate').value ? idHijri($('ivDate').value) : '', rows: idRowsGet('ivRows') } });
+      visitNo: $('ivVisitNo').value.trim(), mgrName: $('ivMgrName').value.trim(), supName: $('ivSupName').value.trim(),
+      data: Object.assign({ vtype: $('ivType').value.trim() || 'إداري', ackCol: $('ivAckCol').checked ? '1' : '', rows: idRowsGet('ivRows') }, dateData) });
     if (!req.center) return toast('اختاري اسم المركز', false);
-    if (!req.date) return toast('اختاري التاريخ', false);
     if (!req.data.rows.length) return toast('اكتبي بنداً واحداً على الأقل', false);
   } else if (kind === 'program') {
-    const data = { hijri: $('ipDate').value ? idHijri($('ipDate').value) : '' };
+    const data = Object.assign({}, dateData);
     ['content', 'plan', 'method', 'tools', 'results', 'ratio'].forEach(k => { data[k] = $('ip' + k[0].toUpperCase() + k.slice(1)).value.trim(); });
-    Object.assign(req, { center: $('ipCenter').value, date: $('ipDate').value, supName: $('ipSupName').value.trim(), data });
-    if (!req.date) return toast('اختاري اليوم / التاريخ', false);
+    Object.assign(req, { center: $('ipCenter').value, supName: $('ipSupName').value.trim(), data });
     if (!req.center) return toast('اختاري المركز', false);
     if (!data.content && !data.plan && !data.results) return toast('اكتبي المحتوى أو التخطيط أو النتائج', false);
   } else {
-    Object.assign(req, { sem: $('isSem').value, year: $('isYear').value.trim(), period: periodGet('isPeriod'), date: $('isDate').value,
-      supName: $('isSupName').value.trim(), data: { hijri: $('isDate').value ? idHijri($('isDate').value) : '', rows: idRowsGet('isRows') } });
+    Object.assign(req, { sem: $('isSem').value, year: $('isYear').value.trim(), period: periodGet('isPeriod'),
+      supName: $('isSupName').value.trim(), data: Object.assign({ rows: idRowsGet('isRows') }, dateData) });
     if (!req.data.rows.length) return toast('اكتبي اقتراحاً أو صعوبة واحدة على الأقل', false);
   }
   // التواقيع: صورة جديدة، أو «keep» لإبقاء التوقيع السابق في وضع التعديل

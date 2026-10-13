@@ -324,3 +324,7 @@ table{font-size:15px}
 .id-row-h b{color:var(--primary)}
 .id-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}
 #idListView .act{flex-wrap:wrap;justify-content:center}
+.hd-grid{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;gap:0 10px}
+@media(max-width:560px){.hd-grid{grid-template-columns:1fr 1fr}}
+.hd-prev{font-size:14px;color:var(--muted);margin-top:8px}
+.hd-prev b{color:var(--primary)}

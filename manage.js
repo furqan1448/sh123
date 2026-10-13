@@ -95,7 +95,7 @@ async function exFetchSigs(items) {
 idSigFetch = items => mgApi('getSigs', { items, mgr: true }).then(o => o.data || {});
 const mgIdari = () => (MG && MG.idari) || [];
 function mgIdOpen(id) { const r = mgIdari().find(x => x.id === id); if (r) idView(r); }
-function mgIdDo(id, btn, what) { const r = mgIdari().find(x => x.id === id); if (!r) return; what === 'pdf' ? idPdf(r, btn) : idPrint(r, btn); }
+function mgIdDo(id, btn, what) { const r = mgIdari().find(x => x.id === id); if (!r) return; what === 'pdf' ? idPdf(r, btn) : what === 'share' ? idShare(r, btn) : idPrint(r, btn); }
 
 const MG_FT = { single: 'بدون تعدد', multi: 'تعدد المجموعات', tabyan: 'التبيان', tj_multi: 'التجويد - تعدد المجموعات', tj_single: 'التجويد - بدون تعدد',
   f_multi: 'القرآن النهائي - تعدد المجموعات', f_single: 'القرآن النهائي - بدون تعدد', f_tabyan: 'التبيان النهائي', f_tj_single: 'التجويد النهائي - بدون تعدد', f_tj_multi: 'التجويد النهائي - تعدد المجموعات' };
@@ -223,8 +223,8 @@ function mgRender() {
     const b = (t, fn) => '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="' + fn + '">' + t + '</button> ';
     head = '<tr><th>المشرفة</th><th>النموذج</th><th>المركز / الفصل</th><th>التاريخ</th><th></th></tr>';
     body = L.slice(0, MG_LIMIT).map(x => '<tr><td>' + who(x) + '</td><td>' + esc(ID_KINDS[x.kind] || '') + '</td><td>' + esc(x.center || [x.sem, x.year].filter(Boolean).join(' ') || '—') +
-      '</td><td>' + esc(x.date || '') + ' ' + esc(x.day || '') + '</td><td style="white-space:nowrap">' + b('عرض', 'mgIdOpen(\'' + esc(x.id) + '\')') +
-      b('طباعة', 'mgIdDo(\'' + esc(x.id) + '\', this, \'print\')') + b('PDF', 'mgIdDo(\'' + esc(x.id) + '\', this, \'pdf\')') + '</td></tr>').join('');
+      '</td><td>' + esc(idDayName(x)) + ' ' + idHDate(x) + '</td><td style="white-space:nowrap">' + b('عرض', 'mgIdOpen(\'' + esc(x.id) + '\')') +
+      b('طباعة', 'mgIdDo(\'' + esc(x.id) + '\', this, \'print\')') + b('PDF', 'mgIdDo(\'' + esc(x.id) + '\', this, \'pdf\')') + b('مشاركة', 'mgIdDo(\'' + esc(x.id) + '\', this, \'share\')') + '</td></tr>').join('');
   } else {
     const L = fs.filter(mine); n = L.length;
     head = '<tr><th>المشرفة</th><th>العنوان</th><th>الملف</th><th>وقت الرفع</th></tr>';

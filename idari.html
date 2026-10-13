@@ -123,32 +123,27 @@
       </div>
       <label>الفترة</label>
       <div class="chips" id="ivPeriod"><label class="chip"><input type="checkbox" value="صباحي"><span>صباحي</span></label><label class="chip"><input type="checkbox" value="مسائي"><span>مسائي</span></label></div>
+      <div id="ivDateBox"></div>
       <div class="row2">
-        <div><label for="ivDate">التاريخ</label><input id="ivDate" type="date" onchange="idDateInfo('iv')"></div>
         <div><label for="ivVisitNo">رقم الزيارة</label><input id="ivVisitNo" inputmode="numeric"></div>
+        <div><label for="ivType">نوع الزيارة</label><input id="ivType" value="إداري"></div>
       </div>
-      <div style="font-size:13px;color:var(--muted);margin-top:6px">اليوم: <b id="ivDay">—</b> — الموافق: <b id="ivHijri">—</b></div>
-      <label for="ivType">نوع الزيارة</label>
-      <input id="ivType" value="إداري">
     </div>
 
     <div class="card">
       <h2>الملاحظات والتوصيات</h2>
-      <p class="rp-hint">في «بشأن» حدّدي (تعليمية / إدارية) كما هو موضح في ملف المشرفة.</p>
       <div id="ivRows"></div>
       <button type="button" class="btn light block" onclick="ivAddRow()">＋ إضافة بند</button>
     </div>
 
     <div class="card">
       <h2>التواقيع</h2>
-      <label>توقيع بالعلم</label>
-      <div id="ivAckW"></div>
       <div class="row2">
-        <div><label for="ivMgrName">اسم المديرة</label><input id="ivMgrName"></div>
-        <div><label for="ivSupName">اسم المشرفة</label><input id="ivSupName"></div>
+        <div><label for="ivMgrName" style="margin-top:0">اسم مديرة المركز</label><input id="ivMgrName"></div>
+        <div><label for="ivSupName" style="margin-top:0">اسم المشرفة</label><input id="ivSupName"></div>
       </div>
-      <label>توقيع المديرة</label>
-      <div id="ivMgrW"></div>
+      <p class="rp-hint" style="margin-top:8px">توقيع المديرة لا يُطلب هنا؛ يُرسَل التقرير إليها (زر «مشاركة») وتوقّع عليه.</p>
+      <label class="check"><input type="checkbox" id="ivAckCol"><span>إظهار عمود «توقيع بالعلم» في التقرير (فارغ للتوقيع عليه)</span></label>
       <label>توقيع المشرفة</label>
       <div id="ivSupW"></div>
       <button id="ivSaveBtn" class="btn block" onclick="idSave('visit', this)">حفظ التقرير</button>
@@ -161,11 +156,8 @@
     <div class="edit-note hidden" data-edit>وضع التعديل: يُحفظ التعديل على نفس النموذج.</div>
     <div class="card">
       <h2>تخطيط وتنفيذ ونتائج لبرنامج مشرفة مقيمة</h2>
-      <div class="row2">
-        <div><label for="ipDate">اليوم / التاريخ</label><input id="ipDate" type="date" onchange="idDateInfo('ip')"></div>
-        <div><label for="ipCenter">المركز</label><select id="ipCenter"></select></div>
-      </div>
-      <div style="font-size:13px;color:var(--muted);margin-top:6px">اليوم: <b id="ipDay">—</b> — الموافق: <b id="ipHijri">—</b></div>
+      <div id="ipDateBox"></div>
+      <label for="ipCenter">المركز</label><select id="ipCenter"></select>
       <label for="ipContent">المحتوى</label><textarea id="ipContent" rows="2"></textarea>
       <label for="ipPlan">التخطيط</label><textarea id="ipPlan" rows="2"></textarea>
       <label for="ipMethod">طريقة التنفيذ</label><textarea id="ipMethod" rows="2"></textarea>
@@ -191,7 +183,7 @@
       </div>
       <label>الفترة</label>
       <div class="chips" id="isPeriod"><label class="chip"><input type="checkbox" value="صباحي"><span>صباحي</span></label><label class="chip"><input type="checkbox" value="مسائي"><span>مسائي</span></label></div>
-      <p class="rp-hint" style="margin-top:10px">* تطالب المشرفة تسليمها آخر الفصل الدراسي.</p>
+      <p class="rp-hint" style="margin-top:10px">تُطالَب المشرفة بتسليمها آخر الفصل الدراسي.</p>
     </div>
     <div class="card">
       <h2>البنود</h2>
@@ -199,11 +191,8 @@
       <button type="button" class="btn light block" onclick="isAddRow()">＋ إضافة بند</button>
     </div>
     <div class="card">
-      <div class="row2">
-        <div><label for="isSupName" style="margin-top:0">اسم المشرفة</label><input id="isSupName"></div>
-        <div><label for="isDate" style="margin-top:0">التاريخ</label><input id="isDate" type="date" onchange="idDateInfo('is')"></div>
-      </div>
-      <div style="font-size:13px;color:var(--muted);margin-top:6px">الموافق: <b id="isHijri">—</b><span class="hidden" id="isDay"></span></div>
+      <label for="isSupName" style="margin-top:0">اسم المشرفة</label><input id="isSupName">
+      <div id="isDateBox"></div>
       <label>توقيع المشرفة</label>
       <div id="isSupW"></div>
       <button id="isSaveBtn" class="btn block" onclick="idSave('suggest', this)">حفظ النموذج</button>
