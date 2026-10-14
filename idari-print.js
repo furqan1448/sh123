@@ -3,6 +3,7 @@
 const ID_LETTERHEAD = 'letterhead.jpg';
 const ID_UNIT = 'وحدة الإشراف الإداري';
 const ID_PDF_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+const ID_IMG_LIB = 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js';   // مثل نظام المقاصف: يرسم النموذج بمحرك المتصفح نفسه
 const ID_KINDS = {
   visit: 'تقرير زيارة المشرفة',
   program: 'برنامج مشرفة مقيمة',
@@ -61,8 +62,9 @@ const idSig = d => d ? '<img class="idc-sig" src="' + d + '" alt="">' : '';
 const ID_CSS = `
 .idoc{width:1090px;background:#fff;color:#222;font-family:'Tajawal','Segoe UI',Tahoma,Arial,sans-serif;direction:rtl;font-size:15px;line-height:1.6;padding:0 4px}
 .idoc *{box-sizing:border-box}
+.idoc tr td{background:#fff}   /* كل الخلايا بيضاء (بدون تظليل الصفوف من style.css) */
 .idoc bdi{unicode-bidi:isolate}
-.idoc .idc-lh{width:100%;display:block}
+.idoc .idc-lh{width:100%;height:auto;aspect-ratio:2000/351;display:block}
 .idoc .idc-body{padding:0 28px}
 .idoc .idc-title{text-align:center;font-size:25px;font-weight:800;color:#7a1f2b;margin:22px 0 18px}
 .idoc .idc-meta{display:flex;justify-content:space-between;align-items:center;gap:20px;font-weight:800;font-size:15.5px;margin:0 0 14px}
@@ -89,7 +91,6 @@ const ID_CSS = `
 .idoc .idc-subject{font-weight:800;color:#7a1f2b;font-size:15.5px;margin:0 0 12px}
 .idoc td.idc-note-c{text-align:right;padding-right:14px;height:52px}
 .idoc td.idc-rec-c{text-align:right;padding-right:14px;font-weight:700}
-.idoc td.idc-note-c,.idoc td.idc-rec-c,.idoc td.idc-n{background:#fff}
 `;
 
 /* ---------- محتوى النموذج (نفس الشكل للعرض والطباعة والـ PDF) ---------- */
@@ -97,7 +98,8 @@ function idDocHtml(rec, sigs, lhUrl) {
   sigs = sigs || {};
   const d = rec.data || {};
   const per = String(rec.period || '');
-  const head = '<img class="idc-lh" src="' + esc(lhUrl || ID_LETTERHEAD) + '" alt="">';
+  // أبعاد الكليشة مكتوبة صراحةً حتى يُحجز مكانها قبل تحميلها (وإلا يُقصّ أسفل ملف PDF)
+  const head = '<img class="idc-lh" src="' + esc(lhUrl || ID_LETTERHEAD) + '" width="2000" height="351" alt="">';
   const m = x => '<span class="idc-m">' + x + '</span>';   // القيم باللون العنابي
   const periodBoxes = '<span class="idc-per"><span>' + idBox(per.indexOf('صباحي') > -1) + 'صباحي</span><span>' + idBox(per.indexOf('مسائي') > -1) + 'مسائي</span></span>';
   const yearSem = (rec.year ? 'لعام ' + idDigits(rec.year) + 'هـ' : '') + (rec.sem ? ' للفصل الدراسي ' + esc(rec.sem) : '');
@@ -111,15 +113,16 @@ function idDocHtml(rec, sigs, lhUrl) {
     const ack = d.ackCol === '1' || !!sigs.ack;
     let body = '';
     for (let i = 0; i < n; i++) {
-      body += '<tr><td class="idc-n">' + idDigits(i + 1) + '</td><td class="idc-note-c">' + idNl(notes[i] || '') + '</td>' +
-        (i === 0 ? '<td class="idc-rec-c" rowspan="' + n + '">' + idNl(d.recText) + '</td>' + (ack ? '<td rowspan="' + n + '">' + idSig(sigs.ack) + '</td>' : '') : '') + '</tr>';
+      body += '<tr><td class="idc-n">' + idDigits(i + 1) + '</td><td class="idc-note-c" colspan="2">' + idNl(notes[i] || '') + '</td>' +
+        (i === 0 ? '<td class="idc-rec-c" colspan="2" rowspan="' + n + '">' + idNl(d.recText) + '</td>' + (ack ? '<td rowspan="' + n + '">' + idSig(sigs.ack) + '</td>' : '') : '') + '</tr>';
     }
     h = head + '<div class="idc-body"><div class="idc-title">تقرير زيارة المشرفة</div>' +
       '<div class="idc-meta"><span><span>المركز: ' + esc(rec.center) + '</span>' + periodBoxes + '</span><span>' + yearSem + '</span></div>' +
       (d.about ? '<div class="idc-subject">بشأن: ' + esc(d.about) + '</div>' : '') +
-      '<table class="idc-info"><tr><td>اليوم: ' + m(esc(idDayName(rec))) + '</td><td>التاريخ: ' + m(idHDate(rec)) + '</td><td>رقم الزيارة: ' + m(esc(idDigits(rec.visitNo))) + '</td><td>نوع الزيارة: ' + m(esc(d.vtype || 'إداري')) + '</td></tr></table>' +
-      '<table><colgroup><col style="width:54px"><col><col style="width:' + (ack ? '32%' : '38%') + '">' + (ack ? '<col style="width:140px">' : '') + '</colgroup>' +
-      '<tr><th>م</th><th>الملاحظة</th><th>التوصية</th>' + (ack ? '<th>توقيع بالعلم</th>' : '') + '</tr>' + body + '</table>' +
+      // جدول واحد: صف اليوم/التاريخ/الرقم/النوع حدوده على نفس خطوط أعمدة الجدول
+      '<table><colgroup><col style="width:54px"><col style="width:20%"><col><col style="width:' + (ack ? '16%' : '19%') + '"><col style="width:' + (ack ? '16%' : '19%') + '">' + (ack ? '<col style="width:140px">' : '') + '</colgroup>' +
+      '<tr class="idc-info"><td colspan="2">اليوم: ' + m(esc(idDayName(rec))) + '</td><td>التاريخ: ' + m(idHDate(rec)) + '</td><td>رقم الزيارة: ' + m(esc(idDigits(rec.visitNo))) + '</td><td' + (ack ? ' colspan="2"' : '') + '>نوع الزيارة: ' + m(esc(d.vtype || 'إداري')) + '</td></tr>' +
+      '<tr><th>م</th><th colspan="2">الملاحظة</th><th colspan="2">التوصية</th>' + (ack ? '<th>توقيع بالعلم</th>' : '') + '</tr>' + body + '</table>' +
       '<div class="idc-foot idc-avoid">' + sigCol('المشرفة', rec.supName, sigs.sup) + sigCol('مديرة المركز', rec.mgrName, sigs.mgr) + '</div></div>';
 
   } else if (rec.kind === 'visit') {
@@ -130,14 +133,14 @@ function idDocHtml(rec, sigs, lhUrl) {
     let body = '';
     for (let i = 0; i < n; i++) {
       const r = rows[i] || {};
-      body += '<tr class="idc-r"><td class="idc-n">' + (rows[i] ? idDigits(i + 1) : '') + '</td><td>' + idNl(r.about) + '</td><td>' + idNl(r.note) + '</td><td>' + idNl(r.rec) + '</td>' +
+      body += '<tr class="idc-r"><td class="idc-n">' + (rows[i] ? idDigits(i + 1) : '') + '</td><td>' + idNl(r.about) + '</td><td>' + idNl(r.note) + '</td><td colspan="2">' + idNl(r.rec) + '</td>' +
         (ack && i === 0 ? '<td rowspan="' + n + '">' + idSig(sigs.ack) + '</td>' : '') + '</tr>';
     }
     h = head + '<div class="idc-body"><div class="idc-title">تقرير زيارة المشرفة</div>' +
       '<div class="idc-meta"><span><span>المركز: ' + esc(rec.center) + '</span>' + periodBoxes + '</span><span>' + yearSem + '</span></div>' +
-      '<table class="idc-info"><tr><td>اليوم: ' + m(esc(idDayName(rec))) + '</td><td>التاريخ: ' + m(idHDate(rec)) + '</td><td>رقم الزيارة: ' + m(esc(idDigits(rec.visitNo))) + '</td><td>نوع الزيارة: ' + m(esc(d.vtype || 'إداري')) + '</td></tr></table>' +
-      '<table><colgroup><col style="width:54px"><col style="width:' + (ack ? '20%' : '22%') + '"><col style="width:' + (ack ? '32%' : '38%') + '"><col>' + (ack ? '<col style="width:140px">' : '') + '</colgroup>' +
-      '<tr><th>م</th><th>بشأن</th><th>الملاحظة</th><th>التوصية</th>' + (ack ? '<th>توقيع بالعلم</th>' : '') + '</tr>' + body + '</table>' +
+      '<table><colgroup><col style="width:54px"><col style="width:' + (ack ? '20%' : '22%') + '"><col style="width:' + (ack ? '32%' : '38%') + '"><col><col>' + (ack ? '<col style="width:140px">' : '') + '</colgroup>' +
+      '<tr class="idc-info"><td colspan="2">اليوم: ' + m(esc(idDayName(rec))) + '</td><td>التاريخ: ' + m(idHDate(rec)) + '</td><td>رقم الزيارة: ' + m(esc(idDigits(rec.visitNo))) + '</td><td' + (ack ? ' colspan="2"' : '') + '>نوع الزيارة: ' + m(esc(d.vtype || 'إداري')) + '</td></tr>' +
+      '<tr><th>م</th><th>بشأن</th><th>الملاحظة</th><th colspan="2">التوصية</th>' + (ack ? '<th>توقيع بالعلم</th>' : '') + '</tr>' + body + '</table>' +
       '<div class="idc-foot idc-avoid">' + sigCol('المشرفة', rec.supName, sigs.sup) + sigCol('مديرة المركز', rec.mgrName, sigs.mgr) + '</div></div>';
 
   } else if (rec.kind === 'program') {
@@ -159,8 +162,9 @@ function idDocHtml(rec, sigs, lhUrl) {
     }
     h = head + '<div class="idc-body"><div class="idc-title">الاقتراحات والمرئيات – الصعوبات التي تواجه المشرفة الإدارية</div>' +
       '<div class="idc-meta"><span><span>الفترة:</span>' + periodBoxes + '</span><span>' + yearSem + '</span></div>' +
-      '<table class="idc-info"><tr><td>اليوم: ' + m(esc(idDayName(rec))) + '</td><td>التاريخ: ' + m(idHDate(rec)) + '</td></tr></table>' +
-      '<table><colgroup><col style="width:54px"><col><col></colgroup><tr><th>م</th><th>الاقتراحات والمرئيات</th><th>الصعوبات التي تواجه المشرفة</th></tr>' + body + '</table>' +
+      '<table><colgroup><col style="width:54px"><col><col></colgroup>' +
+      '<tr class="idc-info"><td colspan="2">اليوم: ' + m(esc(idDayName(rec))) + '</td><td>التاريخ: ' + m(idHDate(rec)) + '</td></tr>' +
+      '<tr><th>م</th><th>الاقتراحات والمرئيات</th><th>الصعوبات التي تواجه المشرفة</th></tr>' + body + '</table>' +
       '<div class="idc-avoid"><div class="idc-note">تُطالَب المشرفة بتسليمها آخر الفصل الدراسي.</div>' +
       '<div class="idc-foot">' + sigCol('المشرفة', rec.supName, sigs.sup) + '<div></div></div></div></div>';
   }
@@ -220,22 +224,68 @@ function idLoadPdfLib() {
   });
   return idPdfLoading;
 }
-// يبني ملف PDF ويعيده كـ Blob
+let idImgLoading = null;
+function idLoadImgLib() {
+  if (window.htmlToImage) return Promise.resolve();
+  if (idImgLoading) return idImgLoading;
+  idImgLoading = new Promise((res, rej) => {
+    const sc = document.createElement('script');
+    sc.src = ID_IMG_LIB;
+    sc.onload = () => res();
+    sc.onerror = () => { idImgLoading = null; rej(new Error('img lib')); };
+    document.head.appendChild(sc);
+  });
+  return idImgLoading;
+}
+// إذا زاد النموذج قليلاً عن صفحة A4 عرضية نصغّره ليكفي صفحة واحدة؛ وإن كان طويلاً جداً يُقسَّم على صفحات
+function idFitPage(cv) {
+  const maxH = cv.width * 210 / 297;
+  if (cv.height <= maxH || cv.height > maxH * 1.8) return cv;
+  const out = document.createElement('canvas');
+  out.width = Math.round(cv.height * 297 / 210); out.height = cv.height;
+  const g = out.getContext('2d');
+  g.fillStyle = '#ffffff'; g.fillRect(0, 0, out.width, out.height);
+  g.drawImage(cv, Math.round((out.width - cv.width) / 2), 0);
+  return out;
+}
+// مكتبة الرسم (html2canvas) تعكس النقطتين والأرقام بجانب الكلمات العربية، فنلف كل نص عربي بعلامة اتجاه داخل النسخة المؤقتة فقط
+function idFixBidi(doc) {
+  const root = doc.querySelector('.idoc');
+  if (!root) return;
+  const w = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, null), nodes = [];
+  let n;
+  while ((n = w.nextNode())) nodes.push(n);
+  nodes.forEach(t => { const v = t.nodeValue; if (v && /[\u0600-\u06FF0-9]/.test(v)) t.nodeValue = '\u202B' + v + '\u202C'; });
+}
+// يبني ملف PDF ويعيده كـ Blob (بنفس طريقة تقرير الزيارة في نظام المقاصف: صفحة A4 عرضية، والكليشة ملتصقة بأعلى الصفحة)
 async function idPdfBlob(rec, sigs) {
   if (!sigs) sigs = await idLoadSigs(rec);
   await idLoadPdfLib();
   const box = document.createElement('div');
-  box.style.cssText = 'position:fixed;top:0;left:-20000px;z-index:-1;background:#fff';
-  box.innerHTML = '<style>' + ID_CSS + '</style>' + idDocHtml(rec, sigs);
+  box.style.cssText = 'position:absolute;top:0;left:0;width:1123px;z-index:-1;background:#fff;direction:rtl';
+  box.innerHTML = '<style>' + ID_CSS + '.idoc{width:1123px;padding:0}</style>' + idDocHtml(rec, sigs);
   document.body.appendChild(box);
   try {
     await Promise.all([...box.querySelectorAll('img')].map(im => im.complete ? 0 : new Promise(r => { im.onload = im.onerror = r; })));
+    // الطريقة الأساسية: رسم النموذج بمحرك المتصفح (العربي والنقطتان والأرقام في أماكنها الصحيحة)
+    try {
+      await idLoadImgLib();
+      const cv = await window.htmlToImage.toCanvas(box.querySelector('.idoc'), { pixelRatio: 2, backgroundColor: '#ffffff', width: 1123, skipFonts: true, style: { margin: '0' } });
+      return await window.html2pdf().set({ margin: 0, image: { type: 'jpeg', quality: 0.97 }, jsPDF: { unit: 'mm', format: [297, 210], orientation: 'landscape' } })
+        .from(idFitPage(cv), 'canvas').outputPdf('blob');
+    } catch (e) { console.warn('html-to-image failed, falling back to html2canvas', e); }
+    // الطريقة الاحتياطية
     return await window.html2pdf().set({
-      margin: [6, 6, 6, 6], image: { type: 'jpeg', quality: 0.95 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+      margin: 0, image: { type: 'jpeg', quality: 0.97 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0, windowWidth: 1123, onclone: idFixBidi },
+      jsPDF: { unit: 'mm', format: [297, 210], orientation: 'landscape' },
       pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.idc-avoid'] }
-    }).from(box.querySelector('.idoc')).outputPdf('blob');
+    }).from(box.querySelector('.idoc'))
+      // الموقع كله من اليمين لليسار، والمكتبة تضع حاويتها حسب عرض الشاشة فتنزاح الصفحة وتُقصّ؛ نثبّتها في أعلى اليسار بعرض A4
+      .toContainer().get('container').then(c => {
+        if (c.parentElement) c.parentElement.style.direction = 'ltr';
+        Object.assign(c.style, { position: 'absolute', top: '0', left: '0', right: 'auto', margin: '0', width: '1123px', direction: 'rtl' });
+      }).toCanvas().toPdf().outputPdf('blob');
   } finally { box.remove(); }
 }
 function idSaveBlob(blob, name) {
