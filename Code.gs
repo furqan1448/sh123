@@ -192,6 +192,7 @@ function route_(r) {
     case 'getMySig': return { ok: true, data: sigGet_('u:' + norm_(r.username).toLowerCase()) };
     case 'saveMySig': return withLock_(() => { sigPut_('u:' + norm_(r.username).toLowerCase(), r.data); return { ok: true }; });
     case 'deleteMySig': return withLock_(() => { sigDel_('u:' + norm_(r.username).toLowerCase()); return { ok: true }; });
+    case 'getDirectors': return getDirectors_(r);
     case 'getIdari': return { ok: true, data: getIdariFor_(r.username) };
     case 'saveIdari': return withLock_(() => saveIdari_(r));
     case 'deleteIdari': return withLock_(() => deleteIdari_(r));
@@ -902,4 +903,53 @@ function deleteIdari_(r) {
     }
   }
   throw new Error('السجل غير موجود');
+}
+
+
+/* ============ أرقام مديرات المراكز (لتقرير زيارة الإشراف الإداري) ============
+   ورقة «أرقام المديرات» في هذا الشيت، وتُنشأ تلقائياً عند أول طلب.
+   الأعمدة: اسم المركز | الفترة | اسم المديرة | الجوال
+   (إذا تُركت خلية «اسم المركز» فارغة فهي تابعة للمركز الذي في الصف السابق)
+   لا تُرسَل الأرقام إلا لحسابات وحدة الإشراف الإداري. */
+const DIRECTORS_SHEET = 'أرقام المديرات';
+
+function saPhone_(v) {
+  let d = String(v == null ? '' : v).replace(/[٠-٩]/g, c => '٠١٢٣٤٥٦٧٨٩'.indexOf(c)).replace(/\.0+$/, '').replace(/\D/g, '');
+  if (d.indexOf('00966') === 0) d = d.slice(5);
+  else if (d.indexOf('966') === 0) d = d.slice(3);
+  if (d.indexOf('0') === 0) d = d.slice(1);
+  return /^5\d{8}$/.test(d) ? '966' + d : '';
+}
+
+function getDirectors_(r) {
+  const me = profileOf_(r.username);
+  if (me.unit !== IDARI_UNIT) return { ok: true, data: [] };
+  const ss = ss_();
+  let sh = ss.getSheetByName(DIRECTORS_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(DIRECTORS_SHEET);
+    sh.getRange(1, 1, 1, 4).setValues([['اسم المركز', 'الفترة', 'اسم المديرة', 'الجوال']]);
+    styleHeader_(sh, 4);
+    sh.setRightToLeft(true);
+    return { ok: true, data: [] };
+  }
+  const v = sh.getDataRange().getDisplayValues();
+  if (v.length < 2) return { ok: true, data: [] };
+  const h = v[0].map(x => String(x).trim());
+  const col = names => { for (let i = 0; i < names.length; i++) { const k = h.indexOf(names[i]); if (k > -1) return k; } return -1; };
+  const cC = col(['اسم المركز', 'المركز']), cP = col(['الفترة']), cN = col(['اسم المديرة', 'المديرة']), cT = col(['الجوال', 'رقم الجوال']);
+  if (cC < 0 || cT < 0) throw new Error('ورقة «' + DIRECTORS_SHEET + '» ينقصها عمود «اسم المركز» أو «الجوال»');
+  const out = [];
+  let last = '';
+  for (let i = 1; i < v.length; i++) {
+    const c = String(v[i][cC] || '').trim();
+    if (c) last = c;
+    if (!last) continue;
+    const period = cP < 0 ? '' : String(v[i][cP] || '').trim();
+    const name = cN < 0 ? '' : String(v[i][cN] || '').trim();
+    const phone = saPhone_(v[i][cT]);
+    if (!name && !phone) continue;
+    out.push({ center: last, period: period, evening: /عصر|مساء|مسائ/.test(period), name: name, phone: phone });
+  }
+  return { ok: true, data: out };
 }
