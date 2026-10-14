@@ -39,6 +39,7 @@ async function doLogin() {
     loadMySig();
     show('homeView');
     loadIdari(true);
+    loadDirs();
   } catch (e) {
     localStorage.removeItem(PW_KEY); localStorage.removeItem(USER_KEY);
     toast(e.message, false);
@@ -73,6 +74,7 @@ function fillLists() {
   fillVStatus();
 }
 async function preload() {
+  loadDirs();
   const c = cacheGet('lists');
   if (c) { LISTS = c; fillLists(); }
   fillVStatus();
@@ -116,6 +118,7 @@ function hdChanged(p) {
   const g = idHToG($(p + 'HY').value, $(p + 'HM').value, $(p + 'HD').value);
   if (g) $(p + 'DayN').value = dayOf(g);
   hdPrev(p);
+  if (p === 'iv') ivUpdateNo();
 }
 function hdPrev(p) {
   const y = $(p + 'HY').value.trim();
@@ -283,12 +286,14 @@ function renderIdari() {
   }[idKind];
   $('idHead').innerHTML = '<tr>' + heads.map(h => '<th>' + h + '</th>').join('') + '</tr>';
   if (!L.length) { $('idBody').innerHTML = '<tr><td colspan="' + heads.length + '" class="empty">لا توجد نماذج محفوظة</td></tr>'; return; }
-  const cnt = r => ((r.data && r.data.rows) || []).length;
+  const cnt = r => ((r.data && (r.data.notes || r.data.rows)) || []).length;
   const short = s => { s = String(s || ''); return s.length > 50 ? s.slice(0, 50) + '…' : s; };
   $('idBody').innerHTML = L.map((r, i) => {
     const id = esc(r.id);
     const acts = '<td><div class="act">' + sBtn('عرض', 'idOpen(\'' + id + '\')') + sBtn('طباعة', 'idDo(\'' + id + '\', this, \'print\')') +
-      sBtn('PDF', 'idDo(\'' + id + '\', this, \'pdf\')') + sBtn('مشاركة', 'idDo(\'' + id + '\', this, \'share\')') + sBtn('تعديل', 'idEditRec(\'' + id + '\')') + sBtn('حذف', 'idDel(\'' + id + '\')', 'danger') + '</div></td>';
+      sBtn('PDF', 'idDo(\'' + id + '\', this, \'pdf\')') + sBtn('مشاركة', 'idDo(\'' + id + '\', this, \'share\')') +
+      (idKind === 'visit' ? sBtn('📲 إرسال للمديرة', 'idDo(\'' + id + '\', this, \'send\')', 'id-wa') : '') +
+      sBtn('تعديل', 'idEditRec(\'' + id + '\')') + sBtn('حذف', 'idDel(\'' + id + '\')', 'danger') + '</div></td>';
     const date = (esc(idDayName(r)) + ' ' + idHDate(r)).trim();
     if (idKind === 'visit') return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.center) + '</td><td>' + date + '</td><td>' + (esc(r.visitNo) || '—') + '</td><td>' + cnt(r) + '</td>' + acts + '</tr>';
     if (idKind === 'program') return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.center) + '</td><td>' + date + '</td><td>' + esc(short(r.data && r.data.content)) + '</td>' + acts + '</tr>';
@@ -297,7 +302,7 @@ function renderIdari() {
 }
 const recById = id => IDR.find(r => r.id === id);
 function idOpen(id) { const r = recById(id); if (r) idView(r); }
-function idDo(id, btn, what) { const r = recById(id); if (!r) return; what === 'pdf' ? idPdf(r, btn) : what === 'share' ? idShare(r, btn) : idPrint(r, btn); }
+function idDo(id, btn, what) { const r = recById(id); if (!r) return; what === 'pdf' ? idPdf(r, btn) : what === 'share' ? idShare(r, btn) : what === 'send' ? idSendMgr(r, btn) : idPrint(r, btn); }
 async function idDel(id) {
   if (!confirm('هل تريدين حذف هذا النموذج؟')) return;
   IDR = IDR.filter(r => r.id !== id);
@@ -306,7 +311,104 @@ async function idDel(id) {
   catch (e) { toast(e.message, false); loadIdari(); }
 }
 
-/* ---------- صفوف الجداول (تقرير الزيارة / الاقتراحات) ---------- */
+/* ======================= تقرير الزيارة: مثل نظام المقاصف ======================= */
+/* ---------- الملاحظات: كل ملاحظة في سطر برقمها ---------- */
+function ivAddNote(v) {
+  const row = document.createElement('div');
+  row.className = 'id-note-row';
+  row.innerHTML = '<span class="num"></span><textarea rows="2" placeholder="اكتبي الملاحظة..."></textarea><button type="button" class="x" title="حذف">✕</button>';
+  row.querySelector('textarea').value = v || '';
+  row.querySelector('.x').onclick = () => {
+    if ($('ivNotes').children.length < 2) { row.querySelector('textarea').value = ''; return; }
+    row.remove(); ivNumNotes();
+  };
+  $('ivNotes').appendChild(row);
+  ivNumNotes();
+}
+function ivNumNotes() { [...$('ivNotes').children].forEach((el, i) => { el.querySelector('.num').textContent = arD(i + 1); }); }
+function ivNotesSet(list) {
+  $('ivNotes').innerHTML = '';
+  (list && list.length ? list : ['', '']).forEach(ivAddNote);
+}
+const ivNotesGet = () => [...$('ivNotes').querySelectorAll('textarea')].map(t => t.value.trim()).filter(Boolean);
+const IV_REC_DEFAULT = 'نشكركم على تعاونكم الفعّال ونسأل الله لكم التوفيق والسداد';
+
+/* ---------- الفترة: اختيار واحد (صباحي أو مسائي) ---------- */
+$('ivPeriod').addEventListener('change', e => {
+  if (e.target.checked) document.querySelectorAll('#ivPeriod input').forEach(i => { if (i !== e.target) i.checked = false; });
+  ivCenterChanged();
+});
+const ivPeriod = () => periodGet('ivPeriod');
+
+/* ---------- أرقام المديرات (ورقة «أرقام المديرات» في الشيت) ---------- */
+let DIRS = null;
+async function loadDirs() {
+  if (!DIRS) { const c = cacheGet('dirs'); if (c) DIRS = c; }
+  try {
+    const out = await api('getDirectors');
+    DIRS = out.data || []; cacheSet('dirs', DIRS);
+  } catch (e) { if (!DIRS) DIRS = []; }
+}
+// مطابقة اسم المركز بين القائمة وورقة المديرات (تتجاهل الهمزات والتشكيل والأقواس والمسافات وكلمة «مركز»)
+const ivKey = t => String(t || '').replace(/[\u064B-\u0652\u0640]/g, '').replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
+  .replace(/مركز/g, '').replace(/[^\u0621-\u064Aa-z0-9]/gi, '');
+function ivDirsFor(center) {
+  if (!DIRS || !center) return [];
+  const k = ivKey(center);
+  let L = DIRS.filter(d => ivKey(d.center) === k);
+  if (!L.length) {
+    const near = DIRS.filter(d => { const x = ivKey(d.center); return x && (x.indexOf(k) > -1 || k.indexOf(x) > -1); });
+    const names = [...new Set(near.map(d => d.center))];
+    if (names.length === 1) L = near;
+  }
+  return L;
+}
+function ivFillMgr() {
+  const st = $('ivMgrStatus'), center = $('ivCenter').value;
+  if (!center) { st.textContent = ''; return; }
+  const L = ivDirsFor(center);
+  if (!L.length) { st.textContent = DIRS && DIRS.length ? 'لا توجد بيانات مديرة لهذا المركز في ورقة «أرقام المديرات»؛ اكتبيها يدوياً.' : ''; return; }
+  let per = ivPeriod();
+  if (!per) {
+    const hasM = L.some(d => !d.evening), hasE = L.some(d => d.evening);
+    if (hasM && hasE) { st.textContent = 'لهذا المركز فترتان: اختاري الفترة لتظهر بيانات المديرة.'; return; }
+    per = hasE ? 'مسائي' : 'صباحي';
+    periodSet('ivPeriod', per);
+  }
+  const d = L.find(x => x.evening === (per === 'مسائي'));
+  if (!d) { $('ivMgrName').value = ''; $('ivMgrPhone').value = ''; st.textContent = 'لا توجد مديرة مسجّلة لهذا المركز في الفترة ' + (per === 'مسائي' ? 'المسائية' : 'الصباحية') + '.'; return; }
+  $('ivMgrName').value = d.name || '';
+  $('ivMgrPhone').value = d.phone ? '0' + d.phone.slice(3) : '';
+  st.textContent = '✔️ المديرة: ' + (d.name || '—') + (d.phone ? '' : ' (بلا رقم جوال)');
+}
+
+/* ---------- رقم الزيارة التلقائي: ترتيب الزيارة بين تقاريركِ لنفس المركز ونفس الفترة ---------- */
+const pad2 = x => String(x).padStart(2, '0');
+function ivHKey(r) {
+  const d = (r && r.data) || {};
+  if (d.hy && d.hm && d.hd) return d.hy + '-' + pad2(d.hm) + '-' + pad2(d.hd);
+  if (r && r.date) { const q = r.date.split('-'); const h = idHParts(new Date(+q[0], +q[1] - 1, +q[2])); if (h) return h.y + '-' + pad2(h.m) + '-' + pad2(h.d); }
+  return '';
+}
+function ivUpdateNo() {
+  const hint = $('ivVisitNoHint'), center = $('ivCenter').value, per = ivPeriod();
+  if (!center || !per) { hint.textContent = center ? 'اختاري الفترة ليُحسب رقم الزيارة.' : ''; return; }
+  const hd = hdGet('iv');
+  const cur = /^\d{4}$/.test(hd.hy) ? hd.hy + '-' + pad2(hd.hm) + '-' + pad2(hd.hd) : '9999';
+  const selfId = idEdit ? idEdit.id : '';
+  const L = IDR.filter(r => r.kind === 'visit' && r.id !== selfId && r.center === center && String(r.period || '').indexOf(per) > -1);
+  const before = L.filter(r => ivHKey(r) < cur).length;
+  const same = L.some(r => ivHKey(r) === cur);
+  const n = before + 1;
+  $('ivVisitNo').value = n;
+  const pl = per === 'مسائي' ? 'المسائية' : 'الصباحية';
+  hint.textContent = (L.length ? 'زياراتكِ السابقة لهذا المركز في الفترة ' + pl + ': ' + arD(before) + '، فهذه الزيارة رقم ' + arD(n) + '.'
+    : 'لا توجد زيارات سابقة لهذا المركز في الفترة ' + pl + '، فهذه الزيارة الأولى.') +
+    (same ? ' تنبيه: يوجد تقرير آخر لهذا المركز بنفس التاريخ.' : '');
+}
+function ivCenterChanged() { ivFillMgr(); ivUpdateNo(); }
+
+/* ---------- صفوف الجداول (الاقتراحات) ---------- */
 function ivRowHtml(r) {
   r = r || {};
   return '<div class="id-row"><div class="id-row-h"><b>بند</b><button type="button" class="btn danger" onclick="idRowDel(this)">حذف البند</button></div>' +
@@ -326,7 +428,6 @@ function idRowsSet(boxId, rows, fn) {
   idRowsNum(boxId);
 }
 function idRowsNum(boxId) { [...$(boxId).children].forEach((el, i) => { el.querySelector('.id-row-h b').textContent = 'بند ' + (i + 1); }); }
-function ivAddRow() { $('ivRows').insertAdjacentHTML('beforeend', ivRowHtml()); idRowsNum('ivRows'); }
 function isAddRow() { $('isRows').insertAdjacentHTML('beforeend', isRowHtml()); idRowsNum('isRows'); }
 function idRowDel(btn) {
   const row = btn.closest('.id-row'), box = row.parentNode;
@@ -355,7 +456,21 @@ function idFill(kind, r) {
     $('ivType').value = d.vtype || 'إداري';
     $('ivAckCol').checked = d.ackCol === '1';
     $('ivMgrName').value = r.mgrName || ''; $('ivSupName').value = r.supName || myName();
-    idRowsSet('ivRows', d.rows, ivRowHtml);
+    $('ivMgrPhone').value = d.mgrPhone || '';
+    $('ivMgrStatus').textContent = ''; $('ivVisitNoHint').textContent = '';
+    if (Array.isArray(d.notes)) {
+      $('ivAbout').value = d.about || '';
+      ivNotesSet(d.notes);
+      $('ivRec').value = d.recText || '';
+    } else if (d.rows && d.rows.length) {
+      // تقرير قديم (بشأن/ملاحظة/توصية لكل بند): يُحوَّل للتنسيق الجديد عند تعديله
+      $('ivAbout').value = '';
+      ivNotesSet(d.rows.map(x => [x.about, x.note].filter(Boolean).join(' — ')).filter(Boolean));
+      $('ivRec').value = d.rows.map(x => x.rec).filter(Boolean).join('\n');
+    } else {
+      $('ivAbout').value = ''; ivNotesSet([]); $('ivRec').value = IV_REC_DEFAULT;
+    }
+    if (!edit) { loadDirs().then(() => { if (!idEdit) ivCenterChanged(); }); }
   } else if (kind === 'program') {
     hdSet('ip', edit ? r : null); $('ipCenter').value = r.center || '';
     ['content', 'plan', 'method', 'tools', 'results', 'ratio'].forEach(k => { $('ip' + k[0].toUpperCase() + k.slice(1)).value = d[k] || ''; });
@@ -381,7 +496,7 @@ function idEditRec(id) {
 function idBack() { idEdit = null; show('idListView'); renderIdari(); }
 
 /* ---------- الحفظ ---------- */
-async function idSave(kind, btn) {
+async function idSave(kind, btn, sendAfter) {
   const req = { kind, id: idEdit ? idEdit.id : '' };
   const p = { visit: 'iv', program: 'ip', suggest: 'is' }[kind];
   const hd = hdGet(p);
@@ -391,9 +506,12 @@ async function idSave(kind, btn) {
   if (kind === 'visit') {
     Object.assign(req, { center: $('ivCenter').value, sem: $('ivSem').value, year: $('ivYear').value.trim(), period: periodGet('ivPeriod'),
       visitNo: $('ivVisitNo').value.trim(), mgrName: $('ivMgrName').value.trim(), supName: $('ivSupName').value.trim(),
-      data: Object.assign({ vtype: $('ivType').value.trim() || 'إداري', ackCol: $('ivAckCol').checked ? '1' : '', rows: idRowsGet('ivRows') }, dateData) });
+      data: Object.assign({ vtype: $('ivType').value.trim() || 'إداري', ackCol: $('ivAckCol').checked ? '1' : '',
+        about: $('ivAbout').value.trim(), notes: ivNotesGet(), recText: $('ivRec').value.trim(), mgrPhone: $('ivMgrPhone').value.trim() }, dateData) });
     if (!req.center) return toast('اختاري اسم المركز', false);
-    if (!req.data.rows.length) return toast('اكتبي بنداً واحداً على الأقل', false);
+    if (!req.period) return toast('اختاري الفترة (صباحي أو مسائي)', false);
+    if (!req.data.notes.length) return toast('اكتبي ملاحظة واحدة على الأقل', false);
+    if (sendAfter && !idWaPhone(req.data.mgrPhone)) return toast('اكتبي جوال المديرة بصيغة صحيحة (05xxxxxxxx) للإرسال', false);
   } else if (kind === 'program') {
     const data = Object.assign({}, dateData);
     ['content', 'plan', 'method', 'tools', 'results', 'ratio'].forEach(k => { data[k] = $('ip' + k[0].toUpperCase() + k.slice(1)).value.trim(); });
@@ -423,6 +541,7 @@ async function idSave(kind, btn) {
     idEdit = null; idKind = kind;
     show('idListView'); renderIdari();
     loadIdari(true);
+    if (sendAfter) idSendMgr(rec);
   } catch (e) { toast(e.message, false); }
   finally { setBtnBusy(btn, false); }
 }

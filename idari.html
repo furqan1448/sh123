@@ -7,8 +7,18 @@
 <link rel="preconnect" href="https://script.google.com">
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
 <link rel="stylesheet" href="style.css">
+<style>
+  .id-hint{font-size:13px;color:var(--muted);margin-top:4px;min-height:1em}
+  .id-note-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px}
+  .id-note-row .num{font-weight:800;color:var(--maroon,#7a1f2b);min-width:22px;text-align:center;margin-top:10px}
+  .id-note-row textarea{flex:1;margin:0;resize:vertical}
+  .id-note-row .x{flex:none;width:auto;padding:6px 10px;margin-top:4px;background:transparent;border:1px solid #ddd;border-radius:8px;color:#888;cursor:pointer}
+  .btn.id-wa{background:#1f8f4e;border-color:#1f8f4e;color:#fff;text-decoration:none;display:inline-block}
+  .id-send{padding:14px 16px;border:1px solid #bfe3cd;background:#f1faf4;border-radius:12px;line-height:2}
+  .id-send .btn{margin-top:8px}
+</style>
 </head>
-<body>
+<body id="idariPage">
 <div class="topbar">
   <img class="logo" alt="شعار فرقان">
   <h1>مشرفات</h1>
@@ -115,8 +125,9 @@
     <div class="edit-note hidden" data-edit>وضع التعديل: يُحفظ التعديل على نفس النموذج.</div>
     <div class="card">
       <h2>تقرير زيارة المشرفة</h2>
-      <label for="ivCenter">بمركز</label>
-      <select id="ivCenter"></select>
+      <label for="ivCenter">المركز</label>
+      <select id="ivCenter" onchange="ivCenterChanged()"></select>
+      <div class="id-hint" id="ivMgrStatus"></div>
       <div class="row2">
         <div><label for="ivSem">الفصل الدراسي</label><select id="ivSem"><option value="">اختاري</option><option>الأول</option><option>الثاني</option><option>الثالث</option></select></div>
         <div><label for="ivYear">لعام</label><input id="ivYear" inputmode="numeric" maxlength="4" placeholder="1447"></div>
@@ -125,28 +136,35 @@
       <div class="chips" id="ivPeriod"><label class="chip"><input type="checkbox" value="صباحي"><span>صباحي</span></label><label class="chip"><input type="checkbox" value="مسائي"><span>مسائي</span></label></div>
       <div id="ivDateBox"></div>
       <div class="row2">
-        <div><label for="ivVisitNo">رقم الزيارة</label><input id="ivVisitNo" inputmode="numeric"></div>
+        <div><label for="ivVisitNo">رقم الزيارة</label><input id="ivVisitNo" inputmode="numeric"><div class="id-hint" id="ivVisitNoHint"></div></div>
         <div><label for="ivType">نوع الزيارة</label><input id="ivType" value="إداري"></div>
       </div>
+      <label for="ivAbout">بشأن</label>
+      <input id="ivAbout" autocomplete="off" placeholder="مثال: الأداء الإداري للمركز">
     </div>
 
     <div class="card">
-      <h2>الملاحظات والتوصيات</h2>
-      <div id="ivRows"></div>
-      <button type="button" class="btn light block" onclick="ivAddRow()">＋ إضافة بند</button>
+      <h2>الملاحظات</h2>
+      <p class="rp-hint" style="margin-top:0">كل ملاحظة في سطر برقمها، كما تظهر في جدول التقرير.</p>
+      <div id="ivNotes"></div>
+      <button type="button" class="btn light block" onclick="ivAddNote()">＋ إضافة ملاحظة</button>
+      <label for="ivRec">التوصية <span style="font-weight:400;color:var(--muted);font-size:14px">(تظهر في خلية واحدة بجانب الملاحظات)</span></label>
+      <textarea id="ivRec" rows="2"></textarea>
     </div>
 
     <div class="card">
       <h2>التواقيع</h2>
       <div class="row2">
         <div><label for="ivMgrName" style="margin-top:0">اسم مديرة المركز</label><input id="ivMgrName"></div>
-        <div><label for="ivSupName" style="margin-top:0">اسم المشرفة</label><input id="ivSupName"></div>
+        <div><label for="ivMgrPhone" style="margin-top:0">جوال المديرة (واتساب)</label><input id="ivMgrPhone" inputmode="tel" dir="ltr" placeholder="05xxxxxxxx" style="text-align:right"></div>
       </div>
-      <p class="rp-hint" style="margin-top:8px">توقيع المديرة لا يُطلب هنا؛ يُرسَل التقرير إليها (زر «مشاركة») وتوقّع عليه.</p>
+      <label for="ivSupName">اسم المشرفة</label><input id="ivSupName">
+      <p class="rp-hint" style="margin-top:8px">توقيع المديرة لا يُطلب هنا؛ يُرسَل التقرير إليها (زر «حفظ وإرسال للمديرة») وتوقّع عليه.</p>
       <label class="check"><input type="checkbox" id="ivAckCol"><span>إظهار عمود «توقيع بالعلم» في التقرير (فارغ للتوقيع عليه)</span></label>
       <label>توقيع المشرفة</label>
       <div id="ivSupW"></div>
       <button id="ivSaveBtn" class="btn block" onclick="idSave('visit', this)">حفظ التقرير</button>
+      <button id="ivSaveSendBtn" class="btn block id-wa" style="margin-top:10px" onclick="idSave('visit', this, true)">📲 حفظ وإرسال للمديرة</button>
     </div>
   </div>
 

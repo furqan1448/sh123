@@ -86,6 +86,10 @@ const ID_CSS = `
 .idoc .idc-foot>div{text-align:center;font-weight:800;font-size:16px;min-width:240px;line-height:1.8}
 .idoc .idc-note{font-size:14px;margin:12px 0 0;font-weight:700}
 .idoc .idc-avoid{page-break-inside:avoid;break-inside:avoid}
+.idoc .idc-subject{font-weight:800;color:#7a1f2b;font-size:15.5px;margin:0 0 12px}
+.idoc td.idc-note-c{text-align:right;padding-right:14px;height:52px}
+.idoc td.idc-rec-c{text-align:right;padding-right:14px;font-weight:700}
+.idoc td.idc-note-c,.idoc td.idc-rec-c,.idoc td.idc-n{background:#fff}
 `;
 
 /* ---------- محتوى النموذج (نفس الشكل للعرض والطباعة والـ PDF) ---------- */
@@ -100,7 +104,26 @@ function idDocHtml(rec, sigs, lhUrl) {
   const sigCol = (lbl, name, sg) => '<div>' + lbl + (name ? '<br>' + esc(name) : '') + idSig(sg) + '</div>';
   let h = '';
 
-  if (rec.kind === 'visit') {
+  if (rec.kind === 'visit' && Array.isArray(d.notes)) {
+    // تنسيق نظام المقاصف: «بشأن» سطر واحد، وكل ملاحظة في صف برقمها، والتوصية خلية واحدة بجانب الصفوف
+    const notes = d.notes.filter(x => String(x || '').trim());
+    const n = Math.max(notes.length, 1);
+    const ack = d.ackCol === '1' || !!sigs.ack;
+    let body = '';
+    for (let i = 0; i < n; i++) {
+      body += '<tr><td class="idc-n">' + idDigits(i + 1) + '</td><td class="idc-note-c">' + idNl(notes[i] || '') + '</td>' +
+        (i === 0 ? '<td class="idc-rec-c" rowspan="' + n + '">' + idNl(d.recText) + '</td>' + (ack ? '<td rowspan="' + n + '">' + idSig(sigs.ack) + '</td>' : '') : '') + '</tr>';
+    }
+    h = head + '<div class="idc-body"><div class="idc-title">تقرير زيارة المشرفة</div>' +
+      '<div class="idc-meta"><span><span>المركز: ' + esc(rec.center) + '</span>' + periodBoxes + '</span><span>' + yearSem + '</span></div>' +
+      (d.about ? '<div class="idc-subject">بشأن: ' + esc(d.about) + '</div>' : '') +
+      '<table class="idc-info"><tr><td>اليوم: ' + m(esc(idDayName(rec))) + '</td><td>التاريخ: ' + m(idHDate(rec)) + '</td><td>رقم الزيارة: ' + m(esc(idDigits(rec.visitNo))) + '</td><td>نوع الزيارة: ' + m(esc(d.vtype || 'إداري')) + '</td></tr></table>' +
+      '<table><colgroup><col style="width:54px"><col><col style="width:' + (ack ? '32%' : '38%') + '">' + (ack ? '<col style="width:140px">' : '') + '</colgroup>' +
+      '<tr><th>م</th><th>الملاحظة</th><th>التوصية</th>' + (ack ? '<th>توقيع بالعلم</th>' : '') + '</tr>' + body + '</table>' +
+      '<div class="idc-foot idc-avoid">' + sigCol('المشرفة', rec.supName, sigs.sup) + sigCol('مديرة المركز', rec.mgrName, sigs.mgr) + '</div></div>';
+
+  } else if (rec.kind === 'visit') {
+    // النماذج القديمة (بشأن/ملاحظة/توصية لكل بند) تبقى بشكلها السابق
     const rows = (d.rows || []).filter(r => r && (r.about || r.note || r.rec));
     const n = Math.max(rows.length, 3);
     const ack = d.ackCol === '1' || !!sigs.ack;   // عمود «توقيع بالعلم» اختياري (يُوقَّع ورقياً)
@@ -257,6 +280,48 @@ async function idShareFile(file, rec, rethrow) {
   toast('المشاركة غير مدعومة في هذا المتصفح، تم تحميل الملف لإرساله يدوياً');
 }
 
+/* ---------- إرسال التقرير للمديرة مباشرة (واتساب) — مثل نظام المقاصف ----------
+   يُحفظ ملف PDF في الجهاز، ثم يظهر زر يفتح محادثة المديرة برسالة جاهزة، وتُرفق الملف من 📎. */
+function idWaPhone(v) {
+  let d = String(v || '').replace(/[٠-٩]/g, c => '٠١٢٣٤٥٦٧٨٩'.indexOf(c)).replace(/\D/g, '');
+  if (d.indexOf('00966') === 0) d = d.slice(5);
+  else if (d.indexOf('966') === 0) d = d.slice(3);
+  if (d.indexOf('0') === 0) d = d.slice(1);
+  return /^5\d{8}$/.test(d) ? '966' + d : '';
+}
+function idPlainHDate(rec) {
+  const d = (rec && rec.data) || {};
+  return d.hd ? idDigits(d.hd) + ' / ' + idDigits(d.hm) + ' / ' + idDigits(d.hy) + 'هـ' : '';
+}
+async function idSendMgr(rec, btn, sigs) {
+  const d = rec.data || {};
+  let phone = idWaPhone(d.mgrPhone);
+  if (!phone) {
+    const v = prompt('لا يوجد جوال محفوظ لمديرة المركز في هذا التقرير. اكتبي جوالها (05xxxxxxxx):', '');
+    if (v === null) return;
+    phone = idWaPhone(v);
+    if (!phone) return toast('رقم الجوال غير صحيح', false);
+  }
+  if (btn) setBtnBusy(btn, true, 'جارِ التجهيز...');
+  try {
+    const name = idFileName(rec) + '.pdf';
+    idSaveBlob(await idPdfBlob(rec, sigs), name);
+    const msg = 'السلام عليكم ورحمة الله وبركاته\n' +
+      'سعادة ' + (rec.mgrName ? 'الأستاذة/ ' + rec.mgrName + ' — مديرة ' : 'مديرة ') + (/^مركز/.test(rec.center || '') ? '' : 'مركز ') + (rec.center || '') + ' المحترمة\n' +
+      'نرفق لكم تقرير زيارة المشرفة' + (d.vtype ? ' (' + d.vtype + ')' : '') + (idPlainHDate(rec) ? ' بتاريخ ' + idPlainHDate(rec) : '') + '.\n' +
+      'شاكرين لكم تعاونكم.\n' +
+      (rec.supName ? 'المشرفة: ' + rec.supName + '\n' : '') +
+      ID_UNIT + ' — جمعية فرقان';
+    const m = document.getElementById('idModal'), b = document.getElementById('idModalBody');
+    b.innerHTML = '<div class="id-send">' +
+      '<div>✅ حُفظ ملف التقرير <b>' + esc(name) + '</b> في جهازكِ.</div>' +
+      '<div>اضغطي الزر لفتح محادثة المديرة' + (rec.mgrName ? ' (' + esc(rec.mgrName) + ')' : '') + '، ثم أرفقي الملف من زر الإرفاق 📎 ← «مستند».</div>' +
+      '<a class="btn id-wa" target="_blank" rel="noopener" href="https://wa.me/' + phone + '?text=' + encodeURIComponent(msg) + '">💬 فتح محادثة المديرة في واتساب</a></div>';
+    m.classList.remove('hidden');
+  } catch (e) { toast(e.message || 'تعذّر تجهيز الملف', false); }
+  finally { if (btn) setBtnBusy(btn, false); }
+}
+
 /* ---------- عرض داخل الصفحة (نافذة) ---------- */
 async function idView(rec) {
   const m = document.getElementById('idModal'), b = document.getElementById('idModalBody');
@@ -265,10 +330,13 @@ async function idView(rec) {
   m.classList.remove('hidden');
   let sigs = {};
   try { sigs = await idLoadSigs(rec); } catch (e) {}
-  b.innerHTML = '<div class="ex-bar"><button class="btn light" id="idVPrint">طباعة</button><button class="btn light" id="idVPdf">تحميل PDF</button><button class="btn light" id="idVShare">مشاركة (واتساب)</button></div>' +
+  b.innerHTML = '<div class="ex-bar"><button class="btn light" id="idVPrint">طباعة</button><button class="btn light" id="idVPdf">تحميل PDF</button><button class="btn light" id="idVShare">مشاركة (واتساب)</button>' +
+    (rec.kind === 'visit' && typeof idSendMgr === 'function' && document.getElementById('idariPage') ? '<button class="btn id-wa" id="idVSend">📲 إرسال للمديرة</button>' : '') + '</div>' +
     '<style>' + ID_CSS + '</style><div class="id-scroll">' + idDocHtml(rec, sigs) + '</div>';
   document.getElementById('idVPrint').onclick = e => idPrint(rec, e.currentTarget, sigs);
   document.getElementById('idVPdf').onclick = e => idPdf(rec, e.currentTarget, sigs);
   document.getElementById('idVShare').onclick = e => idShare(rec, e.currentTarget, sigs);
+  const sb = document.getElementById('idVSend');
+  if (sb) sb.onclick = e => idSendMgr(rec, e.currentTarget, sigs);
 }
 function idCloseModal() { const m = document.getElementById('idModal'); if (m) m.classList.add('hidden'); }
