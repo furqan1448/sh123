@@ -1,419 +1,239 @@
-/* ===== نماذج وحدة الإشراف الإداري: الطباعة وتحميل PDF والمشاركة بالكليشة الحمراء (letterhead.jpg) ===== */
-// يُستخدم في صفحة المشرفات (idari.html) وفي صفحة إدارة الوحدات (units.html)
-const ID_LETTERHEAD = 'letterhead.jpg';
-const ID_UNIT = 'وحدة الإشراف الإداري';
-const ID_PDF_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-const ID_IMG_LIB = 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js';   // مثل نظام المقاصف: يرسم النموذج بمحرك المتصفح نفسه
-const ID_KINDS = {
-  visit: 'تقرير زيارة المشرفة',
-  program: 'برنامج مشرفة مقيمة',
-  suggest: 'الاقتراحات والصعوبات'
-};
-const ID_PROGRAM_ROWS = [['day', 'اليوم / التاريخ'], ['center', 'المركز'], ['content', 'المحتوى'], ['plan', 'التخطيط'],
-  ['method', 'طريقة التنفيذ'], ['tools', 'الوسائل'], ['results', 'النتائج'], ['ratio', 'نسبة الاستفادة']];
-const ID_DAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مشرفات وحدة الإشراف الإداري — منظومة مشرفات مكتب إشراف الداخل</title>
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>
+  .id-hint{font-size:13px;color:var(--muted);margin-top:4px;min-height:1em}
+  .id-note-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px}
+  .id-note-row .num{font-weight:800;color:var(--maroon,#7a1f2b);min-width:22px;text-align:center;margin-top:10px}
+  .id-note-row textarea{flex:1;margin:0;resize:vertical}
+  .id-note-row .x{flex:none;width:auto;padding:6px 10px;margin-top:4px;background:transparent;border:1px solid #ddd;border-radius:8px;color:#888;cursor:pointer}
+  .btn.id-wa{background:#1f8f4e;border-color:#1f8f4e;color:#fff;text-decoration:none;display:inline-block}
+  .id-send{padding:14px 16px;border:1px solid #bfe3cd;background:#f1faf4;border-radius:12px;line-height:2}
+  .id-send .btn{margin-top:8px}
+</style>
+</head>
+<body id="idariPage">
+<div class="topbar">
+  <img class="logo" alt="شعار فرقان">
+  <h1>مشرفات</h1>
+  <p>وحدة الإشراف الإداري</p>
+</div>
 
-// جلب التواقيع (تُستبدل في صفحة إدارة الوحدات بدخول المديرة)
-let idSigFetch = items => api('getSigs', { items }).then(o => o.data || {});
+<div class="wrap">
 
-const idDigits = s => String(s == null ? '' : s).replace(/[0-9]/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
+  <!-- تسجيل الدخول -->
+  <div id="loginView" class="card" style="max-width:420px;margin:30px auto">
+    <h2>تسجيل الدخول</h2>
+    <label for="un">اسم المستخدم</label>
+    <select id="un"><option value="">جارِ تحميل الأسماء...</option></select>
+    <label for="pw">كلمة المرور</label>
+    <div class="pw-wrap">
+      <input id="pw" type="password" autocomplete="current-password" placeholder="أدخلي كلمة المرور">
+      <button type="button" class="pw-toggle" onclick="togglePassword('pw', this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    </div>
+    <button id="loginBtn" class="btn block" onclick="doLogin()">دخول</button>
+    <p style="margin-top:12px;text-align:center"><a class="lnk" href="index.html">الرئيسية</a></p>
+  </div>
 
-/* ---------- التاريخ الهجري (مثل تقرير الزيارة في نظام المقاصف: يوم / شهر / سنة تُقرأ من اليمين) ---------- */
-// أجزاء التاريخ الهجري (أم القرى) لتاريخ ميلادي
-function idHParts(dt) {
-  try {
-    const o = {};
-    new Intl.DateTimeFormat('en-u-ca-islamic-umalqura-nu-latn', { day: 'numeric', month: 'numeric', year: 'numeric' })
-      .formatToParts(dt).forEach(p => { if (p.type === 'day' || p.type === 'month' || p.type === 'year') o[p.type] = parseInt(p.value, 10); });
-    return o.day ? { d: o.day, m: o.month, y: o.year } : null;
-  } catch (e) { return null; }
-}
-const idYmd = dt => dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
-// التاريخ الميلادي المقابل لتاريخ هجري (للترتيب والتصفية فقط) أو '' إن لم يوجد
-function idHToG(y, m, d) {
-  y = +y; m = +m; d = +d;
-  if (!y || !m || !d) return '';
-  const now = new Date(), t = idHParts(now);
-  if (!t) return '';
-  const est = Math.round((y - t.y) * 354.367 + (m - t.m) * 29.53 + (d - t.d));
-  for (let k = 0; k <= 6; k++) {
-    for (const s of k ? [k, -k] : [0]) {
-      const dt = new Date(now.getFullYear(), now.getMonth(), now.getDate() + est + s);
-      const h = idHParts(dt);
-      if (h && h.y === y && h.m === m && h.d === d) return idYmd(dt);
-    }
-  }
-  return '';
-}
-// نص التاريخ: كل جزء معزول حتى يبقى الترتيب من اليمين لليسار (اليوم ثم الشهر ثم السنة)
-function idHDate(rec) {
-  const d = (rec && rec.data) || {};
-  let p = d.hd ? { d: d.hd, m: d.hm, y: d.hy } : null;
-  if (!p && rec && rec.date) { const q = rec.date.split('-'); p = idHParts(new Date(+q[0], +q[1] - 1, +q[2])); }
-  if (!p) return '';
-  return '<span class="idc-date"><bdi>' + idDigits(p.d) + '</bdi> / <bdi>' + idDigits(p.m) + '</bdi> / <bdi>' + idDigits(p.y) + 'هـ</bdi></span>';
-}
-const idDayName = rec => ((rec.data && rec.data.dayName) || rec.day || '');
+  <!-- القائمة الرئيسية -->
+  <div id="homeView" class="hidden">
+    <div class="grid">
+      <button class="tile" onclick="show('visitsView'); loadVisits()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4"/><path d="M10 13l2 2 3.5-4"/><path d="M10 18h5"/></svg><b>كشف الخروج</b></button>
+      <button class="tile" onclick="idOpenList('visit')"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M4 9h16"/><path d="M9.5 9v11.5"/><path d="M12.5 13h5"/><path d="M12.5 16.5h3.5"/></svg><b>تقرير زيارة المشرفة</b></button>
+      <button class="tile" onclick="idOpenList('program')"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15.5" rx="2"/><path d="M8 3v4M16 3v4"/><path d="M4 10h16"/><path d="M8.5 14.5l2 2 4-4"/></svg><b>برنامج مشرفة مقيمة</b></button>
+      <button class="tile" onclick="idOpenList('suggest')"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1 2V16h5.2v-.2c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg><b>الاقتراحات والصعوبات</b></button>
+    </div>
+    <p style="text-align:center;margin-top:22px"><button class="btn light" onclick="logout()">تسجيل الخروج</button></p>
+  </div>
 
-const idNl = s => esc(s).replace(/\n/g, '<br>');
-const idBox = on => '<span class="idc-box">' + (on ? '✓' : '') + '</span>';
-const idSig = d => d ? '<img class="idc-sig" src="' + d + '" alt="">' : '';
+  <!-- كشف الخروج -->
+  <div id="visitsView" class="hidden">
+    <button class="back" onclick="show('homeView')">← رجوع</button>
 
-const ID_CSS = `
-.idoc{width:1090px;background:#fff;color:#222;font-family:'Tajawal','Segoe UI',Tahoma,Arial,sans-serif;direction:rtl;font-size:15px;line-height:1.6;padding:0 4px}
-.idoc *{box-sizing:border-box}
-.idoc tr td{background:#fff}   /* كل الخلايا بيضاء (بدون تظليل الصفوف من style.css) */
-.idoc bdi{unicode-bidi:isolate}
-.idoc .idc-lh{width:100%;height:auto;aspect-ratio:2000/351;display:block}
-.idoc .idc-body{padding:0 28px}
-.idoc .idc-title{text-align:center;font-size:25px;font-weight:800;color:#7a1f2b;margin:22px 0 18px}
-.idoc .idc-meta{display:flex;justify-content:space-between;align-items:center;gap:20px;font-weight:800;font-size:15.5px;margin:0 0 14px}
-.idoc .idc-meta>span{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
-.idoc .idc-m{color:#7a1f2b}
-.idoc .idc-date{display:inline-block;direction:rtl}
-.idoc .idc-box{display:inline-flex;width:14px;height:14px;border:1.6px solid #222;align-items:center;justify-content:center;font-size:12px;margin-left:5px;vertical-align:middle;font-weight:900;line-height:1}
-.idoc .idc-per{display:inline-flex;gap:16px;align-items:center}
-.idoc table{width:100%;border-collapse:collapse;font-size:15px}
-.idoc th,.idoc td{border:1px solid #444;padding:8px 10px;vertical-align:middle;text-align:center}
-.idoc th{background:#f2f2f2;color:#222;font-weight:800}
-.idoc .idc-info td{background:#f2f2f2;font-weight:800;padding:10px}
-.idoc .idc-info{margin-bottom:-1px}
-.idoc tr.idc-r td{height:44px}
-.idoc .idc-prog td{padding:6px 10px}
-.idoc .idc-n{color:#7a1f2b;font-weight:800;width:54px}
-.idoc .idc-lbl{font-weight:800;background:#f2f2f2;width:200px}
-.idoc td.r{text-align:right}
-.idoc .idc-sig{max-height:62px;max-width:190px;display:block;margin:4px auto 0}
-.idoc .idc-foot{display:flex;justify-content:space-around;gap:30px;margin:28px 0 0;align-items:flex-start}
-.idoc .idc-foot>div{text-align:center;font-weight:800;font-size:16px;min-width:240px;line-height:1.8}
-.idoc .idc-note{font-size:14px;margin:12px 0 0;font-weight:700}
-.idoc .idc-avoid{page-break-inside:avoid;break-inside:avoid}
-.idoc .idp{font-family:'Times New Roman',Times,serif;color:#000}
-.idoc .idp *{font-weight:400}
-.idoc .idp-in{padding:22px 112px 26px}
-.idoc .idp-title{text-align:center;font-size:21px;color:#6f0c1e;margin:0 0 16px}
-.idoc .idp .idc-meta,.idoc .idp .idc-meta *{font-family:'Tajawal','Segoe UI',Tahoma,Arial,sans-serif;font-weight:800;color:#222}
-.idoc .idp-meta{display:flex;gap:56px;align-items:center;font-size:18px;margin:0 8px 12px}
-.idoc .idp table{width:100%;border-collapse:collapse;font-size:17px;table-layout:fixed}
-.idoc .idp th{background:#fde9ed;color:#6f0c1e;font-size:21px;border:1px solid #000;padding:2px 10px;text-align:center}
-.idoc .idp tr td{background:#fff;border:1px solid #000;height:31px;padding:3px 10px;text-align:right;vertical-align:middle}
-.idoc .idp-sig{display:flex;justify-content:space-between;align-items:flex-start;font-size:15px;margin:10px 0 0}
-.idoc .idp-sig>div{flex:1}
-.idoc .idp-sig>div:nth-child(2){text-align:center}
-.idoc .idp-sig>div:last-child{text-align:left}
-.idoc .idp-sig img{max-height:54px;max-width:170px;display:inline-block;vertical-align:middle}
-.idoc .idp-note{font-size:13px;margin:22px 0 0}
-.idoc .idc-subject{font-weight:800;color:#7a1f2b;font-size:15.5px;margin:0 0 12px}
-.idoc td.idc-note-c{text-align:right;padding-right:14px;height:52px}
-.idoc td.idc-rec-c{text-align:right;padding-right:14px;font-weight:700}
-`;
+    <div class="stats">
+      <div class="stat"><b id="stDays">0</b><span>أيام الحضور (الزيارات)</span></div>
+      <div class="stat"><b id="stAbs">0</b><span>أيام الغياب</span></div>
+    </div>
 
-/* ---------- محتوى النموذج (نفس الشكل للعرض والطباعة والـ PDF) ---------- */
-function idDocHtml(rec, sigs, lhUrl) {
-  sigs = sigs || {};
-  const d = rec.data || {};
-  const per = String(rec.period || '');
-  // أبعاد الكليشة مكتوبة صراحةً حتى يُحجز مكانها قبل تحميلها (وإلا يُقصّ أسفل ملف PDF)
-  const head = '<img class="idc-lh" src="' + esc(lhUrl || ID_LETTERHEAD) + '" width="2000" height="351" alt="">';
-  const m = x => '<span class="idc-m">' + x + '</span>';   // القيم باللون العنابي
-  const periodBoxes = '<span class="idc-per"><span>' + idBox(per.indexOf('صباحي') > -1) + 'صباحي</span><span>' + idBox(per.indexOf('مسائي') > -1) + 'مسائي</span></span>';
-  const yearSem = (rec.year ? 'لعام ' + idDigits(rec.year) + 'هـ' : '') + (rec.sem ? ' للفصل الدراسي ' + esc(rec.sem) : '');
-  const sigCol = (lbl, name, sg) => '<div>' + lbl + (name ? '<br>' + esc(name) : '') + idSig(sg) + '</div>';
-  let h = '';
+    <div class="card">
+      <h2>تسجيل زيارة جديدة</h2>
+      <div id="vCenterBox">
+        <label for="vCenter">اسم المركز</label>
+        <select id="vCenter"><option value="">جارِ التحميل...</option></select>
+      </div>
+      <div id="vTypeBox">
+        <label>نوع الزيارة <span style="font-weight:400;color:var(--muted);font-size:14px">(يمكن اختيار أكثر من نوع)</span></label>
+        <div id="vTypeList" class="chips"><span class="empty">جارِ التحميل...</span></div>
+      </div>
+      <div class="row2">
+        <div><label for="vDate">التاريخ</label><input id="vDate" type="date" onchange="onDateChange()"></div>
+        <div><label for="vDay">اليوم</label><input id="vDay" readonly></div>
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin-top:6px">الموافق: <span id="vHijri">—</span></div>
+      <label for="vStatus">حالة الزيارة</label>
+      <select id="vStatus" onchange="onStatusChange()"></select>
+      <div id="sigSection">
+        <label>توقيع المديرة</label>
+        <div id="vSigW"></div>
+      </div>
+      <p id="absentNote" class="hidden" style="margin-top:12px;font-size:14px;color:var(--muted)"></p>
+      <button id="saveVisitBtn" class="btn block" onclick="saveVisit()">حفظ</button>
+    </div>
 
-  if (rec.kind === 'visit' && Array.isArray(d.notes)) {
-    // تنسيق نظام المقاصف: «بشأن» سطر واحد، وكل ملاحظة في صف برقمها، والتوصية خلية واحدة بجانب الصفوف
-    const notes = d.notes.filter(x => String(x || '').trim());
-    const n = Math.max(notes.length, 1);
-    const ack = d.ackCol === '1' || !!sigs.ack;
-    let body = '';
-    for (let i = 0; i < n; i++) {
-      body += '<tr><td class="idc-n">' + idDigits(i + 1) + '</td><td class="idc-note-c" colspan="2">' + idNl(notes[i] || '') + '</td>' +
-        (i === 0 ? '<td class="idc-rec-c" colspan="2" rowspan="' + n + '">' + idNl(d.recText) + '</td>' + (ack ? '<td rowspan="' + n + '">' + idSig(sigs.ack) + '</td>' : '') : '') + '</tr>';
-    }
-    h = head + '<div class="idc-body"><div class="idc-title">تقرير زيارة المشرفة</div>' +
-      '<div class="idc-meta"><span><span>المركز: ' + esc(rec.center) + '</span>' + periodBoxes + '</span><span>' + yearSem + '</span></div>' +
-      (d.about ? '<div class="idc-subject">بشأن: ' + esc(d.about) + '</div>' : '') +
-      // جدول واحد: صف اليوم/التاريخ/الرقم/النوع حدوده على نفس خطوط أعمدة الجدول
-      '<table><colgroup><col style="width:54px"><col style="width:20%"><col><col style="width:' + (ack ? '16%' : '19%') + '"><col style="width:' + (ack ? '16%' : '19%') + '">' + (ack ? '<col style="width:140px">' : '') + '</colgroup>' +
-      '<tr class="idc-info"><td colspan="2">اليوم: ' + m(esc(idDayName(rec))) + '</td><td>التاريخ: ' + m(idHDate(rec)) + '</td><td>رقم الزيارة: ' + m(esc(idDigits(rec.visitNo))) + '</td><td' + (ack ? ' colspan="2"' : '') + '>نوع الزيارة: ' + m(esc(d.vtype || 'إداري')) + '</td></tr>' +
-      '<tr><th>م</th><th colspan="2">الملاحظة</th><th colspan="2">التوصية</th>' + (ack ? '<th>توقيع بالعلم</th>' : '') + '</tr>' + body + '</table>' +
-      '<div class="idc-foot idc-avoid">' + sigCol('المشرفة', rec.supName, sigs.sup) + sigCol('مديرة المركز', rec.mgrName, sigs.mgr) + '</div></div>';
+    <div class="card">
+      <h2>سجل الزيارات</h2>
+      <label for="fCenter" style="margin-top:0">تصفية حسب المركز</label>
+      <select id="fCenter" onchange="renderVisits()"><option value="">كل المراكز</option></select>
+      <div class="ex-bar"><button class="btn light" onclick="exVisits(this)">تحميل كشف الخروج Excel</button></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>م</th><th>المركز</th><th>نوع الزيارة</th><th>التاريخ</th><th>اليوم</th><th>الحالة</th><th>التوقيع</th><th></th></tr></thead>
+          <tbody id="vBody"><tr><td colspan="8" class="empty">جارِ التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
-  } else if (rec.kind === 'visit') {
-    // النماذج القديمة (بشأن/ملاحظة/توصية لكل بند) تبقى بشكلها السابق
-    const rows = (d.rows || []).filter(r => r && (r.about || r.note || r.rec));
-    const n = Math.max(rows.length, 3);
-    const ack = d.ackCol === '1' || !!sigs.ack;   // عمود «توقيع بالعلم» اختياري (يُوقَّع ورقياً)
-    let body = '';
-    for (let i = 0; i < n; i++) {
-      const r = rows[i] || {};
-      body += '<tr class="idc-r"><td class="idc-n">' + (rows[i] ? idDigits(i + 1) : '') + '</td><td>' + idNl(r.about) + '</td><td>' + idNl(r.note) + '</td><td colspan="2">' + idNl(r.rec) + '</td>' +
-        (ack && i === 0 ? '<td rowspan="' + n + '">' + idSig(sigs.ack) + '</td>' : '') + '</tr>';
-    }
-    h = head + '<div class="idc-body"><div class="idc-title">تقرير زيارة المشرفة</div>' +
-      '<div class="idc-meta"><span><span>المركز: ' + esc(rec.center) + '</span>' + periodBoxes + '</span><span>' + yearSem + '</span></div>' +
-      '<table><colgroup><col style="width:54px"><col style="width:' + (ack ? '20%' : '22%') + '"><col style="width:' + (ack ? '32%' : '38%') + '"><col><col>' + (ack ? '<col style="width:140px">' : '') + '</colgroup>' +
-      '<tr class="idc-info"><td colspan="2">اليوم: ' + m(esc(idDayName(rec))) + '</td><td>التاريخ: ' + m(idHDate(rec)) + '</td><td>رقم الزيارة: ' + m(esc(idDigits(rec.visitNo))) + '</td><td' + (ack ? ' colspan="2"' : '') + '>نوع الزيارة: ' + m(esc(d.vtype || 'إداري')) + '</td></tr>' +
-      '<tr><th>م</th><th>بشأن</th><th>الملاحظة</th><th colspan="2">التوصية</th>' + (ack ? '<th>توقيع بالعلم</th>' : '') + '</tr>' + body + '</table>' +
-      '<div class="idc-foot idc-avoid">' + sigCol('المشرفة', rec.supName, sigs.sup) + sigCol('مديرة المركز', rec.mgrName, sigs.mgr) + '</div></div>';
+  <!-- سجل النماذج (مشترك للأنواع الثلاثة) -->
+  <div id="idListView" class="hidden">
+    <button class="back" onclick="show('homeView')">← رجوع</button>
+    <div class="card">
+      <h2 id="idListTitle"></h2>
+      <p class="rp-hint" id="idListHint"></p>
+      <button class="btn block" onclick="idNew()">＋ نموذج جديد</button>
+    </div>
+    <div class="card">
+      <h2>النماذج المحفوظة</h2>
+      <div class="tbl-wrap">
+        <table style="min-width:600px">
+          <thead id="idHead"></thead>
+          <tbody id="idBody"><tr><td class="empty">جارِ التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
-  } else if (rec.kind === 'program') {
-    const val = k => k === 'day' ? [esc(idDayName(rec)), idHDate(rec)].filter(Boolean).join(' &nbsp;—&nbsp; ') : k === 'center' ? esc(rec.center) : idNl(d[k]);
-    h = head + '<div class="idc-body"><div class="idc-title">تخطيط وتنفيذ ونتائج لبرنامج مشرفة مقيمة</div>' +
-      '<table class="idc-prog"><colgroup><col style="width:54px"><col style="width:200px"><col></colgroup>' +
-      '<tr><th>م</th><th>البيان</th><th>المحتوى</th></tr>' +
-      ID_PROGRAM_ROWS.map((r, i) => '<tr><td class="idc-n">' + idDigits(i + 1) + '</td><td class="idc-lbl">' + r[1] + '</td><td class="r">' + val(r[0]) + '</td></tr>').join('') +
-      '</table>' +
-      (rec.supName || sigs.sup ? '<div class="idc-foot idc-avoid">' + sigCol('المشرفة', rec.supName, sigs.sup) + '<div></div></div>' : '') + '</div>';
+  <!-- تقرير زيارة المشرفة -->
+  <div id="idVisitForm" class="hidden">
+    <button class="back" onclick="idBack()">← رجوع</button>
+    <div class="edit-note hidden" data-edit>وضع التعديل: يُحفظ التعديل على نفس النموذج.</div>
+    <div class="card">
+      <h2>تقرير زيارة المشرفة</h2>
+      <label for="ivCenter">المركز</label>
+      <select id="ivCenter" onchange="ivCenterChanged()"></select>
+      <div class="id-hint" id="ivMgrStatus"></div>
+      <div class="row2">
+        <div><label for="ivSem">الفصل الدراسي</label><select id="ivSem"><option value="">اختاري</option><option>الأول</option><option>الثاني</option><option>الثالث</option></select></div>
+        <div><label for="ivYear">لعام</label><input id="ivYear" inputmode="numeric" maxlength="4" placeholder="1447"></div>
+      </div>
+      <label>الفترة</label>
+      <div class="chips" id="ivPeriod"><label class="chip"><input type="checkbox" value="صباحي"><span>صباحي</span></label><label class="chip"><input type="checkbox" value="مسائي"><span>مسائي</span></label></div>
+      <div id="ivDateBox"></div>
+      <div class="row2">
+        <div><label for="ivVisitNo">رقم الزيارة</label><input id="ivVisitNo" inputmode="numeric"><div class="id-hint" id="ivVisitNoHint"></div></div>
+        <div><label for="ivType">نوع الزيارة</label><input id="ivType" value="إداري"></div>
+      </div>
+      <label for="ivAbout">بشأن</label>
+      <input id="ivAbout" autocomplete="off" placeholder="مثال: الأداء الإداري للمركز">
+    </div>
 
-  } else if (rec.kind === 'suggest') {
-    // الكليشة الحمراء، وتنسيق الجدول والخط مثل النموذج الورقي: عمودان برأس وردي، والاسم والتوقيع والتاريخ في سطر واحد
-    const rows = (d.rows || []).filter(r => r && (r.sug || r.dif));
-    const n = Math.max(rows.length, 6);
-    let body = '';
-    for (let i = 0; i < n; i++) { const r = rows[i] || {}; body += '<tr><td>' + idNl(r.sug) + '</td><td>' + idNl(r.dif) + '</td></tr>'; }
-    const date = [esc(idDayName(rec)), idHDate(rec)].filter(Boolean).join(' ');
-    h = head + '<div class="idp"><div class="idp-in"><div class="idp-title">الاقتراحات والمرئيات – الصعوبات التي تواجه المشرفة الإدارية</div>' +
-      '<div class="idc-meta"><span><span>الفترة:</span>' + periodBoxes + '</span><span>' + yearSem + '</span></div>' +
-      '<table><tr><th>الاقتراحات والمرئيات</th><th>الصعوبات التي تواجه المشرفة</th></tr>' + body + '</table>' +
-      '<div class="idp-sig idc-avoid"><div>اسم المشرفة: ' + esc(rec.supName || '') + '</div><div>التوقيع: ' + (sigs.sup ? '<img src="' + sigs.sup + '" alt="">' : '') + '</div><div>التاريخ: ' + date + '</div></div>' +
-      '<div class="idp-note">تُطالَب المشرفة بتسليمها آخر الفصل الدراسي.</div></div></div>';
-  } else {
-    const rows = (d.rows || []).filter(r => r && (r.sug || r.dif));
-    const n = Math.max(rows.length, 4);
-    let body = '';
-    for (let i = 0; i < n; i++) {
-      const r = rows[i] || {};
-      body += '<tr class="idc-r"><td class="idc-n">' + (rows[i] ? idDigits(i + 1) : '') + '</td><td>' + idNl(r.sug) + '</td><td>' + idNl(r.dif) + '</td></tr>';
-    }
-    h = head + '<div class="idc-body"><div class="idc-title">الاقتراحات والمرئيات – الصعوبات التي تواجه المشرفة الإدارية</div>' +
-      '<div class="idc-meta"><span><span>الفترة:</span>' + periodBoxes + '</span><span>' + yearSem + '</span></div>' +
-      '<table><colgroup><col style="width:54px"><col><col></colgroup>' +
-      '<tr class="idc-info"><td colspan="2">اليوم: ' + m(esc(idDayName(rec))) + '</td><td>التاريخ: ' + m(idHDate(rec)) + '</td></tr>' +
-      '<tr><th>م</th><th>الاقتراحات والمرئيات</th><th>الصعوبات التي تواجه المشرفة</th></tr>' + body + '</table>' +
-      '<div class="idc-avoid"><div class="idc-note">تُطالَب المشرفة بتسليمها آخر الفصل الدراسي.</div>' +
-      '<div class="idc-foot">' + sigCol('المشرفة', rec.supName, sigs.sup) + '<div></div></div></div></div>';
-  }
-  return '<div class="idoc">' + h + '</div>';
-}
+    <div class="card">
+      <h2>الملاحظات</h2>
+      <p class="rp-hint" style="margin-top:0">كل ملاحظة في سطر برقمها، كما تظهر في جدول التقرير.</p>
+      <div id="ivNotes"></div>
+      <button type="button" class="btn light block" onclick="ivAddNote()">＋ إضافة ملاحظة</button>
+      <label for="ivRec">التوصية <span style="font-weight:400;color:var(--muted);font-size:14px">(تظهر في خلية واحدة بجانب الملاحظات)</span></label>
+      <textarea id="ivRec" rows="2"></textarea>
+    </div>
 
-// تواقيع النموذج المحفوظ (من ورقة «التواقيع»)
-async function idLoadSigs(rec) {
-  const has = (rec.data && rec.data.sigs) || {};
-  const items = ['sup', 'mgr', 'ack'].filter(k => has[k]).map(k => ({ id: rec.id + '|' + k }));
-  if (!items.length) return {};
-  const map = await idSigFetch(items);
-  const out = {};
-  ['sup', 'mgr', 'ack'].forEach(k => { if (map[rec.id + '|' + k]) out[k] = map[rec.id + '|' + k]; });
-  return out;
-}
+    <div class="card">
+      <h2>التواقيع</h2>
+      <div class="row2">
+        <div><label for="ivMgrName" style="margin-top:0">اسم مديرة المركز</label><input id="ivMgrName"></div>
+        <div><label for="ivMgrPhone" style="margin-top:0">جوال المديرة (واتساب)</label><input id="ivMgrPhone" inputmode="tel" dir="ltr" placeholder="05xxxxxxxx" style="text-align:right"></div>
+      </div>
+      <label for="ivSupName">اسم المشرفة</label><input id="ivSupName">
+      <p class="rp-hint" style="margin-top:8px">توقيع المديرة لا يُطلب هنا؛ يُرسَل التقرير إليها (زر «حفظ وإرسال للمديرة») وتوقّع عليه.</p>
+      <label class="check"><input type="checkbox" id="ivAckCol"><span>إظهار عمود «توقيع بالعلم» في التقرير (فارغ للتوقيع عليه)</span></label>
+      <label>توقيع المشرفة</label>
+      <div id="ivSupW"></div>
+      <button id="ivSaveBtn" class="btn block" onclick="idSave('visit', this)">حفظ التقرير</button>
+      <button id="ivSaveSendBtn" class="btn block id-wa" style="margin-top:10px" onclick="idSave('visit', this, true)">📲 حفظ وإرسال للمديرة</button>
+    </div>
+  </div>
 
-const idFileName = rec => {
-  const d = rec.data || {};
-  const dt = d.hd ? d.hd + '-' + d.hm + '-' + d.hy : (rec.date || '');
-  return (ID_KINDS[rec.kind] + ' ' + (rec.center || rec.sem || '') + ' ' + dt).trim().replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, '_');
-};
+  <!-- تخطيط وتنفيذ ونتائج لبرنامج مشرفة مقيمة -->
+  <div id="idProgramForm" class="hidden">
+    <button class="back" onclick="idBack()">← رجوع</button>
+    <div class="edit-note hidden" data-edit>وضع التعديل: يُحفظ التعديل على نفس النموذج.</div>
+    <div class="card">
+      <h2>تخطيط وتنفيذ ونتائج لبرنامج مشرفة مقيمة</h2>
+      <div id="ipDateBox"></div>
+      <label for="ipCenter">المركز</label><select id="ipCenter"></select>
+      <label for="ipContent">المحتوى</label><textarea id="ipContent" rows="2"></textarea>
+      <label for="ipPlan">التخطيط</label><textarea id="ipPlan" rows="2"></textarea>
+      <label for="ipMethod">طريقة التنفيذ</label><textarea id="ipMethod" rows="2"></textarea>
+      <label for="ipTools">الوسائل</label><textarea id="ipTools" rows="2"></textarea>
+      <label for="ipResults">النتائج</label><textarea id="ipResults" rows="2"></textarea>
+      <label for="ipRatio">نسبة الاستفادة</label><input id="ipRatio" placeholder="مثال: 90%">
+      <label for="ipSupName">اسم المشرفة <span style="font-weight:400;color:var(--muted);font-size:14px">(اختياري، يظهر أسفل النموذج)</span></label><input id="ipSupName">
+      <label>توقيع المشرفة <span style="font-weight:400;color:var(--muted);font-size:14px">(اختياري)</span></label>
+      <div id="ipSupW"></div>
+      <button id="ipSaveBtn" class="btn block" onclick="idSave('program', this)">حفظ النموذج</button>
+    </div>
+  </div>
 
-/* ---------- طباعة (ومنها «حفظ PDF» من نافذة الطباعة) ---------- */
-async function idPrint(rec, btn, sigs) {
-  const w = window.open('', '_blank');
-  if (!w) return toast('اسمحي بالنوافذ المنبثقة لهذا الموقع ثم أعيدي المحاولة', false);
-  w.document.write('<p style="font-family:Tahoma;text-align:center;margin-top:40px">جارِ التجهيز...</p>');
-  if (btn) setBtnBusy(btn, true, '...');
-  try {
-    if (!sigs) sigs = await idLoadSigs(rec);
-    const lh = new URL(ID_LETTERHEAD, location.href).href;
-    w.document.open();
-    w.document.write('<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>' + esc(idFileName(rec)) + '</title>' +
-      '<style>@page{size:A4 landscape;margin:7mm}html,body{margin:0;background:#fff}' + ID_CSS +
-      '.idoc{width:100%}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body>' +
-      idDocHtml(rec, sigs, lh) + '</body></html>');
-    w.document.close();
-    const go = () => setTimeout(() => { w.focus(); w.print(); }, 250);
-    const img = w.document.querySelector('.idc-lh');
-    if (img && !img.complete) { img.onload = go; img.onerror = go; } else go();
-  } catch (e) { w.close(); toast(e.message || 'تعذّرت الطباعة', false); }
-  finally { if (btn) setBtnBusy(btn, false); }
-}
+  <!-- الاقتراحات والمرئيات – الصعوبات -->
+  <div id="idSuggestForm" class="hidden">
+    <button class="back" onclick="idBack()">← رجوع</button>
+    <div class="edit-note hidden" data-edit>وضع التعديل: يُحفظ التعديل على نفس النموذج.</div>
+    <div class="card">
+      <h2>الاقتراحات والمرئيات – الصعوبات التي تواجه المشرفة الإدارية</h2>
+      <div class="row2">
+        <div><label for="isSem">الفصل الدراسي</label><select id="isSem"><option value="">اختاري</option><option>الأول</option><option>الثاني</option><option>الثالث</option></select></div>
+        <div><label for="isYear">لعام</label><input id="isYear" inputmode="numeric" maxlength="4" placeholder="1447"></div>
+      </div>
+      <label>الفترة</label>
+      <div class="chips" id="isPeriod"><label class="chip"><input type="checkbox" value="صباحي"><span>صباحي</span></label><label class="chip"><input type="checkbox" value="مسائي"><span>مسائي</span></label></div>
+      <p class="rp-hint" style="margin-top:10px">تُطالَب المشرفة بتسليمها آخر الفصل الدراسي.</p>
+    </div>
+    <div class="card">
+      <h2>البنود</h2>
+      <div id="isRows"></div>
+      <button type="button" class="btn light block" onclick="isAddRow()">＋ إضافة بند</button>
+    </div>
+    <div class="card">
+      <label for="isSupName" style="margin-top:0">اسم المشرفة</label><input id="isSupName">
+      <div id="isDateBox"></div>
+      <label>توقيع المشرفة</label>
+      <div id="isSupW"></div>
+      <button id="isSaveBtn" class="btn block" onclick="idSave('suggest', this)">حفظ النموذج</button>
+    </div>
+  </div>
 
-/* ---------- PDF ---------- */
-let idPdfLoading = null;
-function idLoadPdfLib() {
-  if (window.html2pdf) return Promise.resolve();
-  if (idPdfLoading) return idPdfLoading;
-  idPdfLoading = new Promise((res, rej) => {
-    const sc = document.createElement('script');
-    sc.src = ID_PDF_LIB;
-    sc.onload = () => res();
-    sc.onerror = () => { idPdfLoading = null; rej(new Error('تعذّر تحميل أداة PDF، تأكدي من الاتصال بالإنترنت')); };
-    document.head.appendChild(sc);
-  });
-  return idPdfLoading;
-}
-let idImgLoading = null;
-function idLoadImgLib() {
-  if (window.htmlToImage) return Promise.resolve();
-  if (idImgLoading) return idImgLoading;
-  idImgLoading = new Promise((res, rej) => {
-    const sc = document.createElement('script');
-    sc.src = ID_IMG_LIB;
-    sc.onload = () => res();
-    sc.onerror = () => { idImgLoading = null; rej(new Error('img lib')); };
-    document.head.appendChild(sc);
-  });
-  return idImgLoading;
-}
-// إذا زاد النموذج قليلاً عن صفحة A4 عرضية نصغّره ليكفي صفحة واحدة؛ وإن كان طويلاً جداً يُقسَّم على صفحات
-function idFitPage(cv) {
-  const maxH = cv.width * 210 / 297;
-  if (cv.height <= maxH || cv.height > maxH * 1.8) return cv;
-  const out = document.createElement('canvas');
-  out.width = Math.round(cv.height * 297 / 210); out.height = cv.height;
-  const g = out.getContext('2d');
-  g.fillStyle = '#ffffff'; g.fillRect(0, 0, out.width, out.height);
-  g.drawImage(cv, Math.round((out.width - cv.width) / 2), 0);
-  return out;
-}
-// مكتبة الرسم (html2canvas) تعكس النقطتين والأرقام بجانب الكلمات العربية، فنلف كل نص عربي بعلامة اتجاه داخل النسخة المؤقتة فقط
-function idFixBidi(doc) {
-  const root = doc.querySelector('.idoc');
-  if (!root) return;
-  const w = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, null), nodes = [];
-  let n;
-  while ((n = w.nextNode())) nodes.push(n);
-  nodes.forEach(t => { const v = t.nodeValue; if (v && /[\u0600-\u06FF0-9]/.test(v)) t.nodeValue = '\u202B' + v + '\u202C'; });
-}
-// يبني ملف PDF ويعيده كـ Blob (بنفس طريقة تقرير الزيارة في نظام المقاصف: صفحة A4 عرضية، والكليشة ملتصقة بأعلى الصفحة)
-async function idPdfBlob(rec, sigs) {
-  if (!sigs) sigs = await idLoadSigs(rec);
-  await idLoadPdfLib();
-  const box = document.createElement('div');
-  box.style.cssText = 'position:absolute;top:0;left:0;width:1123px;z-index:-1;background:#fff;direction:rtl';
-  box.innerHTML = '<style>' + ID_CSS + '.idoc{width:1123px;padding:0}</style>' + idDocHtml(rec, sigs);
-  document.body.appendChild(box);
-  try {
-    await Promise.all([...box.querySelectorAll('img')].map(im => im.complete ? 0 : new Promise(r => { im.onload = im.onerror = r; })));
-    // الطريقة الأساسية: رسم النموذج بمحرك المتصفح (العربي والنقطتان والأرقام في أماكنها الصحيحة)
-    try {
-      await idLoadImgLib();
-      const cv = await window.htmlToImage.toCanvas(box.querySelector('.idoc'), { pixelRatio: 2, backgroundColor: '#ffffff', width: 1123, skipFonts: true, style: { margin: '0' } });
-      return await window.html2pdf().set({ margin: 0, image: { type: 'jpeg', quality: 0.97 }, jsPDF: { unit: 'mm', format: [297, 210], orientation: 'landscape' } })
-        .from(idFitPage(cv), 'canvas').outputPdf('blob');
-    } catch (e) { console.warn('html-to-image failed, falling back to html2canvas', e); }
-    // الطريقة الاحتياطية
-    return await window.html2pdf().set({
-      margin: 0, image: { type: 'jpeg', quality: 0.97 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0, windowWidth: 1123, onclone: idFixBidi },
-      jsPDF: { unit: 'mm', format: [297, 210], orientation: 'landscape' },
-      pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.idc-avoid'] }
-    }).from(box.querySelector('.idoc'))
-      // الموقع كله من اليمين لليسار، والمكتبة تضع حاويتها حسب عرض الشاشة فتنزاح الصفحة وتُقصّ؛ نثبّتها في أعلى اليسار بعرض A4
-      .toContainer().get('container').then(c => {
-        if (c.parentElement) c.parentElement.style.direction = 'ltr';
-        Object.assign(c.style, { position: 'absolute', top: '0', left: '0', right: 'auto', margin: '0', width: '1123px', direction: 'rtl' });
-      }).toCanvas().toPdf().outputPdf('blob');
-  } finally { box.remove(); }
-}
-function idSaveBlob(blob, name) {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = name;
-  document.body.appendChild(a); a.click();
-  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
-}
-async function idPdf(rec, btn, sigs) {
-  if (btn) setBtnBusy(btn, true, 'جارِ التجهيز...');
-  try { idSaveBlob(await idPdfBlob(rec, sigs), idFileName(rec) + '.pdf'); toast('تم التحميل'); }
-  catch (e) { toast(e.message || 'تعذّر تحميل PDF', false); }
-  finally { if (btn) setBtnBusy(btn, false); }
-}
+  <!-- عرض نموذج -->
+  <div id="idModal" class="modal hidden" onclick="if (event.target === this) idCloseModal()">
+    <div class="modal-box" style="max-width:1140px">
+      <button class="btn light" style="margin-bottom:10px" onclick="idCloseModal()">إغلاق ✕</button>
+      <div id="idModalBody"></div>
+    </div>
+  </div>
 
-/* ---------- مشاركة (واتساب وغيره): مثل نظام المقاصف، تختارين جهة الإرسال بنفسك ---------- */
-async function idShare(rec, btn, sigs) {
-  // الضغطة الثانية بعد التجهيز: نفتح المشاركة مباشرة (بعض الأجهزة تشترط ضغطة جديدة)
-  if (btn && btn._file) { const f = btn._file; btn._file = null; btn.innerHTML = btn.dataset.t0 || 'مشاركة'; return idShareFile(f, rec); }
-  if (btn) setBtnBusy(btn, true, 'جارِ التجهيز...');
-  let file;
-  try {
-    const blob = await idPdfBlob(rec, sigs);
-    file = new File([blob], idFileName(rec) + '.pdf', { type: 'application/pdf' });
-  } catch (e) { toast(e.message || 'تعذّر تجهيز الملف', false); if (btn) setBtnBusy(btn, false); return; }
-  if (btn) setBtnBusy(btn, false);
-  try { await idShareFile(file, rec, true); }
-  catch (e) {
-    if (btn) { btn.dataset.t0 = btn.innerHTML; btn._file = file; btn.innerHTML = 'اضغطي للإرسال'; }
-    toast('الملف جاهز، اضغطي «اضغطي للإرسال»');
-  }
-}
-async function idShareFile(file, rec, rethrow) {
-  if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: ID_KINDS[rec.kind] }); return; }
-    catch (e) {
-      if (e && e.name === 'AbortError') return;   // ألغت المشاركة
-      if (rethrow && e && e.name === 'NotAllowedError') throw e;
-    }
-  }
-  idSaveBlob(file, file.name);
-  toast('المشاركة غير مدعومة في هذا المتصفح، تم تحميل الملف لإرساله يدوياً');
-}
+</div>
 
-/* ---------- إرسال التقرير للمديرة مباشرة (واتساب) — مثل نظام المقاصف ----------
-   يُحفظ ملف PDF في الجهاز، ثم يظهر زر يفتح محادثة المديرة برسالة جاهزة، وتُرفق الملف من 📎. */
-function idWaPhone(v) {
-  let d = String(v || '').replace(/[٠-٩]/g, c => '٠١٢٣٤٥٦٧٨٩'.indexOf(c)).replace(/\D/g, '');
-  if (d.indexOf('00966') === 0) d = d.slice(5);
-  else if (d.indexOf('966') === 0) d = d.slice(3);
-  if (d.indexOf('0') === 0) d = d.slice(1);
-  return /^5\d{8}$/.test(d) ? '966' + d : '';
-}
-function idPlainHDate(rec) {
-  const d = (rec && rec.data) || {};
-  return d.hd ? idDigits(d.hd) + ' / ' + idDigits(d.hm) + ' / ' + idDigits(d.hy) + 'هـ' : '';
-}
-async function idSendMgr(rec, btn, sigs) {
-  const d = rec.data || {};
-  let phone = idWaPhone(d.mgrPhone);
-  if (!phone) {
-    const v = prompt('لا يوجد جوال محفوظ لمديرة المركز في هذا التقرير. اكتبي جوالها (05xxxxxxxx):', '');
-    if (v === null) return;
-    phone = idWaPhone(v);
-    if (!phone) return toast('رقم الجوال غير صحيح', false);
-  }
-  if (btn) setBtnBusy(btn, true, 'جارِ التجهيز...');
-  try {
-    const name = idFileName(rec) + '.pdf';
-    idSaveBlob(await idPdfBlob(rec, sigs), name);
-    const msg = 'السلام عليكم ورحمة الله وبركاته\n' +
-      'سعادة ' + (rec.mgrName ? 'الأستاذة/ ' + rec.mgrName + ' — مديرة ' : 'مديرة ') + (/^مركز/.test(rec.center || '') ? '' : 'مركز ') + (rec.center || '') + ' المحترمة\n' +
-      'نرفق لكم تقرير زيارة المشرفة' + (d.vtype ? ' (' + d.vtype + ')' : '') + (idPlainHDate(rec) ? ' بتاريخ ' + idPlainHDate(rec) : '') + '.\n' +
-      'شاكرين لكم تعاونكم.\n' +
-      (rec.supName ? 'المشرفة: ' + rec.supName + '\n' : '') +
-      ID_UNIT + ' — جمعية فرقان';
-    const m = document.getElementById('idModal'), b = document.getElementById('idModalBody');
-    b.innerHTML = '<div class="id-send">' +
-      '<div>✅ حُفظ ملف التقرير <b>' + esc(name) + '</b> في جهازكِ.</div>' +
-      '<div>اضغطي الزر لفتح محادثة المديرة' + (rec.mgrName ? ' (' + esc(rec.mgrName) + ')' : '') + '، ثم أرفقي الملف من زر الإرفاق 📎 ← «مستند».</div>' +
-      '<a class="btn id-wa" target="_blank" rel="noopener" href="https://wa.me/' + phone + '?text=' + encodeURIComponent(msg) + '">💬 فتح محادثة المديرة في واتساب</a></div>';
-    m.classList.remove('hidden');
-  } catch (e) { toast(e.message || 'تعذّر تجهيز الملف', false); }
-  finally { if (btn) setBtnBusy(btn, false); }
-}
-
-/* ---------- عرض داخل الصفحة (نافذة) ---------- */
-async function idView(rec) {
-  const m = document.getElementById('idModal'), b = document.getElementById('idModalBody');
-  if (!m || !b) return;
-  b.innerHTML = '<p class="empty">جارِ التحميل...</p>';
-  m.classList.remove('hidden');
-  let sigs = {};
-  try { sigs = await idLoadSigs(rec); } catch (e) {}
-  b.innerHTML = '<div class="ex-bar"><button class="btn light" id="idVPrint">طباعة</button><button class="btn light" id="idVPdf">تحميل PDF</button><button class="btn light" id="idVShare">مشاركة (واتساب)</button>' +
-    (rec.kind === 'visit' && typeof idSendMgr === 'function' && document.getElementById('idariPage') ? '<button class="btn id-wa" id="idVSend">📲 إرسال للمديرة</button>' : '') + '</div>' +
-    '<style>' + ID_CSS + '</style><div class="id-scroll">' + idDocHtml(rec, sigs) + '</div>';
-  document.getElementById('idVPrint').onclick = e => idPrint(rec, e.currentTarget, sigs);
-  document.getElementById('idVPdf').onclick = e => idPdf(rec, e.currentTarget, sigs);
-  document.getElementById('idVShare').onclick = e => idShare(rec, e.currentTarget, sigs);
-  const sb = document.getElementById('idVSend');
-  if (sb) sb.onclick = e => idSendMgr(rec, e.currentTarget, sigs);
-}
-function idCloseModal() { const m = document.getElementById('idModal'); if (m) m.classList.add('hidden'); }
+<script src="logo-config.js"></script>
+<script src="config.js"></script>
+<script src="export.js"></script>
+<script src="idari-print.js"></script>
+<script src="idari.js"></script>
+</body>
+</html>
