@@ -92,7 +92,7 @@ const ID_CSS = `
 .idoc .idp *{font-weight:400}
 .idoc .idp-in{padding:22px 112px 26px}
 .idoc .idp-title{text-align:center;font-size:21px;color:#6f0c1e;margin:0 0 16px}
-.idoc .idp-title sup{font-size:11px}
+.idoc .idp .idc-meta,.idoc .idp .idc-meta *{font-family:'Tajawal','Segoe UI',Tahoma,Arial,sans-serif;font-weight:800;color:#222}
 .idoc .idp-meta{display:flex;gap:56px;align-items:center;font-size:18px;margin:0 8px 12px}
 .idoc .idp table{width:100%;border-collapse:collapse;font-size:17px;table-layout:fixed}
 .idoc .idp th{background:#fde9ed;color:#6f0c1e;font-size:21px;border:1px solid #000;padding:2px 10px;text-align:center}
@@ -174,12 +174,11 @@ function idDocHtml(rec, sigs, lhUrl) {
     let body = '';
     for (let i = 0; i < n; i++) { const r = rows[i] || {}; body += '<tr><td>' + idNl(r.sug) + '</td><td>' + idNl(r.dif) + '</td></tr>'; }
     const date = [esc(idDayName(rec)), idHDate(rec)].filter(Boolean).join(' ');
-    h = head + '<div class="idp"><div class="idp-in"><div class="idp-title">الاقتراحات والمرئيات – الصعوبات التي تواجه المشرفة الإدارية <sup>*</sup></div>' +
-      '<div class="idp-meta"><span>الفصل الدراسي/ ' + (esc(rec.sem) || '..........') + '</span><span>لعام ' + (rec.year ? idDigits(rec.year) + 'هـ' : '..........') + '</span>' +
-      '<span>الفترة / ' + idBox(per.indexOf('صباحي') > -1) + 'صباحي &nbsp; ' + idBox(per.indexOf('مسائي') > -1) + 'مسائي</span></div>' +
+    h = head + '<div class="idp"><div class="idp-in"><div class="idp-title">الاقتراحات والمرئيات – الصعوبات التي تواجه المشرفة الإدارية</div>' +
+      '<div class="idc-meta"><span><span>الفترة:</span>' + periodBoxes + '</span><span>' + yearSem + '</span></div>' +
       '<table><tr><th>الاقتراحات والمرئيات</th><th>الصعوبات التي تواجه المشرفة</th></tr>' + body + '</table>' +
       '<div class="idp-sig idc-avoid"><div>اسم المشرفة: ' + esc(rec.supName || '') + '</div><div>التوقيع: ' + (sigs.sup ? '<img src="' + sigs.sup + '" alt="">' : '') + '</div><div>التاريخ: ' + date + '</div></div>' +
-      '<div class="idp-note">* تُطالَب المشرفة بتسليمها آخر الفصل الدراسي.</div></div></div>';
+      '<div class="idp-note">تُطالَب المشرفة بتسليمها آخر الفصل الدراسي.</div></div></div>';
   } else {
     const rows = (d.rows || []).filter(r => r && (r.sug || r.dif));
     const n = Math.max(rows.length, 4);
