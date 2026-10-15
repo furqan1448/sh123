@@ -635,13 +635,18 @@ function seBuild(k, r) {
   if (per) per.addEventListener('change', e => { if (e.target.checked) per.querySelectorAll('input').forEach(i => { if (i !== e.target) i.checked = false; }); });
   // البنود
   const scored = !!form.grades, sc = d.sc || [], nt = d.nt || [];
-  let html = '', g = null;
+  // جدول مضغوط مثل ملف الإكسل: صف لكل بند، وخانتا الدرجة والملاحظة داخل الصف
+  const cols = scored ? 4 : 2;
+  // ترتيب الأعمدة مثل الإكسل: البند | الدرجة | المستحقة | ملاحظات
+  let html = '<table class="se-tbl"><colgroup><col>' + (scored ? '<col style="width:42px"><col style="width:58px">' : '') + '<col style="width:' + (scored ? '27%' : '38%') + '"></colgroup>' +
+    '<thead><tr><th>بنود التقييم</th>' + (scored ? '<th>الدرجة</th><th>المستحقة</th>' : '') + '<th>ملاحظات</th></tr></thead><tbody>', g = null;
   form.items.forEach((it, i) => {
-    if (it.g && it.g !== g) { g = it.g; html += '<div class="se-grp">' + esc(it.g) + '</div>'; }
-    html += '<div class="se-it" data-i="' + i + '"><div class="se-q">' + (it.g ? '' : arD(i + 1) + '. ') + esc(it.t) + '</div><div class="se-row">' +
-      (scored ? '<span class="ev-sc" style="display:contents"><input class="se-sc" inputmode="decimal" placeholder="الدرجة" value="' + esc(sc[i] || '') + '"></span><span class="se-max">من ' + sgeFmt(it.m) + '</span>' : '') +
-      '<input class="se-nt" placeholder="ملاحظات" value="' + esc(nt[i] || '') + '"></div></div>';
+    if (it.g && it.g !== g) { g = it.g; html += '<tr class="se-g"><td colspan="' + cols + '">' + esc(it.g) + '</td></tr>'; }
+    html += '<tr class="se-it" data-i="' + i + '"><td class="se-q">' + (it.g ? '' : '<b>' + arD(i + 1) + '.</b> ') + esc(it.t) + '</td>' +
+      (scored ? '<td class="se-max">' + sgeFmt(it.m) + '</td><td class="ev-sc"><input class="se-sc" inputmode="decimal" value="' + esc(sc[i] || '') + '"></td>' : '') +
+      '<td class="se-ntc"><textarea class="se-nt" rows="1" placeholder="—">' + esc(nt[i] || '') + '</textarea></td></tr>';
   });
+  html += '</tbody></table>';
   $('seItems').innerHTML = html;
   $('seOverallBox').classList.toggle('hidden', scored);
   $('seOverall').value = d.overall || '';
