@@ -4,6 +4,8 @@
 const SG_BG = 'letterhead.jpg';   // الكليشة الحمراء الموحّدة
 const SG_UNIT = 'وحدة تحفيظ الصغار';
 const SG_TITLE = 'تقرير زيارة مشرفة وحدة تحفيظ الصغار';
+const SGS_TITLE = 'خلاصة التقارير التعليمية – متابعة المشرفة للمعلمة';
+const sgTitleOf = rec => rec && rec.kind === 'sum' ? SGS_TITLE : SG_TITLE;
 
 // جلب التواقيع (تُستبدل في صفحة إدارة الوحدات بدخول المديرة)
 let sgSigFetch = items => api('getSigs', { items }).then(o => o.data || {});
@@ -22,12 +24,18 @@ const SG_CSS = ID_CSS + `
 .idoc.sg td.sg-rec{text-align:right;padding:10px 16px;font-weight:600;line-height:1.7;height:46px}
 .idoc.sg .idc-foot>div{font-size:18px;min-width:280px}
 .idoc.sg .idc-sig{max-height:66px;max-width:210px}
+.idoc.sg .sg-sub{text-align:center;font-weight:800;font-size:18px;line-height:1.9;margin:-8px 0 16px}
+.idoc.sg td.sg-l{text-align:right;padding:9px 12px;font-weight:600;line-height:1.6;height:44px}
+.idoc.sg .sg-sumfoot{display:flex;justify-content:flex-end;margin:26px 0 0}
+.idoc.sg .sg-sumfoot>div{min-width:330px;font-weight:800;font-size:18px;line-height:2.2}
+.idoc.sg .sg-sumfoot img{max-height:60px;max-width:200px;vertical-align:middle}
 `;
 
 const sgRecList = rec => String(rec.recs || '').split('\n').map(x => x.trim()).filter(Boolean);
 
 /* ---------- محتوى التقرير (نفس الشكل للعرض والطباعة والـ PDF) ---------- */
 function sgDocHtml(rec, sigs, lhUrl) {
+  if (rec && rec.kind === 'sum') return sgsDocHtml(rec, sigs, lhUrl);
   sigs = sigs || {};
   const d = rec.data || {};
   const per = String(rec.period || '');
@@ -50,6 +58,36 @@ function sgDocHtml(rec, sigs, lhUrl) {
   '</div></div>';
 }
 
+/* ---------- خلاصة التقارير التعليمية – متابعة المشرفة للمعلمة ---------- */
+const sgHTxt = o => o && o.y ? '<span class="idc-date"><bdi>' + idDigits(o.d) + '</bdi> / <bdi>' + idDigits(o.m) + '</bdi> / <bdi>' + idDigits(o.y) + 'هـ</bdi></span>' : '';
+function sgsDocHtml(rec, sigs, lhUrl) {
+  sigs = sigs || {};
+  const d = rec.data || {};
+  const per = String(rec.period || '');
+  const m = x => '<span class="idc-m">' + x + '</span>';
+  const head = '<img class="idc-lh" src="' + esc(lhUrl || SG_BG) + '" width="2000" height="351" alt="">';
+  const periodBoxes = '<span class="idc-per"><span>' + idBox(per.indexOf('صباحي') > -1) + 'صباحي</span><span>' + idBox(per.indexOf('مسائي') > -1) + 'مسائي</span></span>';
+  const rows = (d.rows || []).filter(r => r && (r.center || r.teacher || r.notes || r.att || r.score));
+  const n = Math.max(rows.length, 1);
+  let body = '';
+  for (let i = 0; i < n; i++) {
+    const r = rows[i] || {};
+    body += '<tr><td class="idc-n">' + idDigits(i + 1) + '</td><td class="sg-l">' + esc(r.center || '') + '</td><td class="sg-l">' + esc(r.teacher || '') +
+      '</td><td class="sg-l">' + idNl(r.notes || '') + '</td><td>' + esc(r.att || '') + '</td><td>' + m(esc(idDigits(r.score || ''))) + '</td></tr>';
+  }
+  const sub = [rec.sem ? 'الفصل الدراسي ' + esc(rec.sem) + (rec.year ? ' لعام ' + idDigits(rec.year) + 'هـ' : '') : (rec.year ? 'لعام ' + idDigits(rec.year) + 'هـ' : ''),
+    (d.from && d.from.y) || (d.to && d.to.y) ? 'خلال الفترة من ' + m(sgHTxt(d.from)) + ' إلى ' + m(sgHTxt(d.to)) : ''].filter(Boolean).join('<br>');
+  const date = d.hy ? sgHTxt({ d: d.hd, m: d.hm, y: d.hy }) : '';
+  return '<div class="idoc sg">' + head + '<div class="idc-body">' +
+    '<div class="idc-title">' + SGS_TITLE + '</div>' + (sub ? '<div class="sg-sub">' + sub + '</div>' : '') +
+    '<div class="idc-meta"><span>رقم الزيارة: ' + m(esc(idDigits(rec.visitNo)) || '—') + '</span><span>الفترة: ' + periodBoxes + '</span></div>' +
+    '<table><colgroup><col style="width:56px"><col style="width:17%"><col style="width:19%"><col><col style="width:14%"><col style="width:12%"></colgroup>' +
+    '<tr><th>م</th><th>اسم المركز</th><th>اسم المعلمة</th><th>الملاحظات التي تم رصدها</th><th>حضور مادة أم قرآن أم كليهما</th><th>مستوى أداء المعلمة بالدرجة</th></tr>' +
+    body + '</table>' +
+    '<div class="sg-sumfoot idc-avoid"><div>اسم المشرفة: ' + m(esc(rec.supName || '')) + '<br>التاريخ: ' + m(date) + '<br>التوقيع: ' + (sigs.sup ? '<img src="' + sigs.sup + '" alt="">' : '') + '</div></div>' +
+  '</div></div>';
+}
+
 // تواقيع التقرير المحفوظ (من ورقة «التواقيع»)
 async function sgLoadSigs(rec) {
   const has = (rec.data && rec.data.sigs) || {};
@@ -64,7 +102,7 @@ async function sgLoadSigs(rec) {
 const sgFileName = rec => {
   const d = rec.data || {};
   const dt = d.hd ? d.hd + '-' + d.hm + '-' + d.hy : (rec.date || '');
-  return (SG_TITLE + ' ' + (rec.teacher || '') + ' ' + dt).trim().replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, '_');
+  return (sgTitleOf(rec).replace(' – متابعة المشرفة للمعلمة', '') + ' ' + (rec.kind === 'sum' ? (rec.sem ? 'الفصل ' + rec.sem : '') : (rec.teacher || '')) + ' ' + dt).trim().replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, '_');
 };
 
 /* ---------- طباعة (ومنها «حفظ PDF» من نافذة الطباعة): A4 عرضية مثل تقرير المقاصف ---------- */

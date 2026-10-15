@@ -3,9 +3,9 @@ const DAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربع�
 const $ = id => document.getElementById(id);
 const VIEW_KEY = 'sgh_view', NAME_KEY = 'sgh_name';
 let LISTS = { centers: [], types: [], teachers: [], typesSgh: [] };
-let VISITS = [], SGH = [], sgEdit = null;
+let VISITS = [], SGH = [], sgEdit = null, SGS = [], ssEdit = null;
 
-const ALL_VIEWS = ['loginView', 'homeView', 'visitsView', 'sgListView', 'sgForm'];
+const ALL_VIEWS = ['loginView', 'homeView', 'visitsView', 'sgListView', 'sgForm', 'ssListView', 'ssForm'];
 
 function show(id) {
   ALL_VIEWS.forEach(v => $(v).classList.add('hidden'));
@@ -48,7 +48,7 @@ async function doLogin() {
 function logout() {
   [PW_KEY, USER_KEY, VIEW_KEY, NAME_KEY].forEach(k => localStorage.removeItem(k));
   cacheClear(); clearMySigLocal(); sigRefreshAll();
-  VISITS = []; SGH = [];
+  VISITS = []; SGH = []; SGS = [];
   $('un').value = ''; $('pw').value = '';
   show('loginView');
 }
@@ -313,11 +313,27 @@ function sgUpdateNo() {
     : 'لا توجد زيارات سابقة لهذه المعلمة في هذا المركز، فهذه الزيارة الأولى.') + (same ? ' تنبيه: يوجد تقرير آخر لها بنفس التاريخ.' : '');
 }
 
-// تنبيه إذا زادت التوصيات عن مساحة الصفحة الواحدة
-$('sgRecs').addEventListener('input', () => {
-  const v = $('sgRecs').value, lines = v.split('\n').reduce((n, l) => n + Math.max(1, Math.ceil(l.length / 85)), 0);
-  $('sgRecsHint').textContent = lines > SG_MIN_LINES + 4 ? 'التوصيات طويلة؛ سيُصغَّر التقرير قليلاً ليكفي صفحة واحدة.' : '';
-});
+/* ---------- التوصيات: كل توصية في سطر برقمها (مثل ملاحظات تقرير المقاصف) ---------- */
+function sgAddRec(v) {
+  const row = document.createElement('div');
+  row.className = 'id-note-row';
+  row.innerHTML = '<span class="num"></span><textarea rows="2" placeholder="اكتبي التوصية..."></textarea><button type="button" class="x" title="حذف">✕</button>';
+  row.querySelector('textarea').value = v || '';
+  row.querySelector('.x').onclick = () => {
+    if ($('sgRecRows').children.length < 2) { row.querySelector('textarea').value = ''; return; }
+    row.remove(); sgNumRecs();
+  };
+  $('sgRecRows').appendChild(row);
+  sgNumRecs();
+}
+function sgNumRecs() { [...$('sgRecRows').children].forEach((el, i) => { el.querySelector('.num').textContent = arD(i + 1); }); }
+function sgRecsSet(text) {
+  $('sgRecRows').innerHTML = '';
+  const L = String(text || '').split('\n').map(x => x.trim()).filter(Boolean);
+  (L.length ? L : ['', '']).forEach(sgAddRec);
+}
+// كل توصية سطر واحد (تُحفظ في عمود «توصيات عامة» مفصولة بأسطر)
+const sgRecsGet = () => [...$('sgRecRows').querySelectorAll('textarea')].map(t => t.value.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
 
 /* ---------- فتح تقرير جديد / تعديل ---------- */
 function sgFill(r) {
@@ -330,8 +346,7 @@ function sgFill(r) {
   hdSet('sg', edit ? r : null);
   $('sgVisitNo').value = r.visitNo || '';
   $('sgLesson').value = r.lesson || '';
-  $('sgRecs').value = r.recs || '';
-  $('sgRecsHint').textContent = '';
+  sgRecsSet(r.recs);
   $('sgSupName').value = edit ? (r.supName || '') : myName();
   $('sgVisitNoHint').textContent = '';
   sgNoTouched = false;
@@ -351,7 +366,7 @@ async function sgSave(btn) {
     id: sgEdit ? sgEdit.id : '',
     teacher: $('sgTeacher').value.trim(), center: $('sgCenter').value, period: periodGet('sgPeriod'),
     visitNo: $('sgVisitNo').value.trim().replace(/[٠-٩]/g, x => '٠١٢٣٤٥٦٧٨٩'.indexOf(x)),
-    date: hd.greg, lesson: $('sgLesson').value.trim(), recs: $('sgRecs').value.replace(/\s+$/, ''),
+    date: hd.greg, lesson: $('sgLesson').value.trim(), recs: sgRecsGet(),
     supName: $('sgSupName').value.trim(),
     data: { hd: hd.hd, hm: hd.hm, hy: hd.hy, dayName: hd.dayName }
   };
@@ -359,6 +374,7 @@ async function sgSave(btn) {
   if (!req.center) return toast('اختاري المركز', false);
   if (!req.period) return toast('اختاري الفترة (صباحي أو مسائي)', false);
   if (!req.lesson) return toast('اكتبي موضوع الدرس', false);
+  if (!req.recs) return toast('اكتبي توصية واحدة على الأقل', false);
   const oldHas = (sgEdit && sgEdit.data && sgEdit.data.sigs) || {};
   req.sigs = {};
   Object.keys(SGW).forEach(k => { const v = SGW[k].get(); req.sigs[k] = v || (sgEdit && oldHas[k] ? 'keep' : ''); });
@@ -380,6 +396,159 @@ async function sgSave(btn) {
   finally { setBtnBusy(btn, false); }
 }
 
+/* ======================= خلاصة التقارير التعليمية – متابعة المشرفة للمعلمة ======================= */
+const SS_ATT = ['قرآن', 'مادة', 'كليهما'];   // حضور مادة أم قرآن أم كليهما
+const ssSupW = makeSigWidget('ssSupW', { saved: true, none: true });
+hdBuild('ss');
+// خانات تاريخ هجري مختصرة (يوم / شهر / سنة) لـ «خلال الفترة من ... إلى ...»
+function hpBuild(id) {
+  let dd = '<option value="">اليوم</option>', mm = '<option value="">الشهر</option>';
+  for (let i = 1; i <= 30; i++) dd += '<option value="' + i + '">' + arD(i) + '</option>';
+  for (let i = 1; i <= 12; i++) mm += '<option value="' + i + '">' + arD(i) + '</option>';
+  $(id + 'Box').innerHTML = '<div class="hp-grid"><select id="' + id + 'D">' + dd + '</select><select id="' + id + 'M">' + mm + '</select><input id="' + id + 'Y" inputmode="numeric" maxlength="4" placeholder="السنة"></div>';
+}
+hpBuild('ssFrom'); hpBuild('ssTo');
+const hpGet = id => { const y = $(id + 'Y').value.trim().replace(/[٠-٩]/g, x => '٠١٢٣٤٥٦٧٨٩'.indexOf(x)); return y && $(id + 'D').value && $(id + 'M').value ? { d: $(id + 'D').value, m: $(id + 'M').value, y } : {}; };
+const hpSet = (id, o) => { o = o || {}; $(id + 'D').value = o.d || ''; $(id + 'M').value = o.m || ''; $(id + 'Y').value = o.y || ''; };
+const hpKey = o => o && o.y ? o.y + '-' + pad2(o.m) + '-' + pad2(o.d) : '';
+
+$('ssPeriod').addEventListener('change', e => {
+  if (e.target.checked) document.querySelectorAll('#ssPeriod input').forEach(i => { if (i !== e.target) i.checked = false; });
+});
+
+async function loadSgs(silent) {
+  if (!SGS.length) { const c = cacheGet('sgs'); if (c) SGS = c; }
+  renderSgs();
+  try {
+    const out = await api('getSgs');
+    SGS = out.data || []; cacheSet('sgs', SGS); renderSgs();
+  } catch (e) { if (!silent) toast(e.message, false); }
+}
+function ssOpenList() { show('ssListView'); loadSgs(); if (!SGH.length) loadSgh(true); }
+
+function renderSgs() {
+  if (!SGS.length) { $('ssBody').innerHTML = '<tr><td colspan="6" class="empty">لا توجد خلاصات محفوظة</td></tr>'; return; }
+  $('ssBody').innerHTML = SGS.map((r, i) => {
+    const id = esc(r.id), d = r.data || {};
+    const range = (d.from && d.from.y) || (d.to && d.to.y) ? sgHTxt(d.from) + ' — ' + sgHTxt(d.to) : '—';
+    return '<tr><td>' + (i + 1) + '</td><td>' + (esc([r.sem, r.year && arD(r.year) + 'هـ'].filter(Boolean).join(' / ')) || '—') + '</td><td>' + range + '</td><td>' +
+      (esc(arD(r.visitNo)) || '—') + '</td><td>' + ((d.rows || []).length) + '</td>' +
+      '<td><div class="act">' + sBtn('عرض', 'ssOpen(\'' + id + '\')') + sBtn('طباعة', 'ssDo(\'' + id + '\', this, \'print\')') +
+      sBtn('PDF', 'ssDo(\'' + id + '\', this, \'pdf\')') + sBtn('مشاركة', 'ssDo(\'' + id + '\', this, \'share\')') +
+      sBtn('تعديل', 'ssEditRec(\'' + id + '\')') + sBtn('حذف', 'ssDel(\'' + id + '\')', 'danger') + '</div></td></tr>';
+  }).join('');
+}
+const ssById = id => SGS.find(r => r.id === id);
+function ssOpen(id) { const r = ssById(id); if (r) sgView(r); }
+function ssDo(id, btn, what) { const r = ssById(id); if (!r) return; what === 'pdf' ? sgPdf(r, btn) : what === 'share' ? sgShare(r, btn) : sgPrint(r, btn); }
+async function ssDel(id) {
+  if (!confirm('هل تريدين حذف هذه الخلاصة؟')) return;
+  SGS = SGS.filter(r => r.id !== id);
+  cacheSet('sgs', SGS); renderSgs();
+  try { await api('deleteSgs', { id }); toast('تم الحذف'); }
+  catch (e) { toast(e.message, false); loadSgs(); }
+}
+
+/* ---------- بنود المعلمات ---------- */
+function ssRowHtml(r) {
+  r = r || {};
+  const opts = '<option value="">اختاري</option>' + SS_ATT.map(x => '<option' + (r.att === x ? ' selected' : '') + '>' + x + '</option>').join('');
+  const centers = '<option value="">اختاري المركز</option>' + (LISTS.centers || []).map(x => '<option' + (r.center === x ? ' selected' : '') + '>' + esc(x) + '</option>').join('') +
+    (r.center && (LISTS.centers || []).indexOf(r.center) < 0 ? '<option selected>' + esc(r.center) + '</option>' : '');
+  return '<div class="id-row"><div class="id-row-h"><b>معلمة</b><button type="button" class="btn danger" onclick="ssRowDel(this)">حذف</button></div>' +
+    '<div class="row2"><div><label>اسم المركز</label><select data-k="center">' + centers + '</select></div>' +
+    '<div><label>اسم المعلمة</label><input data-k="teacher" list="sgTeachers" autocomplete="off" value="' + esc(r.teacher) + '"></div></div>' +
+    '<label>الملاحظات التي تم رصدها</label><textarea data-k="notes" rows="2">' + esc(r.notes) + '</textarea>' +
+    '<div class="row2"><div><label>حضور مادة أم قرآن أم كليهما</label><select data-k="att">' + opts + '</select></div>' +
+    '<div><label>مستوى أداء المعلمة بالدرجة</label><input data-k="score" inputmode="decimal" value="' + esc(r.score) + '"></div></div></div>';
+}
+function ssNum() { [...$('ssRows').children].forEach((el, i) => { el.querySelector('.id-row-h b').textContent = 'المعلمة ' + arD(i + 1); }); }
+function ssAddRow(r) { $('ssRows').insertAdjacentHTML('beforeend', ssRowHtml(r)); ssNum(); }
+function ssRowDel(btn) {
+  const row = btn.closest('.id-row');
+  if ($('ssRows').children.length < 2) { row.querySelectorAll('input,textarea,select').forEach(x => x.value = ''); return; }
+  row.remove(); ssNum();
+}
+function ssRowsSet(rows) { $('ssRows').innerHTML = ''; (rows && rows.length ? rows : [{}]).forEach(ssAddRow); }
+const ssRowsGet = () => [...$('ssRows').children].map(el => {
+  const o = {}; el.querySelectorAll('[data-k]').forEach(x => { o[x.dataset.k] = x.value.trim(); });
+  o.score = (o.score || '').replace(/[٠-٩]/g, x => '٠١٢٣٤٥٦٧٨٩'.indexOf(x));
+  return o;
+}).filter(o => o.center || o.teacher || o.notes || o.att || o.score);
+
+// استيراد المعلمات من تقارير الزيارة المحفوظة خلال الفترة (المركز، المعلمة، والتوصيات كملاحظات)
+async function ssImport() {
+  const from = hpKey(hpGet('ssFrom')), to = hpKey(hpGet('ssTo'));
+  if (!from || !to) return toast('اختاري الفترة من وإلى أولاً', false);
+  if (!SGH.length) await loadSgh(true);
+  const per = periodGet('ssPeriod');
+  const L = SGH.filter(r => { const k = sgHKey(r); return k && k >= from && k <= to && (!per || String(r.period || '').indexOf(per) > -1); })
+    .sort((a, b) => sgHKey(a).localeCompare(sgHKey(b)));
+  if (!L.length) return toast('لا توجد تقارير زيارة محفوظة خلال هذه الفترة', false);
+  const cur = ssRowsGet();
+  const have = new Set(cur.map(r => sgNorm(r.teacher) + '|' + r.center));
+  const add = [];
+  L.forEach(r => {
+    const k = sgNorm(r.teacher) + '|' + r.center;
+    const notes = String(r.recs || '').split('\n').map(x => x.trim()).filter(Boolean).join('\n');
+    const ex = add.find(x => sgNorm(x.teacher) + '|' + x.center === k);
+    if (ex) { if (notes) ex.notes = [ex.notes, notes].filter(Boolean).join('\n'); return; }
+    if (have.has(k)) return;
+    add.push({ center: r.center, teacher: r.teacher, notes, att: '', score: '' });
+  });
+  if (!add.length) return toast('كل معلمات الفترة موجودات في الجدول');
+  ssRowsSet(cur.concat(add));
+  toast('تمت إضافة ' + add.length + ' معلمة، أكملي الحضور والدرجة');
+}
+
+/* ---------- فتح / تعديل / حفظ ---------- */
+function ssFill(r) {
+  r = r || {};
+  const d = r.data || {}, edit = !!r.id;
+  document.querySelectorAll('#ssForm [data-edit]').forEach(x => x.classList.toggle('hidden', !edit));
+  $('ssSem').value = r.sem || ''; $('ssYear').value = r.year || ((idHParts(new Date()) || {}).y || '');
+  hpSet('ssFrom', d.from); hpSet('ssTo', d.to);
+  $('ssVisitNo').value = r.visitNo || '';
+  periodSet('ssPeriod', r.period);
+  ssRowsSet(d.rows);
+  $('ssSupName').value = edit ? (r.supName || '') : myName();
+  hdSet('ss', edit ? r : null);
+  ssSupW.reset();
+  if (edit && d.sigs && d.sigs.sup) ssSupW.keepOld('الإبقاء على التوقيع السابق');
+}
+function ssNew() { ssEdit = null; ssFill(null); show('ssForm'); }
+function ssEditRec(id) { const r = ssById(id); if (!r) return; ssEdit = r; ssFill(r); show('ssForm'); }
+function ssBack() { ssEdit = null; show('ssListView'); renderSgs(); }
+
+async function ssSave(btn) {
+  const hd = hdGet('ss');
+  if (!/^\d{4}$/.test(hd.hy)) return toast('اكتبي سنة التاريخ الهجري (مثال: 1448)', false);
+  const req = {
+    id: ssEdit ? ssEdit.id : '', sem: $('ssSem').value, year: $('ssYear').value.trim(),
+    visitNo: $('ssVisitNo').value.trim().replace(/[٠-٩]/g, x => '٠١٢٣٤٥٦٧٨٩'.indexOf(x)), period: periodGet('ssPeriod'),
+    supName: $('ssSupName').value.trim(), date: hd.greg,
+    data: { rows: ssRowsGet(), from: hpGet('ssFrom'), to: hpGet('ssTo'), hd: hd.hd, hm: hd.hm, hy: hd.hy, dayName: hd.dayName }
+  };
+  if (!req.sem) return toast('اختاري الفصل الدراسي', false);
+  if (!req.data.rows.length) return toast('أضيفي معلمة واحدة على الأقل', false);
+  const v = ssSupW.get();
+  req.sigs = { sup: v || (ssEdit && ssEdit.data && ssEdit.data.sigs && ssEdit.data.sigs.sup ? 'keep' : '') };
+  setBtnBusy(btn, true);
+  try {
+    const res = await api('saveSgs', req);
+    ssSupW.commit();
+    toast(ssEdit ? 'تم حفظ التعديل' : 'تم حفظ الخلاصة');
+    const rec = { id: res.id, kind: 'sum', sem: req.sem, year: req.year, visitNo: req.visitNo, period: req.period, supName: req.supName,
+      date: req.date, at: ssEdit ? ssEdit.at : '', data: Object.assign({}, req.data, { sigs: res.sigs || {} }) };
+    SGS = SGS.filter(r => r.id !== rec.id); SGS.unshift(rec);
+    cacheSet('sgs', SGS);
+    ssEdit = null;
+    show('ssListView'); renderSgs();
+    loadSgs(true);
+  } catch (e) { toast(e.message, false); }
+  finally { setBtnBusy(btn, false); }
+}
+
 /* ---------- استعادة الجلسة ---------- */
 (function init() {
   loadLoginNames('users', 'un', { unit: SG_UNIT });
@@ -388,5 +557,6 @@ async function sgSave(btn) {
   preload();
   if (last === 'visitsView') { show('visitsView'); loadVisits(); }
   else if (last === 'sgListView' || last === 'sgForm') sgOpenList();
+  else if (last === 'ssListView' || last === 'ssForm') ssOpenList();
   else { show('homeView'); loadSgh(true); }
 })();

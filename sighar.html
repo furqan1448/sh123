@@ -13,8 +13,13 @@
 <link rel="preload" as="image" href="letterhead.jpg">
 <style>
   .id-hint{font-size:13px;color:var(--muted);margin-top:4px;min-height:1em}
-  #sgListView .act{flex-wrap:wrap;justify-content:center}
-  .sg-scroll{padding:10px}
+  #sgListView .act,#ssListView .act{flex-wrap:wrap;justify-content:center}
+  .hp-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 10px}
+  .hp-grid select,.hp-grid input{margin-top:0}
+  .id-note-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px}
+  .id-note-row .num{font-weight:800;color:var(--primary);min-width:22px;text-align:center;margin-top:10px}
+  .id-note-row textarea{flex:1;margin:0;resize:vertical}
+  .id-note-row .x{flex:none;width:auto;padding:6px 10px;margin-top:4px;background:transparent;border:1px solid #ddd;border-radius:8px;color:#888;cursor:pointer}
 </style>
 </head>
 <body id="sigharPage">
@@ -45,6 +50,7 @@
     <div class="grid">
       <button class="tile" onclick="show('visitsView'); loadVisits()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4"/><path d="M10 13l2 2 3.5-4"/><path d="M10 18h5"/></svg><b>كشف الخروج</b></button>
       <button class="tile" onclick="sgOpenList()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M8.5 8h7"/><path d="M8.5 11.5h7"/><path d="M8.5 15h4"/><path d="M14.5 17.5l1.3 1.3 2.7-2.8"/></svg><b>تقرير زيارة مشرفة تحفيظ صغار</b></button>
+      <button class="tile" onclick="ssOpenList()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M3.5 9h17"/><path d="M3.5 14.5h17"/><path d="M9 9v11"/><path d="M15 9v11"/></svg><b>خلاصة التقارير التعليمية</b></button>
     </div>
     <p style="text-align:center;margin-top:22px"><button class="btn light" onclick="logout()">تسجيل الخروج</button></p>
   </div>
@@ -140,9 +146,10 @@
     </div>
 
     <div class="card">
-      <h2>توصيات عامة</h2>
-      <textarea id="sgRecs" rows="9" placeholder="اكتبي التوصيات، وكل توصية في سطر..."></textarea>
-      <div class="id-hint" id="sgRecsHint"></div>
+      <h2>التوصيات العامة</h2>
+      <p class="rp-hint" style="margin-top:0">كل توصية في سطر برقمها، كما تظهر في جدول التقرير.</p>
+      <div id="sgRecRows"></div>
+      <button type="button" class="btn light block" onclick="sgAddRec()">＋ إضافة توصية</button>
     </div>
 
     <div class="card">
@@ -153,6 +160,62 @@
       <label>توقيع المشرفة</label>
       <div id="sgSupW"></div>
       <button id="sgSaveBtn" class="btn block" onclick="sgSave(this)">حفظ التقرير</button>
+    </div>
+  </div>
+
+  <!-- سجل خلاصة التقارير التعليمية -->
+  <div id="ssListView" class="hidden">
+    <button class="back" onclick="show('homeView')">← رجوع</button>
+    <div class="card">
+      <h2>خلاصة التقارير التعليمية – متابعة المشرفة للمعلمة</h2>
+      <p class="rp-hint">خلاصة زيارات المعلمات خلال فترة محددة: المركز، والمعلمة، والملاحظات، والحضور، ومستوى الأداء بالدرجة.</p>
+      <button class="btn block" onclick="ssNew()">＋ خلاصة جديدة</button>
+    </div>
+    <div class="card">
+      <h2>الخلاصات المحفوظة</h2>
+      <div class="tbl-wrap">
+        <table style="min-width:640px">
+          <thead><tr><th>م</th><th>الفصل الدراسي</th><th>خلال الفترة</th><th>رقم الزيارة</th><th>عدد المعلمات</th><th></th></tr></thead>
+          <tbody id="ssBody"><tr><td colspan="6" class="empty">جارِ التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- نموذج خلاصة التقارير التعليمية -->
+  <div id="ssForm" class="hidden">
+    <button class="back" onclick="ssBack()">← رجوع</button>
+    <div class="edit-note hidden" data-edit>وضع التعديل: يُحفظ التعديل على نفس الخلاصة.</div>
+    <div class="card">
+      <h2>خلاصة التقارير التعليمية – متابعة المشرفة للمعلمة</h2>
+      <div class="row2">
+        <div><label for="ssSem">الفصل الدراسي</label><select id="ssSem"><option value="">اختاري</option><option>الأول</option><option>الثاني</option><option>الثالث</option></select></div>
+        <div><label for="ssYear">لعام</label><input id="ssYear" inputmode="numeric" maxlength="4" placeholder="1447"></div>
+      </div>
+      <label>خلال الفترة من</label><div id="ssFromBox"></div>
+      <label>إلى</label><div id="ssToBox"></div>
+      <div class="row2">
+        <div><label for="ssVisitNo">رقم الزيارة</label><input id="ssVisitNo" inputmode="numeric"></div>
+        <div><label>الفترة</label>
+          <div class="chips" id="ssPeriod"><label class="chip"><input type="checkbox" value="صباحي"><span>صباحي</span></label><label class="chip"><input type="checkbox" value="مسائي"><span>مسائي</span></label></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>المعلمات</h2>
+      <p class="rp-hint" style="margin-top:0">كل معلمة في بند مستقل، ويظهر كل بند صفاً في جدول الخلاصة.</p>
+      <button type="button" class="btn light block" style="margin-bottom:12px" onclick="ssImport()">استيراد من تقارير الزيارة خلال الفترة</button>
+      <div id="ssRows"></div>
+      <button type="button" class="btn light block" onclick="ssAddRow()">＋ إضافة معلمة</button>
+    </div>
+
+    <div class="card">
+      <label for="ssSupName" style="margin-top:0">اسم المشرفة</label><input id="ssSupName">
+      <div id="ssDateBox"></div>
+      <label>توقيع المشرفة</label>
+      <div id="ssSupW"></div>
+      <button id="ssSaveBtn" class="btn block" onclick="ssSave(this)">حفظ الخلاصة</button>
     </div>
   </div>
 

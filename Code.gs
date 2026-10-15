@@ -17,7 +17,8 @@ const SHEET = {
   DRAFTS: 'المسودات',   // مسودات الاستمارات لكل مشرفة (تظهر من أي جهاز)، تُنشأ تلقائياً
   SIGS: 'التواقيع',   // نسخة مصغّرة من كل توقيع (للإكسل) + توقيع المشرفة المحفوظ، تُنشأ تلقائياً
   IDARI: 'نماذج الإشراف الإداري',   // نماذج وحدة الإشراف الإداري (تقرير الزيارة، برنامج مشرفة مقيمة، الاقتراحات والصعوبات)، تُنشأ تلقائياً
-  SGH: 'تقارير تحفيظ الصغار'   // تقارير زيارة مشرفات وحدة تحفيظ الصغار، تُنشأ تلقائياً
+  SGH: 'تقارير تحفيظ الصغار',   // تقارير زيارة مشرفات وحدة تحفيظ الصغار، تُنشأ تلقائياً
+  SGS: 'خلاصة التقارير التعليمية'   // خلاصة التقارير التعليمية – متابعة المشرفة للمعلمة (تحفيظ الصغار)، تُنشأ تلقائياً
 };
 
 const DEFAULT_UNIT = 'وحدة الإشراف التربوي';
@@ -114,6 +115,7 @@ function setup() {
 
   idariSheet_(); // نماذج الإشراف الإداري
   sghSheet_();   // تقارير تحفيظ الصغار
+  sgsSheet_();   // خلاصة التقارير التعليمية
   folder_(); // ينشئ مجلد الدرايف
   Logger.log('تم الإعداد بنجاح');
 }
@@ -204,6 +206,9 @@ function route_(r) {
     case 'getSgh': return { ok: true, data: getSghFor_(r.username) };
     case 'saveSgh': return withLock_(() => saveSgh_(r));
     case 'deleteSgh': return withLock_(() => deleteSgh_(r));
+    case 'getSgs': return { ok: true, data: getSgsFor_(r.username) };
+    case 'saveSgs': return withLock_(() => saveSgs_(r));
+    case 'deleteSgs': return withLock_(() => deleteSgs_(r));
     default: throw new Error('إجراء غير معروف');
   }
 }
@@ -790,7 +795,7 @@ function getManage_(me) {
   const files = getFiles_().filter(f => inScope(f.unit)).map(f => ({
     id: f.id, owner: f.owner, unit: U(f.unit), title: f.title, name: f.name, url: f.url, at: f.at }));
   const idari = getIdari_().filter(x => inScope(x.unit)).map(x => Object.assign({}, x, { unit: U(x.unit) }));
-  const sgh = getSgh_().filter(x => inScope(x.unit)).map(x => Object.assign({}, x, { unit: U(x.unit) }));
+  const sgh = getSgh_().concat(getSgs_()).filter(x => inScope(x.unit)).map(x => Object.assign({}, x, { unit: U(x.unit) }));
 
   const seen = {};
   users.concat(visits, evals, files, idari, sgh).forEach(x => { seen[x.unit] = 1; });
@@ -1069,6 +1074,109 @@ function deleteSgh_(r) {
       if (String(rows[i][13]) !== me.username) throw new Error('لا يمكن حذف تقرير سجّلته مشرفة أخرى');
       sh.deleteRow(i + 2);
       SGH_SIGS.forEach(k => sigDel_(id + '|' + k));
+      return { ok: true };
+    }
+  }
+  throw new Error('السجل غير موجود');
+}
+
+
+/* ============ وحدة تحفيظ الصغار: خلاصة التقارير التعليمية – متابعة المشرفة للمعلمة ============
+   ورقة «خلاصة التقارير التعليمية» تُنشأ تلقائياً. صفوف الجدول (المركز، المعلمة، الملاحظات، الحضور، الدرجة) في عمود «البيانات».
+   توقيع المشرفة في ورقة «التواقيع» بالمعرّف: الرقم|sup */
+const SGS_HEADERS = ['الرقم', 'الفصل الدراسي', 'العام', 'الفترة من', 'الفترة إلى', 'رقم الزيارة', 'الفترة', 'اسم المشرفة',
+  'التاريخ', 'عدد المعلمات', 'البيانات', 'وقت التسجيل', 'المسجِّلة', 'الوحدة'];
+
+function sgsSheet_() {
+  const ss = ss_();
+  let sh = ss.getSheetByName(SHEET.SGS);
+  if (!sh) {
+    sh = ss.insertSheet(SHEET.SGS);
+    sh.getRange(1, 1, 1, SGS_HEADERS.length).setValues([SGS_HEADERS]);
+    styleHeader_(sh, SGS_HEADERS.length);
+    sh.setColumnWidths(1, SGS_HEADERS.length, 140);
+    sh.setColumnWidth(11, 380);
+  }
+  return sh;
+}
+
+function getSgs_() {
+  const sh = ss_().getSheetByName(SHEET.SGS);
+  if (!sh || sh.getLastRow() < 2) return [];
+  const rows = sh.getRange(2, 1, sh.getLastRow() - 1, SGS_HEADERS.length).getDisplayValues();
+  return rows.filter(r => r[0]).map(r => {
+    let data = {};
+    try { data = JSON.parse(r[10] || '{}'); } catch (e) {}
+    return { id: r[0], kind: 'sum', sem: r[1], year: r[2], from: r[3], to: r[4], visitNo: r[5], period: r[6], supName: r[7],
+      hijri: r[8], count: r[9], data: data, at: r[11], owner: r[12] || '', unit: r[13] || '',
+      date: data.greg || '' };
+  }).reverse();
+}
+function getSgsFor_(username) {
+  const u = norm_(username).toLowerCase();
+  return getSgs_().filter(x => x.owner === u);
+}
+
+function saveSgs_(r) {
+  const s = (v, n) => String(v == null ? '' : v).trim().slice(0, n || 300);
+  const me = profileOf_(r.username);
+  if (me.unit !== SGH_UNIT) throw new Error('هذا الحساب ليس من ' + SGH_UNIT);
+  const d = r.data && typeof r.data === 'object' ? r.data : {};
+  const rows = (Array.isArray(d.rows) ? d.rows : []).slice(0, 60).map(x => ({
+    center: s(x && x.center, 200), teacher: s(x && x.teacher, 200), notes: s(x && x.notes, 1500), att: s(x && x.att, 40), score: s(x && x.score, 20)
+  })).filter(x => x.center || x.teacher || x.notes || x.att || x.score);
+  if (!rows.length) throw new Error('أضيفي معلمة واحدة على الأقل في الجدول');
+  const hp = o => (o && typeof o === 'object') ? { d: s(o.d, 2), m: s(o.m, 2), y: s(o.y, 4) } : {};
+  const data = { rows: rows, from: hp(d.from), to: hp(d.to), hd: s(d.hd, 2), hm: s(d.hm, 2), hy: s(d.hy, 4), dayName: s(d.dayName, 10), greg: s(r.date, 10) };
+  const hTxt = o => o && o.y ? o.d + '/' + o.m + '/' + o.y + 'هـ' : '';
+  const json = JSON.stringify(data);
+  if (json.length > 45000) throw new Error('الخلاصة طويلة جداً، اختصري الملاحظات');
+  const sigs = r.sigs && typeof r.sigs === 'object' ? r.sigs : {};
+
+  const sh = sgsSheet_();
+  let id = s(r.id, 60), row = 0, old = null;
+  if (id) {
+    const last = sh.getLastRow();
+    if (last > 1) {
+      const ids = sh.getRange(2, 1, last - 1, 1).getValues();
+      for (let i = 0; i < ids.length; i++) if (String(ids[i][0]) === id) { row = i + 2; break; }
+    }
+    if (!row) throw new Error('السجل غير موجود');
+    old = sh.getRange(row, 1, 1, SGS_HEADERS.length).getDisplayValues()[0];
+    if (String(old[12]) !== me.username) throw new Error('لا يمكن تعديل خلاصة سجّلتها مشرفة أخرى');
+  } else {
+    id = Utilities.getUuid();
+    row = sh.getLastRow() + 1;
+  }
+  let oldData = {};
+  if (old) { try { oldData = JSON.parse(old[10] || '{}'); } catch (e) {} }
+  const has = {};
+  const v = String(sigs.sup || '');
+  if (v === 'keep') { if (oldData.sigs && oldData.sigs.sup) has.sup = '1'; }
+  else if (v.indexOf('data:image/') === 0) { sigPut_(id + '|sup', v); has.sup = '1'; }
+  else if (old) sigDel_(id + '|sup');
+  data.sigs = has;
+
+  const vals = [[id, s(r.sem, 20), s(r.year, 4), hTxt(data.from), hTxt(data.to), s(r.visitNo, 10), s(r.period, 20), s(r.supName),
+    hTxt({ d: data.hd, m: data.hm, y: data.hy }), String(rows.length), JSON.stringify(data),
+    old ? String(old[11] || nowStr_()) : nowStr_(), me.username, me.unit]];
+  sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
+  return { ok: true, id: id, sigs: has };
+}
+
+function deleteSgs_(r) {
+  const id = String(r.id || '');
+  const sh = ss_().getSheetByName(SHEET.SGS);
+  if (!sh || !id) throw new Error('السجل غير موجود');
+  const me = profileOf_(r.username);
+  const last = sh.getLastRow();
+  if (last > 1) {
+    const rows = sh.getRange(2, 1, last - 1, 13).getValues();
+    for (let i = 0; i < rows.length; i++) {
+      if (String(rows[i][0]) !== id) continue;
+      if (String(rows[i][12]) !== me.username) throw new Error('لا يمكن حذف خلاصة سجّلتها مشرفة أخرى');
+      sh.deleteRow(i + 2);
+      sigDel_(id + '|sup');
       return { ok: true };
     }
   }
