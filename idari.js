@@ -21,7 +21,7 @@ function show(id) {
 function wrongUnit(p) {
   if (!p || p.unit === ID_UNIT) return false;
   toast('هذا الحساب من ' + (p.unit || 'وحدة أخرى') + '، جارِ التحويل لصفحتها');
-  setTimeout(() => { location.href = 'mushrifat.html'; }, 1200);
+  setTimeout(() => { location.href = p.unit === 'وحدة تحفيظ الصغار' ? 'sighar.html' : 'mushrifat.html'; }, 1200);
   return true;
 }
 async function doLogin() {

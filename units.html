@@ -76,6 +76,7 @@
         <button data-t="evals" onclick="mgTabSet('evals')">الاستمارات</button>
         <button data-t="files" onclick="mgTabSet('files')">المرفقات</button>
         <button data-t="idari" onclick="mgTabSet('idari')">نماذج الإشراف الإداري</button>
+        <button data-t="sgh" onclick="mgTabSet('sgh')">تقارير تحفيظ الصغار</button>
       </div>
       <div class="ex-bar" id="mgBar"></div>
       <div class="tbl-wrap">
@@ -103,6 +104,13 @@
   </div>
 </div>
 
+<div id="sgModal" class="modal hidden" onclick="if (event.target === this) sgCloseModal()">
+  <div class="modal-box" style="max-width:860px">
+    <button class="btn light" style="margin-bottom:10px" onclick="sgCloseModal()">إغلاق ✕</button>
+    <div id="sgModalBody"></div>
+  </div>
+</div>
+
 <script src="logo-config.js"></script>
 <script src="config.js"></script>
 <script src="evals.js"></script>
@@ -111,6 +119,7 @@
 <script src="final.js"></script>
 <script src="export.js"></script>
 <script src="idari-print.js"></script>
+<script src="sighar-print.js"></script>
 <script src="manage.js"></script>
 </body>
 </html>

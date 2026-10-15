@@ -615,11 +615,13 @@
 <script>
 const DAYS = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 const IDARI_UNIT = 'وحدة الإشراف الإداري';
-// حساب من وحدة الإشراف الإداري: نحوّله لصفحته (الدخول يبقى محفوظاً)
+const SGH_UNIT = 'وحدة تحفيظ الصغار';
+// حساب من وحدة الإشراف الإداري أو وحدة تحفيظ الصغار: نحوّله لصفحة وحدته (الدخول يبقى محفوظاً)
 function goIdari(p) {
-  if (!p || p.unit !== IDARI_UNIT) return false;
-  toast('هذا الحساب من ' + IDARI_UNIT + '، جارِ التحويل لصفحتها');
-  setTimeout(() => { location.href = 'idari.html'; }, 1200);
+  const page = p && (p.unit === IDARI_UNIT ? 'idari.html' : p.unit === SGH_UNIT ? 'sighar.html' : '');
+  if (!page) return false;
+  toast('هذا الحساب من ' + p.unit + '، جارِ التحويل لصفحتها');
+  setTimeout(() => { location.href = page; }, 1200);
   return true;
 }
 let LISTS = { centers: [], types: [], teachers: [] };
@@ -935,7 +937,7 @@ async function delFile(id) {
 
 /* ---------- استعادة الجلسة (البقاء داخل الموقع عند التحديث) ---------- */
 (function init() {
-  loadLoginNames('users', 'un', { exclude: IDARI_UNIT });
+  loadLoginNames('users', 'un', { exclude: IDARI_UNIT + '|' + SGH_UNIT });
   if (!getPw() || !getUser()) return;
   // نعرض آخر صفحة فوراً دون انتظار الخادم
   const last = localStorage.getItem('mush_view');

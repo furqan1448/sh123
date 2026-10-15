@@ -97,6 +97,12 @@ const mgIdari = () => (MG && MG.idari) || [];
 function mgIdOpen(id) { const r = mgIdari().find(x => x.id === id); if (r) idView(r); }
 function mgIdDo(id, btn, what) { const r = mgIdari().find(x => x.id === id); if (!r) return; what === 'pdf' ? idPdf(r, btn) : what === 'share' ? idShare(r, btn) : idPrint(r, btn); }
 
+// تقارير وحدة تحفيظ الصغار (sighar-print.js): التواقيع بدخول مديرة الوحدة
+sgSigFetch = items => mgApi('getSigs', { items, mgr: true }).then(o => o.data || {});
+const mgSgh = () => (MG && MG.sgh) || [];
+function mgSgOpen(id) { const r = mgSgh().find(x => x.id === id); if (r) sgView(r); }
+function mgSgDo(id, btn, what) { const r = mgSgh().find(x => x.id === id); if (!r) return; what === 'pdf' ? sgPdf(r, btn) : what === 'share' ? sgShare(r, btn) : sgPrint(r, btn); }
+
 const MG_FT = { single: 'بدون تعدد', multi: 'تعدد المجموعات', tabyan: 'التبيان', tj_multi: 'التجويد - تعدد المجموعات', tj_single: 'التجويد - بدون تعدد',
   f_multi: 'القرآن النهائي - تعدد المجموعات', f_single: 'القرآن النهائي - بدون تعدد', f_tabyan: 'التبيان النهائي', f_tj_single: 'التجويد النهائي - بدون تعدد', f_tj_multi: 'التجويد النهائي - تعدد المجموعات' };
 const mgFinalLbl = r => (String(r.formType).indexOf('f_') === 0 ? 'نهائي' : 'أسبوعي');
@@ -170,9 +176,10 @@ function mgRender() {
   const es = MG.evals.filter(x => x.unit === unit && inR(x.date));
   const fs = MG.files.filter(x => x.unit === unit && inR(x.at));
   const ids = mgIdari().filter(x => x.unit === unit && inR(x.date || x.at));
+  const sgs = mgSgh().filter(x => x.unit === unit && inR(x.date || x.at));
 
   const rows = users.map(u => ({ key: u.username, name: u.name }));
-  if (vs.concat(es, fs, ids).some(x => okey(x) === '')) rows.push({ key: '', name: MG_NONE });
+  if (vs.concat(es, fs, ids, sgs).some(x => okey(x) === '')) rows.push({ key: '', name: MG_NONE });
 
   // قائمة تصفية المشرفة (نحافظ على الاختيار الحالي)
   const supSel = document.getElementById('mgSup');
@@ -189,12 +196,12 @@ function mgRender() {
   document.getElementById('mgStats').innerHTML =
     '<div class="stat"><b>' + users.length + '</b><span>المشرفات</span></div>' +
     '<div class="stat"><b>' + vs.length + '</b><span>الزيارات</span></div>' +
-    '<div class="stat"><b>' + (es.length + ids.length) + '</b><span>' + (ids.length && !es.length ? 'النماذج' : ids.length ? 'الاستمارات والنماذج' : 'الاستمارات') + '</span></div>' +
+    '<div class="stat"><b>' + (es.length + ids.length + sgs.length) + '</b><span>' + ((ids.length || sgs.length) && !es.length ? (sgs.length && !ids.length ? 'تقارير الزيارة' : 'النماذج') : (ids.length || sgs.length) ? 'الاستمارات والنماذج' : 'الاستمارات') + '</span></div>' +
     '<div class="stat"><b>' + fs.length + '</b><span>المرفقات</span></div>';
 
   // جدول المشرفات
   document.getElementById('mgSum').innerHTML = rows.length ? rows.map(r => {
-    const v = vs.filter(x => okey(x) === r.key), e = es.filter(x => okey(x) === r.key).concat(ids.filter(x => okey(x) === r.key)), f = fs.filter(x => okey(x) === r.key);
+    const v = vs.filter(x => okey(x) === r.key), e = es.filter(x => okey(x) === r.key).concat(ids.filter(x => okey(x) === r.key), sgs.filter(x => okey(x) === r.key)), f = fs.filter(x => okey(x) === r.key);
     const pres = v.filter(x => x.counted).length, abs = v.length - pres;
     const last = v.concat(e, f).map(x => x.at || x.date || '').sort().pop() || '—';
     return '<tr class="mg-row" data-k="' + esc(r.key) + '" onclick="mgPick(this.dataset.k)"><td><b>' + esc(r.name) + '</b></td><td>' + pres +
@@ -225,6 +232,13 @@ function mgRender() {
     body = L.slice(0, MG_LIMIT).map(x => '<tr><td>' + who(x) + '</td><td>' + esc(ID_KINDS[x.kind] || '') + '</td><td>' + esc(x.center || [x.sem, x.year].filter(Boolean).join(' ') || '—') +
       '</td><td>' + esc(idDayName(x)) + ' ' + idHDate(x) + '</td><td style="white-space:nowrap">' + b('عرض', 'mgIdOpen(\'' + esc(x.id) + '\')') +
       b('طباعة', 'mgIdDo(\'' + esc(x.id) + '\', this, \'print\')') + b('PDF', 'mgIdDo(\'' + esc(x.id) + '\', this, \'pdf\')') + b('مشاركة', 'mgIdDo(\'' + esc(x.id) + '\', this, \'share\')') + '</td></tr>').join('');
+  } else if (mgTab === 'sgh') {
+    const L = sgs.filter(mine); n = L.length;
+    const b = (t, fn) => '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="' + fn + '">' + t + '</button> ';
+    head = '<tr><th>المشرفة</th><th>المعلمة</th><th>المركز</th><th>الفترة</th><th>موضوع الدرس</th><th>التاريخ</th><th>رقم الزيارة</th><th></th></tr>';
+    body = L.slice(0, MG_LIMIT).map(x => '<tr><td>' + who(x) + '</td><td>' + esc(x.teacher) + '</td><td>' + esc(x.center) + '</td><td>' + esc(x.period) + '</td><td>' + esc(x.lesson) +
+      '</td><td>' + esc((x.data && x.data.dayName) || x.day) + ' ' + idHDate(x) + '</td><td>' + esc(idDigits(x.visitNo)) + '</td><td style="white-space:nowrap">' + b('عرض', 'mgSgOpen(\'' + esc(x.id) + '\')') +
+      b('طباعة', 'mgSgDo(\'' + esc(x.id) + '\', this, \'print\')') + b('PDF', 'mgSgDo(\'' + esc(x.id) + '\', this, \'pdf\')') + b('مشاركة', 'mgSgDo(\'' + esc(x.id) + '\', this, \'share\')') + '</td></tr>').join('');
   } else {
     const L = fs.filter(mine); n = L.length;
     head = '<tr><th>المشرفة</th><th>العنوان</th><th>الملف</th><th>وقت الرفع</th></tr>';

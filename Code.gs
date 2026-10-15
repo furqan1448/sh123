@@ -16,10 +16,12 @@ const SHEET = {
   EVALS: 'استمارات التقييم',
   DRAFTS: 'المسودات',   // مسودات الاستمارات لكل مشرفة (تظهر من أي جهاز)، تُنشأ تلقائياً
   SIGS: 'التواقيع',   // نسخة مصغّرة من كل توقيع (للإكسل) + توقيع المشرفة المحفوظ، تُنشأ تلقائياً
-  IDARI: 'نماذج الإشراف الإداري'   // نماذج وحدة الإشراف الإداري (تقرير الزيارة، برنامج مشرفة مقيمة، الاقتراحات والصعوبات)، تُنشأ تلقائياً
+  IDARI: 'نماذج الإشراف الإداري',   // نماذج وحدة الإشراف الإداري (تقرير الزيارة، برنامج مشرفة مقيمة، الاقتراحات والصعوبات)، تُنشأ تلقائياً
+  SGH: 'تقارير تحفيظ الصغار'   // تقارير زيارة مشرفات وحدة تحفيظ الصغار، تُنشأ تلقائياً
 };
 
 const DEFAULT_UNIT = 'وحدة الإشراف التربوي';
+const SGH_UNIT = 'وحدة تحفيظ الصغار';   // تُكتب بهذا النص في عمود «الوحدة» لمشرفات تحفيظ الصغار ومديرة وحدتهن
 const IDARI_UNIT = 'وحدة الإشراف الإداري';   // تُكتب بهذا النص في عمود «الوحدة» لمشرفات الإشراف الإداري ومديرة وحدتهن   // وحدة السجلات القديمة والمستخدمات اللاتي لم تُكتب لهن وحدة
 const ALL_UNITS = 'الكل';   // إذا كتبتِ «الكل» في وحدة مديرة الوحدات ترى كل الوحدات
 const OWNER_HEADERS = ['المسجِّلة', 'الوحدة'];
@@ -39,6 +41,7 @@ const EVAL_URL_COL = 21; // عمود التوقيع (رابط ملف في الد
 const DAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 const DRIVE_FOLDER_NAME = 'منظومة مشرفات - الملفات';
 const LINK_MARK = 'رابط';
+const LISTS_SGH_TYPES = 'أنواع الزيارة (تحفيظ الصغار)';   // العمود E في «القوائم»: إن تُرك فارغاً تُستخدم «أنواع الزيارة» العامة
 const LISTS_IDARI_TYPES = 'أنواع الزيارة (الإشراف الإداري)';   // العمود D في «القوائم»: إن تُرك فارغاً تُستخدم «أنواع الزيارة» العامة // يُكتب في عمود «اسم الملف» للمرفقات من نوع رابط (لا يوجد ملف في الدرايف ليُحذف)
 
 /* ============ الإعداد الأولي (شغّليه مرة واحدة) ============ */
@@ -76,8 +79,9 @@ function setup() {
   }
   if (!ls.getRange(1, 3).getValue()) ls.getRange(1, 3).setValue('أسماء المعلمات');
   if (!ls.getRange(1, 4).getValue()) ls.getRange(1, 4).setValue(LISTS_IDARI_TYPES);
-  styleHeader_(ls, 4);
-  ls.setColumnWidth(1, 220); ls.setColumnWidth(2, 220); ls.setColumnWidth(3, 220); ls.setColumnWidth(4, 260);
+  if (!ls.getRange(1, 5).getValue()) ls.getRange(1, 5).setValue(LISTS_SGH_TYPES);
+  styleHeader_(ls, 5);
+  ls.setColumnWidth(1, 220); ls.setColumnWidth(2, 220); ls.setColumnWidth(3, 220); ls.setColumnWidth(4, 260); ls.setColumnWidth(5, 260);
 
   // كشف الخروج
   const vs = getOrCreate_(ss, SHEET.VISITS);
@@ -109,6 +113,7 @@ function setup() {
   es.setColumnWidths(1, EVAL_HEADERS.length, 140);
 
   idariSheet_(); // نماذج الإشراف الإداري
+  sghSheet_();   // تقارير تحفيظ الصغار
   folder_(); // ينشئ مجلد الدرايف
   Logger.log('تم الإعداد بنجاح');
 }
@@ -196,6 +201,9 @@ function route_(r) {
     case 'getIdari': return { ok: true, data: getIdariFor_(r.username) };
     case 'saveIdari': return withLock_(() => saveIdari_(r));
     case 'deleteIdari': return withLock_(() => deleteIdari_(r));
+    case 'getSgh': return { ok: true, data: getSghFor_(r.username) };
+    case 'saveSgh': return withLock_(() => saveSgh_(r));
+    case 'deleteSgh': return withLock_(() => deleteSgh_(r));
     default: throw new Error('إجراء غير معروف');
   }
 }
@@ -253,20 +261,21 @@ function profileOf_(user) {
 function getLists_(fresh) {
   const cache = CacheService.getScriptCache();
   if (!fresh) {
-    const hit = cache.get('lists_v2');
+    const hit = cache.get('lists_v3');
     if (hit) { try { return JSON.parse(hit); } catch (e) {} }
   }
   const sh = ss_().getSheetByName(SHEET.LISTS);
   const rows = sh.getDataRange().getDisplayValues().slice(1);
-  const centers = [], types = [], teachers = [], typesIdari = [];
+  const centers = [], types = [], teachers = [], typesIdari = [], typesSgh = [];
   rows.forEach(r => {
     if (String(r[0]).trim()) centers.push(String(r[0]).trim());
     if (String(r[1]).trim()) types.push(String(r[1]).trim());
     if (r[2] != null && String(r[2]).trim()) teachers.push(String(r[2]).trim());
     if (r[3] != null && String(r[3]).trim()) typesIdari.push(String(r[3]).trim());
+    if (r[4] != null && String(r[4]).trim()) typesSgh.push(String(r[4]).trim());
   });
-  const out = { centers: centers, types: types, teachers: teachers, typesIdari: typesIdari };
-  try { cache.put('lists_v2', JSON.stringify(out), 120); } catch (e) {}
+  const out = { centers: centers, types: types, teachers: teachers, typesIdari: typesIdari, typesSgh: typesSgh };
+  try { cache.put('lists_v3', JSON.stringify(out), 120); } catch (e) {}
   return out;
 }
 
@@ -301,7 +310,8 @@ function addVisit_(r) {
 
   let lists = getLists_(false);
   const meU = profileOf_(r.username).unit;
-  const typesOf = l => (meU === IDARI_UNIT && l.typesIdari && l.typesIdari.length) ? l.typesIdari : l.types;
+  const typesOf = l => (meU === IDARI_UNIT && l.typesIdari && l.typesIdari.length) ? l.typesIdari
+    : (meU === SGH_UNIT && l.typesSgh && l.typesSgh.length) ? l.typesSgh : l.types;
   const badType = l => typeList.some(t => typesOf(l).indexOf(t) < 0);
   if ((center && lists.centers.indexOf(center) < 0) || (!notVisited && badType(lists))) lists = getLists_(true);
   if (center && lists.centers.indexOf(center) < 0) throw new Error('اسم المركز غير موجود في القائمة');
@@ -724,10 +734,11 @@ function fixVisitValidation() {
 function listNames_(kind, unit, exclude) {
   const isM = kind === 'managers';
   const seen = {}, out = [];
-  unit = norm_(unit); exclude = norm_(exclude);
+  unit = norm_(unit);
+  const ex = String(exclude || '').split('|').map(norm_).filter(Boolean);   // أكثر من وحدة مفصولة بـ |
   if (!isM) {   // المشرفات: اسم المستخدم هو نفسه الاسم الظاهر
     usersRows_(true).forEach(r => {
-      if (seen[r[0]] || (unit && r[3] !== unit) || (exclude && r[3] === exclude)) return;
+      if (seen[r[0]] || (unit && r[3] !== unit) || ex.indexOf(r[3]) > -1) return;
       seen[r[0]] = 1;
       out.push({ u: r[4], n: r[2] });
     });
@@ -740,7 +751,7 @@ function listNames_(kind, unit, exclude) {
     if (!u || seen[u.toLowerCase()]) return;
     if (!isM) {
       const un = norm_(r[3]) || DEFAULT_UNIT;
-      if ((unit && un !== unit) || (exclude && un === exclude)) return;
+      if ((unit && un !== unit) || ex.indexOf(un) > -1) return;
     }
     seen[u.toLowerCase()] = 1;
     out.push({ u: u, n: (!isM && norm_(r[2])) || u });   // القيمة = اسم الدخول، والنص = الاسم الظاهر إن وُجد
@@ -779,11 +790,12 @@ function getManage_(me) {
   const files = getFiles_().filter(f => inScope(f.unit)).map(f => ({
     id: f.id, owner: f.owner, unit: U(f.unit), title: f.title, name: f.name, url: f.url, at: f.at }));
   const idari = getIdari_().filter(x => inScope(x.unit)).map(x => Object.assign({}, x, { unit: U(x.unit) }));
+  const sgh = getSgh_().filter(x => inScope(x.unit)).map(x => Object.assign({}, x, { unit: U(x.unit) }));
 
   const seen = {};
-  users.concat(visits, evals, files, idari).forEach(x => { seen[x.unit] = 1; });
+  users.concat(visits, evals, files, idari, sgh).forEach(x => { seen[x.unit] = 1; });
   if (!all) seen[me.unit] = 1;
-  return { ok: true, me: me, units: Object.keys(seen).sort(), users: users, visits: visits, evals: evals, files: files, idari: idari };
+  return { ok: true, me: me, units: Object.keys(seen).sort(), users: users, visits: visits, evals: evals, files: files, idari: idari, sgh: sgh };
 }
 
 
@@ -952,4 +964,113 @@ function getDirectors_(r) {
     out.push({ center: last, period: period, evening: /عصر|مساء|مسائ/.test(period), name: name, phone: phone });
   }
   return { ok: true, data: out };
+}
+
+
+/* ============ وحدة تحفيظ الصغار: تقرير زيارة مشرفة تحفيظ صغار ============
+   ورقة «تقارير تحفيظ الصغار» تُنشأ تلقائياً. التواقيع في ورقة «التواقيع» بالمعرّف: الرقم|sup (المشرفة) و الرقم|tch (المعلمة بالاطلاع) */
+const SGH_HEADERS = ['الرقم', 'اسم المعلمة', 'اسم المركز', 'الفترة', 'رقم الزيارة', 'اليوم', 'التاريخ الهجري', 'التاريخ',
+  'موضوع الدرس', 'توصيات عامة', 'اسم المشرفة', 'البيانات', 'وقت التسجيل', 'المسجِّلة', 'الوحدة'];
+const SGH_SIGS = ['sup', 'tch'];
+
+function sghSheet_() {
+  const ss = ss_();
+  let sh = ss.getSheetByName(SHEET.SGH);
+  if (!sh) {
+    sh = ss.insertSheet(SHEET.SGH);
+    sh.getRange(1, 1, 1, SGH_HEADERS.length).setValues([SGH_HEADERS]);
+    styleHeader_(sh, SGH_HEADERS.length);
+    sh.setColumnWidths(1, SGH_HEADERS.length, 150);
+    sh.setColumnWidth(10, 360);
+    const ls = ss.getSheetByName(SHEET.LISTS);   // عمود أنواع زيارة تحفيظ الصغار في «القوائم»
+    if (ls && !ls.getRange(1, 5).getValue()) { ls.getRange(1, 5).setValue(LISTS_SGH_TYPES); styleHeader_(ls, 5); ls.setColumnWidth(5, 260); }
+  }
+  return sh;
+}
+
+function getSgh_() {
+  const sh = ss_().getSheetByName(SHEET.SGH);
+  if (!sh || sh.getLastRow() < 2) return [];
+  const rows = sh.getRange(2, 1, sh.getLastRow() - 1, SGH_HEADERS.length).getDisplayValues();
+  return rows.filter(r => r[0]).map(r => {
+    let data = {};
+    try { data = JSON.parse(r[11] || '{}'); } catch (e) {}
+    return { id: r[0], kind: 'sgh', teacher: r[1], center: r[2], period: r[3], visitNo: r[4], day: r[5], hijri: r[6], date: r[7],
+      lesson: r[8], recs: r[9], supName: r[10], data: data, at: r[12], owner: r[13] || '', unit: r[14] || '' };
+  }).reverse();
+}
+function getSghFor_(username) {
+  const u = norm_(username).toLowerCase();
+  return getSgh_().filter(x => x.owner === u);
+}
+
+function saveSgh_(r) {
+  const s = (v, n) => String(v == null ? '' : v).trim().slice(0, n || 300);
+  const me = profileOf_(r.username);
+  if (me.unit !== SGH_UNIT) throw new Error('هذا الحساب ليس من ' + SGH_UNIT);
+  const teacher = s(r.teacher), center = s(r.center), period = s(r.period);
+  if (!teacher) throw new Error('اكتبي اسم المعلمة');
+  if (!center) throw new Error('اختاري اسم المركز');
+  if (!period) throw new Error('اختاري الفترة');
+  let lists = getLists_(false);
+  if (lists.centers.indexOf(center) < 0) lists = getLists_(true);
+  if (lists.centers.indexOf(center) < 0) throw new Error('اسم المركز غير موجود في القائمة');
+  const date = s(r.date, 10);
+  if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('التاريخ غير صحيح');
+  const d = r.data && typeof r.data === 'object' ? r.data : {};
+  const data = { hd: s(d.hd, 2), hm: s(d.hm, 2), hy: s(d.hy, 4), dayName: s(d.dayName, 10) };
+  if (!/^\d{4}$/.test(data.hy)) throw new Error('اكتبي سنة التاريخ الهجري');
+  const hijri = data.hd + '/' + data.hm + '/' + data.hy + 'هـ';
+  const recs = s(r.recs, 6000);
+  const sigs = r.sigs && typeof r.sigs === 'object' ? r.sigs : {};   // { sup|tch: dataURL | 'keep' | '' }
+
+  const sh = sghSheet_();
+  let id = s(r.id, 60), row = 0, old = null;
+  if (id) {
+    const last = sh.getLastRow();
+    if (last > 1) {
+      const ids = sh.getRange(2, 1, last - 1, 1).getValues();
+      for (let i = 0; i < ids.length; i++) if (String(ids[i][0]) === id) { row = i + 2; break; }
+    }
+    if (!row) throw new Error('السجل غير موجود');
+    old = sh.getRange(row, 1, 1, SGH_HEADERS.length).getDisplayValues()[0];
+    if (String(old[13]) !== me.username) throw new Error('لا يمكن تعديل تقرير سجّلته مشرفة أخرى');
+  } else {
+    id = Utilities.getUuid();
+    row = sh.getLastRow() + 1;
+  }
+  let oldData = {};
+  if (old) { try { oldData = JSON.parse(old[11] || '{}'); } catch (e) {} }
+  const has = {};
+  SGH_SIGS.forEach(k => {
+    const v = String(sigs[k] || '');
+    if (v === 'keep') { if (oldData.sigs && oldData.sigs[k]) has[k] = '1'; return; }
+    if (v.indexOf('data:image/') === 0) { sigPut_(id + '|' + k, v); has[k] = '1'; }
+    else if (old) sigDel_(id + '|' + k);
+  });
+  data.sigs = has;
+
+  const vals = [[id, teacher, center, period, s(r.visitNo, 10), data.dayName, hijri, date, s(r.lesson, 500), recs,
+    s(r.supName), JSON.stringify(data), old ? String(old[12] || nowStr_()) : nowStr_(), me.username, me.unit]];
+  sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
+  return { ok: true, id: id, sigs: has };
+}
+
+function deleteSgh_(r) {
+  const id = String(r.id || '');
+  const sh = ss_().getSheetByName(SHEET.SGH);
+  if (!sh || !id) throw new Error('السجل غير موجود');
+  const me = profileOf_(r.username);
+  const last = sh.getLastRow();
+  if (last > 1) {
+    const rows = sh.getRange(2, 1, last - 1, 14).getValues();
+    for (let i = 0; i < rows.length; i++) {
+      if (String(rows[i][0]) !== id) continue;
+      if (String(rows[i][13]) !== me.username) throw new Error('لا يمكن حذف تقرير سجّلته مشرفة أخرى');
+      sh.deleteRow(i + 2);
+      SGH_SIGS.forEach(k => sigDel_(id + '|' + k));
+      return { ok: true };
+    }
+  }
+  throw new Error('السجل غير موجود');
 }
