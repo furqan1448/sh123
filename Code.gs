@@ -18,7 +18,8 @@ const SHEET = {
   SIGS: 'التواقيع',   // نسخة مصغّرة من كل توقيع (للإكسل) + توقيع المشرفة المحفوظ، تُنشأ تلقائياً
   IDARI: 'نماذج الإشراف الإداري',   // نماذج وحدة الإشراف الإداري (تقرير الزيارة، برنامج مشرفة مقيمة، الاقتراحات والصعوبات)، تُنشأ تلقائياً
   SGH: 'تقارير تحفيظ الصغار',   // تقارير زيارة مشرفات وحدة تحفيظ الصغار، تُنشأ تلقائياً
-  SGS: 'خلاصة التقارير التعليمية'   // خلاصة التقارير التعليمية – متابعة المشرفة للمعلمة (تحفيظ الصغار)، تُنشأ تلقائياً
+  SGS: 'خلاصة التقارير التعليمية',
+  SGE: 'استمارات تحفيظ الصغار'   // استمارات تقييم الأداء الوظيفي لتحفيظ الصغار (7 استمارات)، تُنشأ تلقائياً   // خلاصة التقارير التعليمية – متابعة المشرفة للمعلمة (تحفيظ الصغار)، تُنشأ تلقائياً
 };
 
 const DEFAULT_UNIT = 'وحدة الإشراف التربوي';
@@ -116,6 +117,7 @@ function setup() {
   idariSheet_(); // نماذج الإشراف الإداري
   sghSheet_();   // تقارير تحفيظ الصغار
   sgsSheet_();   // خلاصة التقارير التعليمية
+  sgeSheet_();   // استمارات تحفيظ الصغار
   folder_(); // ينشئ مجلد الدرايف
   Logger.log('تم الإعداد بنجاح');
 }
@@ -209,6 +211,9 @@ function route_(r) {
     case 'saveSgh': return withLock_(() => saveSgh_(r));
     case 'deleteSgh': return withLock_(() => deleteSgh_(r));
     case 'lookupTeacher': { const t = teacherByPhone_(r.phone); return t ? { ok: true, data: { id: t.id, name: t.name } } : { ok: false, error: 'رقم الجوال غير موجود في سجل المعلمات' }; }
+    case 'getSge': return { ok: true, data: getSgeFor_(r.username) };
+    case 'saveSge': return withLock_(() => saveSge_(r));
+    case 'deleteSge': return withLock_(() => deleteSge_(r));
     case 'getSgs': return { ok: true, data: getSgsFor_(r.username) };
     case 'saveSgs': return withLock_(() => saveSgs_(r));
     case 'deleteSgs': return withLock_(() => deleteSgs_(r));
@@ -798,7 +803,7 @@ function getManage_(me) {
   const files = getFiles_().filter(f => inScope(f.unit)).map(f => ({
     id: f.id, owner: f.owner, unit: U(f.unit), title: f.title, name: f.name, url: f.url, at: f.at }));
   const idari = getIdari_().filter(x => inScope(x.unit)).map(x => Object.assign({}, x, { unit: U(x.unit) }));
-  const sgh = getSgh_().concat(getSgs_()).filter(x => inScope(x.unit)).map(x => Object.assign({}, x, { unit: U(x.unit) }));
+  const sgh = getSgh_().concat(getSgs_(), getSge_()).filter(x => inScope(x.unit)).map(x => Object.assign({}, x, { unit: U(x.unit) }));
 
   const seen = {};
   users.concat(visits, evals, files, idari, sgh).forEach(x => { seen[x.unit] = 1; });
@@ -1281,7 +1286,7 @@ function teacherAuth_(req) {
 
 // تقارير المعلمة (المرتبطة بمعرّفها فقط)
 function teacherReports_(t) {
-  return getSgh_().filter(x => x.data && x.data.tid === t.id).map(x => {
+  return getSgh_().concat(getSge_()).filter(x => x.data && x.data.tid === t.id).map(x => {
     const o = Object.assign({}, x); delete o.owner;
     o.signed = !!(x.data.sigs && x.data.sigs.tch);
     return o;
@@ -1297,9 +1302,9 @@ function teacherRoute_(r) {
     const t = teacherAuth_(r);
     if (r.action === 't_login' || r.action === 't_list') return { ok: true, teacher: { id: t.id, name: t.name, category: t.cat }, data: teacherReports_(t) };
     if (r.action === 't_sigs') {   // تواقيع تقرير من تقاريرها فقط (للعرض والطباعة)
-      const rec = getSgh_().find(x => x.id === String(r.id || '') && x.data && x.data.tid === t.id);
+      const rec = getSgh_().concat(getSge_()).find(x => x.id === String(r.id || '') && x.data && x.data.tid === t.id);
       if (!rec) throw new Error('التقرير غير موجود');
-      return { ok: true, data: getSigs_(['sup', 'tch'].map(k => ({ id: rec.id + '|' + k }))) };
+      return { ok: true, data: getSigs_(['sup', 'tch', 'mgr'].map(k => ({ id: rec.id + '|' + k }))) };
     }
     if (r.action === 't_sign') return withLock_(() => teacherSign_(t, r));
     throw new Error('إجراء غير معروف');
@@ -1311,12 +1316,14 @@ function teacherRoute_(r) {
 function teacherSign_(t, r) {
   const id = String(r.id || ''), sig = String(r.signature || '');
   if (sig.indexOf('data:image/') !== 0 || sig.length > 49000) throw new Error('التوقيع غير صالح، أعيدي التوقيع');
-  const sh = ss_().getSheetByName(SHEET.SGH);
-  if (!sh || sh.getLastRow() < 2) throw new Error('التقرير غير موجود');
+  // تقارير الزيارة (عمود البيانات 12) واستمارات التقييم (عمود البيانات 13)
+  for (const [name, col] of [[SHEET.SGH, 12], [SHEET.SGE, 13]]) {
+  const sh = ss_().getSheetByName(name);
+  if (!sh || sh.getLastRow() < 2) continue;
   const ids = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues();
   for (let i = 0; i < ids.length; i++) {
     if (String(ids[i][0]) !== id) continue;
-    const cell = sh.getRange(i + 2, 12);
+    const cell = sh.getRange(i + 2, col);
     let data = {};
     try { data = JSON.parse(cell.getValue() || '{}'); } catch (e) {}
     if (data.tid !== t.id) throw new Error('هذا التقرير ليس لكِ');
@@ -1326,6 +1333,7 @@ function teacherSign_(t, r) {
     cell.setNumberFormat('@').setValue(JSON.stringify(data));
     return { ok: true, at: data.tchAt };
   }
+  }
   throw new Error('التقرير غير موجود');
 }
 
@@ -1333,4 +1341,132 @@ function teacherSign_(t, r) {
 function testTeacherRegistry() {
   const rows = certRows_(true);
   Logger.log('عدد المعلمات في سجل الشهادات: ' + rows.length + (rows[0] ? ' — مثال: ' + rows[0].name : ''));
+}
+
+
+
+/* ============ وحدة تحفيظ الصغار: استمارات تقييم الأداء الوظيفي ============
+   ورقة «استمارات تحفيظ الصغار» تُنشأ تلقائياً. الدرجات والملاحظات والتوصيات في عمود «البيانات».
+   التواقيع في ورقة «التواقيع» بالمعرّف: الرقم|tch (المعلمة) و الرقم|mgr (المديرة) */
+const SGE_HEADERS = ['الرقم', 'نوع الاستمارة', 'اسم المعلمة', 'اسم المركز', 'الفترة', 'التاريخ الهجري', 'اليوم', 'التاريخ',
+  'الدرجة', 'من', 'التقدير', 'اسم المديرة', 'البيانات', 'وقت التسجيل', 'المسجِّلة', 'الوحدة'];
+const SGE_TYPES = { tilawa: 'التلاوة', tibyan: 'التبيان', madda: 'المادة', liqa: 'لقاء أخير', wajba: 'أثناء الوجبة', arkan: 'معلمة الأركان', saha: 'مشرفة الساحة' };
+const SGE_SIGS = ['tch', 'mgr'];
+
+function sgeSheet_() {
+  const ss = ss_();
+  let sh = ss.getSheetByName(SHEET.SGE);
+  if (!sh) {
+    sh = ss.insertSheet(SHEET.SGE);
+    sh.getRange(1, 1, 1, SGE_HEADERS.length).setValues([SGE_HEADERS]);
+    styleHeader_(sh, SGE_HEADERS.length);
+    sh.setColumnWidths(1, SGE_HEADERS.length, 130);
+    sh.setColumnWidth(13, 380);
+  }
+  return sh;
+}
+
+function getSge_() {
+  const sh = ss_().getSheetByName(SHEET.SGE);
+  if (!sh || sh.getLastRow() < 2) return [];
+  const rows = sh.getRange(2, 1, sh.getLastRow() - 1, SGE_HEADERS.length).getDisplayValues();
+  return rows.filter(r => r[0]).map(r => {
+    let data = {};
+    try { data = JSON.parse(r[12] || '{}'); } catch (e) {}
+    return { id: r[0], kind: 'eval', formName: r[1], teacher: r[2], center: r[3], period: r[4], hijri: r[5], day: r[6], date: r[7],
+      score: r[8], max: r[9], grade: r[10], mgrName: r[11], data: data, at: r[13], owner: r[14] || '', unit: r[15] || '',
+      visitNo: (data.f && data.f.visitNo) || '', lesson: (data.f && data.f.lesson) || '' };
+  }).reverse();
+}
+function getSgeFor_(username) {
+  const u = norm_(username).toLowerCase();
+  return getSge_().filter(x => x.owner === u);
+}
+
+function saveSge_(r) {
+  const s = (v, n) => String(v == null ? '' : v).trim().slice(0, n || 300);
+  const me = profileOf_(r.username);
+  if (me.unit !== SGH_UNIT) throw new Error('هذا الحساب ليس من ' + SGH_UNIT);
+  const d = r.data && typeof r.data === 'object' ? r.data : {};
+  const form = s(d.form, 20);
+  if (!SGE_TYPES[form]) throw new Error('نوع الاستمارة غير معروف');
+  const teacher = s(r.teacher), center = s(r.center);
+  if (!teacher) throw new Error('اكتبي اسم المعلمة');
+  if (!center) throw new Error('اختاري اسم المركز');
+  let lists = getLists_(false);
+  if (lists.centers.indexOf(center) < 0) lists = getLists_(true);
+  if (lists.centers.indexOf(center) < 0) throw new Error('اسم المركز غير موجود في القائمة');
+  const date = s(r.date, 10);
+  if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('التاريخ غير صحيح');
+  const arr = (a, n, len) => (Array.isArray(a) ? a : []).slice(0, n).map(x => s(x, len));
+  const f = {};
+  Object.keys(d.f && typeof d.f === 'object' ? d.f : {}).slice(0, 20).forEach(k => { f[k] = s(d.f[k], 200); });
+  const data = { form: form, f: f, sc: arr(d.sc, 60, 8), nt: arr(d.nt, 60, 400), recs: arr(d.recs, 4, 3000), overall: s(d.overall, 40),
+    hd: s(d.hd, 2), hm: s(d.hm, 2), hy: s(d.hy, 4), dayName: s(d.dayName, 10), mgrName: s(r.mgrName) };
+  const hijri = data.hy ? data.hd + '/' + data.hm + '/' + data.hy + 'هـ' : '';
+  const sigs = r.sigs && typeof r.sigs === 'object' ? r.sigs : {};
+
+  const sh = sgeSheet_();
+  let id = s(r.id, 60), row = 0, old = null;
+  if (id) {
+    const last = sh.getLastRow();
+    if (last > 1) {
+      const ids = sh.getRange(2, 1, last - 1, 1).getValues();
+      for (let i = 0; i < ids.length; i++) if (String(ids[i][0]) === id) { row = i + 2; break; }
+    }
+    if (!row) throw new Error('السجل غير موجود');
+    old = sh.getRange(row, 1, 1, SGE_HEADERS.length).getDisplayValues()[0];
+    if (String(old[14]) !== me.username) throw new Error('لا يمكن تعديل استمارة سجّلتها مشرفة أخرى');
+  } else {
+    id = Utilities.getUuid();
+    row = sh.getLastRow() + 1;
+  }
+  let oldData = {};
+  if (old) { try { oldData = JSON.parse(old[12] || '{}'); } catch (e) {} }
+
+  // ربط الاستمارة بحساب المعلمة لتوقّع عليها من أيقونة «المعلمات»
+  const tPhone = pPhone_(r.tPhone);
+  if (tPhone) {
+    const t = teacherByPhone_(tPhone);
+    if (!t) throw new Error('رقم جوال المعلمة غير موجود في سجل المعلمات');
+    data.tPhone = tPhone; data.tid = t.id; data.tName = t.name;
+  }
+  if (data.tid && data.tid === oldData.tid && oldData.tchAt) data.tchAt = oldData.tchAt;
+
+  const has = {};
+  SGE_SIGS.forEach(k => {
+    const v = String(sigs[k] || '');
+    if (k === 'tch' && data.tchAt && v.indexOf('data:image/') !== 0) { has[k] = '1'; return; }   // لا يُحذف توقيع وقّعته المعلمة بنفسها
+    if (v === 'keep') { if (oldData.sigs && oldData.sigs[k]) has[k] = '1'; return; }
+    if (v.indexOf('data:image/') === 0) { sigPut_(id + '|' + k, v); has[k] = '1'; if (k === 'tch') delete data.tchAt; }
+    else if (old) sigDel_(id + '|' + k);
+  });
+  data.sigs = has;
+  const json = JSON.stringify(data);
+  if (json.length > 45000) throw new Error('الاستمارة طويلة جداً، اختصري الملاحظات');
+
+  const vals = [[id, SGE_TYPES[form], teacher, center, s(r.period, 20), hijri, data.dayName, date,
+    s(r.score, 10), s(r.max, 10), s(r.grade, 20), data.mgrName, json,
+    old ? String(old[13] || nowStr_()) : nowStr_(), me.username, me.unit]];
+  sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
+  return { ok: true, id: id, sigs: has, tid: data.tid || '', tName: data.tName || '', tchAt: data.tchAt || '' };
+}
+
+function deleteSge_(r) {
+  const id = String(r.id || '');
+  const sh = ss_().getSheetByName(SHEET.SGE);
+  if (!sh || !id) throw new Error('السجل غير موجود');
+  const me = profileOf_(r.username);
+  const last = sh.getLastRow();
+  if (last > 1) {
+    const rows = sh.getRange(2, 1, last - 1, 15).getValues();
+    for (let i = 0; i < rows.length; i++) {
+      if (String(rows[i][0]) !== id) continue;
+      if (String(rows[i][14]) !== me.username) throw new Error('لا يمكن حذف استمارة سجّلتها مشرفة أخرى');
+      sh.deleteRow(i + 2);
+      SGE_SIGS.forEach(k => sigDel_(id + '|' + k));
+      return { ok: true };
+    }
+  }
+  throw new Error('السجل غير موجود');
 }

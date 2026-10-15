@@ -5,7 +5,10 @@ const SG_BG = 'letterhead.jpg';   // الكليشة الحمراء الموحّ�
 const SG_UNIT = 'وحدة تحفيظ الصغار';
 const SG_TITLE = 'تقرير زيارة مشرفة وحدة تحفيظ الصغار';
 const SGS_TITLE = 'خلاصة التقارير التعليمية – متابعة المشرفة للمعلمة';
-const sgTitleOf = rec => rec && rec.kind === 'sum' ? SGS_TITLE : SG_TITLE;
+const sgTitleOf = rec => rec && rec.kind === 'sum' ? SGS_TITLE : rec && rec.kind === 'eval' && typeof sgeFormOf === 'function' && sgeFormOf(rec) ? sgeFormOf(rec).title : SG_TITLE;
+// استمارات التقييم صفحة طولية، وباقي النماذج عرضية
+const sgPortrait = rec => !!(rec && rec.kind === 'eval');
+const sgAllCss = () => SG_CSS + (typeof SGE_CSS === 'string' ? SGE_CSS : '');
 
 // جلب التواقيع (تُستبدل في صفحة إدارة الوحدات بدخول المديرة)
 let sgSigFetch = items => api('getSigs', { items }).then(o => o.data || {});
@@ -36,6 +39,7 @@ const sgRecList = rec => String(rec.recs || '').split('\n').map(x => x.trim()).f
 /* ---------- محتوى التقرير (نفس الشكل للعرض والطباعة والـ PDF) ---------- */
 function sgDocHtml(rec, sigs, lhUrl) {
   if (rec && rec.kind === 'sum') return sgsDocHtml(rec, sigs, lhUrl);
+  if (rec && rec.kind === 'eval') return sgeDocHtml(rec, sigs, lhUrl);
   sigs = sigs || {};
   const d = rec.data || {};
   const per = String(rec.period || '');
@@ -91,11 +95,11 @@ function sgsDocHtml(rec, sigs, lhUrl) {
 // تواقيع التقرير المحفوظ (من ورقة «التواقيع»)
 async function sgLoadSigs(rec) {
   const has = (rec.data && rec.data.sigs) || {};
-  const items = ['sup', 'tch'].filter(k => has[k]).map(k => ({ id: rec.id + '|' + k }));
+  const items = ['sup', 'tch', 'mgr'].filter(k => has[k]).map(k => ({ id: rec.id + '|' + k }));
   if (!items.length) return {};
   const map = await sgSigFetch(items);
   const out = {};
-  ['sup', 'tch'].forEach(k => { if (map[rec.id + '|' + k]) out[k] = map[rec.id + '|' + k]; });
+  ['sup', 'tch', 'mgr'].forEach(k => { if (map[rec.id + '|' + k]) out[k] = map[rec.id + '|' + k]; });
   return out;
 }
 
@@ -117,7 +121,7 @@ async function sgPrint(rec, btn, sigs) {
     w.document.open();
     w.document.write('<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>' + esc(sgFileName(rec)) + '</title>' +
       '<link rel="stylesheet" href="' + ID_FONT_CSS + '">' +
-      '<style>@page{size:A4 landscape;margin:7mm}html,body{margin:0;background:#fff}' + SG_CSS +
+      '<style>@page{size:A4 ' + (sgPortrait(rec) ? 'portrait' : 'landscape') + ';margin:7mm}html,body{margin:0;background:#fff}' + sgAllCss() +
       '.idoc{width:100%}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body>' +
       sgDocHtml(rec, sigs, lh) + '</body></html>');
     w.document.close();
@@ -133,29 +137,41 @@ async function sgPdfBlob(rec, sigs) {
   if (!sigs) sigs = await sgLoadSigs(rec);
   await idLoadPdfLib();
   const box = document.createElement('div');
-  box.style.cssText = 'position:absolute;top:0;left:0;width:1123px;z-index:-1;background:#fff;direction:rtl';
-  box.innerHTML = '<style>' + SG_CSS + '.idoc{width:1123px;padding:0}</style>' + sgDocHtml(rec, sigs);
+  const P = sgPortrait(rec), W = P ? 794 : 1123;
+  box.style.cssText = 'position:absolute;top:0;left:0;width:' + W + 'px;z-index:-1;background:#fff;direction:rtl';
+  box.innerHTML = '<style>' + sgAllCss() + '.idoc{width:' + W + 'px;padding:0}</style>' + sgDocHtml(rec, sigs);
   document.body.appendChild(box);
   try {
     await Promise.all([...box.querySelectorAll('img')].map(im => im.complete ? 0 : new Promise(r => { im.onload = im.onerror = r; })));
-    const opt = { margin: 0, image: { type: 'jpeg', quality: 0.97 }, jsPDF: { unit: 'mm', format: [297, 210], orientation: 'landscape' } };
+    const opt = { margin: 0, image: { type: 'jpeg', quality: 0.97 }, jsPDF: { unit: 'mm', format: P ? [210, 297] : [297, 210], orientation: P ? 'portrait' : 'landscape' } };
     try {
       await idLoadImgLib();
       const fontCss = await idFontEmbedCss();
-      const io = { pixelRatio: 2, backgroundColor: '#ffffff', width: 1123, style: { margin: '0' } };
+      const io = { pixelRatio: 2, backgroundColor: '#ffffff', width: W, style: { margin: '0' } };
       if (fontCss) io.fontEmbedCSS = fontCss; else io.skipFonts = true;
       const cv = await window.htmlToImage.toCanvas(box.querySelector('.idoc'), io);
-      return await window.html2pdf().set(opt).from(idFitPage(cv), 'canvas').outputPdf('blob');
+      return await window.html2pdf().set(opt).from(P ? sgFitPortrait(cv) : idFitPage(cv), 'canvas').outputPdf('blob');
     } catch (e) { console.warn('html-to-image failed, falling back to html2canvas', e); }
     return await window.html2pdf().set(Object.assign(opt, {
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0, windowWidth: 1123, onclone: idFixBidi },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0, windowWidth: W, onclone: idFixBidi },
       pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.idc-avoid'] }
     })).from(box.querySelector('.idoc'))
       .toContainer().get('container').then(c => {
         if (c.parentElement) c.parentElement.style.direction = 'ltr';
-        Object.assign(c.style, { position: 'absolute', top: '0', left: '0', right: 'auto', margin: '0', width: '1123px', direction: 'rtl' });
+        Object.assign(c.style, { position: 'absolute', top: '0', left: '0', right: 'auto', margin: '0', width: W + 'px', direction: 'rtl' });
       }).toCanvas().toPdf().outputPdf('blob');
   } finally { box.remove(); }
+}
+// صفحة A4 طولية: إن زادت الاستمارة قليلاً عن الصفحة نصغّرها لتكفي صفحة واحدة
+function sgFitPortrait(cv) {
+  const maxH = cv.width * 297 / 210;
+  if (cv.height <= maxH || cv.height > maxH * 1.6) return cv;
+  const out = document.createElement('canvas');
+  out.width = Math.round(cv.height * 210 / 297); out.height = cv.height;
+  const g = out.getContext('2d');
+  g.fillStyle = '#ffffff'; g.fillRect(0, 0, out.width, out.height);
+  g.drawImage(cv, Math.round((out.width - cv.width) / 2), 0);
+  return out;
 }
 async function sgPdf(rec, btn, sigs) {
   if (btn) setBtnBusy(btn, true, 'جارِ التجهيز...');
@@ -199,7 +215,7 @@ async function sgView(rec) {
   let sigs = {};
   try { sigs = await sgLoadSigs(rec); } catch (e) {}
   b.innerHTML = '<div class="ex-bar"><button class="btn light" id="sgVPrint">طباعة</button><button class="btn light" id="sgVPdf">تحميل PDF</button><button class="btn light" id="sgVShare">مشاركة (واتساب)</button></div>' +
-    '<style>' + SG_CSS + '</style><div class="id-scroll sg-fit">' + sgDocHtml(rec, sigs) + '</div>';
+    '<style>' + sgAllCss() + '</style><div class="id-scroll sg-fit">' + sgDocHtml(rec, sigs) + '</div>';
   document.getElementById('sgVPrint').onclick = e => sgPrint(rec, e.currentTarget, sigs);
   document.getElementById('sgVPdf').onclick = e => sgPdf(rec, e.currentTarget, sigs);
   document.getElementById('sgVShare').onclick = e => sgShare(rec, e.currentTarget, sigs);

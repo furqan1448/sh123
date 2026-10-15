@@ -112,7 +112,7 @@ async function tOpen(id) {
   $('tVPdf').onclick = e => sgPdf(r, e.currentTarget, tSigsCur);
   tShow('signView');
   try { tSigsCur = await sgLoadSigs(r); } catch (e) {}
-  $('tDoc').innerHTML = '<style>' + SG_CSS + '</style><div class="id-scroll sg-fit">' + sgDocHtml(r, tSigsCur) + '</div>';
+  $('tDoc').innerHTML = '<style>' + sgAllCss() + '</style><div class="id-scroll sg-fit">' + sgDocHtml(r, tSigsCur) + '</div>';
   sgFitBox($('tDoc').querySelector('.sg-fit'));
 }
 async function tPdf(id, btn) { const r = TREP.find(x => x.id === id); if (r) sgPdf(r, btn); }
@@ -128,7 +128,7 @@ async function tSign(btn) {
     tCur.signed = true; tCur.data = Object.assign({}, tCur.data, { tchAt: out.at, sigs: Object.assign({}, tCur.data.sigs, { tch: '1' }) });
     tSigsCur = Object.assign({}, tSigsCur, { tch: sig });
     $('tSignCard').classList.add('hidden');
-    $('tDoc').innerHTML = '<style>' + SG_CSS + '</style><div class="id-scroll sg-fit">' + sgDocHtml(tCur, tSigsCur) + '</div>';
+    $('tDoc').innerHTML = '<style>' + sgAllCss() + '</style><div class="id-scroll sg-fit">' + sgDocHtml(tCur, tSigsCur) + '</div>';
     sgFitBox($('tDoc').querySelector('.sg-fit'));
     tRender();
     tLoad();

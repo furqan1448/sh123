@@ -3,9 +3,9 @@ const DAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربع�
 const $ = id => document.getElementById(id);
 const VIEW_KEY = 'sgh_view', NAME_KEY = 'sgh_name';
 let LISTS = { centers: [], types: [], teachers: [], typesSgh: [] };
-let VISITS = [], SGH = [], sgEdit = null, SGS = [], ssEdit = null;
+let VISITS = [], SGH = [], sgEdit = null, SGS = [], ssEdit = null, SGE = [], seEdit = null, seType = '';
 
-const ALL_VIEWS = ['loginView', 'homeView', 'visitsView', 'sgListView', 'sgForm', 'ssListView', 'ssForm'];
+const ALL_VIEWS = ['loginView', 'homeView', 'visitsView', 'sgListView', 'sgForm', 'ssListView', 'ssForm', 'seListView', 'seForm'];
 
 function show(id) {
   ALL_VIEWS.forEach(v => $(v).classList.add('hidden'));
@@ -48,7 +48,7 @@ async function doLogin() {
 function logout() {
   [PW_KEY, USER_KEY, VIEW_KEY, NAME_KEY].forEach(k => localStorage.removeItem(k));
   cacheClear(); clearMySigLocal(); sigRefreshAll();
-  VISITS = []; SGH = []; SGS = [];
+  VISITS = []; SGH = []; SGS = []; SGE = [];
   $('un').value = ''; $('pw').value = '';
   show('loginView');
 }
@@ -573,6 +573,170 @@ async function ssSave(btn) {
   finally { setBtnBusy(btn, false); }
 }
 
+/* ======================= استمارات تقييم الأداء الوظيفي (7 استمارات) ======================= */
+const seTch = makeSigWidget('seTchW', { none: true });
+const seMgr = makeSigWidget('seMgrW', { none: true });
+hdBuild('se');
+// أزرار اختيار الاستمارة + قائمة التصفية
+$('seTypes').innerHTML = SGE_ORDER.map(k => '<button class="tile" onclick="seNew(\'' + k + '\')"><b>' + esc(SGE_FORMS[k].name) + '</b></button>').join('');
+$('seFType').innerHTML = '<option value="">كل الاستمارات</option>' + SGE_ORDER.map(k => '<option value="' + k + '">' + esc(SGE_FORMS[k].name) + '</option>').join('');
+
+async function loadSge(silent) {
+  if (!SGE.length) { const c = cacheGet('sge'); if (c) SGE = c; }
+  renderSge();
+  try {
+    const out = await api('getSge');
+    SGE = out.data || []; cacheSet('sge', SGE); renderSge();
+  } catch (e) { if (!silent) toast(e.message, false); }
+}
+function seOpenList() { show('seListView'); loadSge(); }
+
+function renderSge() {
+  const t = $('seFType').value, q = sgNorm($('seFQ').value);
+  const L = SGE.filter(r => (!t || (r.data && r.data.form) === t) && (!q || sgNorm(r.teacher + ' ' + r.center).indexOf(q) > -1));
+  if (!L.length) { $('seBody').innerHTML = '<tr><td colspan="9" class="empty">' + (SGE.length ? 'لا توجد نتائج' : 'لا توجد استمارات محفوظة') + '</td></tr>'; return; }
+  $('seBody').innerHTML = L.map((r, i) => {
+    const id = esc(r.id), form = sgeFormOf(r) || {};
+    const sc = form.grades ? sgeFmt(sgeNum(r.score)) + ' / ' + sgeFmt(form.max) : '—';
+    const gr = r.grade || (r.data && r.data.overall) || '';
+    return '<tr><td>' + (i + 1) + '</td><td>' + esc(form.name || r.formName || '') + '</td><td>' + esc(r.teacher) + '</td><td>' + esc(r.center) + '</td><td>' +
+      ((esc((r.data && r.data.dayName) || '') + ' ' + (r.data && r.data.hy ? idHDate(r) : '')).trim() || '—') + '</td><td>' + sc + '</td><td>' + (gr ? gradeTag(gr) : '—') + '</td><td>' + sgTStatus(r) + '</td>' +
+      '<td><div class="act">' + sBtn('عرض', 'seOpen(\'' + id + '\')') + sBtn('PDF', 'seDo(\'' + id + '\', this, \'pdf\')') + sBtn('مشاركة', 'seDo(\'' + id + '\', this, \'share\')') +
+      sBtn('تعديل', 'seEditRec(\'' + id + '\')') + sBtn('حذف', 'seDel(\'' + id + '\')', 'danger') + '</div></td></tr>';
+  }).join('');
+}
+const seById = id => SGE.find(r => r.id === id);
+function seOpen(id) { const r = seById(id); if (r) sgView(r); }
+function seDo(id, btn, what) { const r = seById(id); if (!r) return; what === 'share' ? sgShare(r, btn) : sgPdf(r, btn); }
+async function seDel(id) {
+  if (!confirm('هل تريدين حذف هذه الاستمارة؟')) return;
+  SGE = SGE.filter(r => r.id !== id);
+  cacheSet('sge', SGE); renderSge();
+  try { await api('deleteSge', { id }); toast('تم الحذف'); }
+  catch (e) { toast(e.message, false); loadSge(); }
+}
+
+/* ---------- بناء الاستمارة حسب نوعها ---------- */
+const SE_NUMERIC = ['visitNo', 'total', 'present', 'years'];
+function seBuild(k, r) {
+  const form = SGE_FORMS[k], d = (r && r.data) || {}, f = d.f || {};
+  seType = k;
+  $('seTitle').textContent = form.title;
+  $('seTchLbl').textContent = 'توقيع ' + form.who;
+  // خانات الرأس
+  $('seFields').innerHTML = form.fields.map(([key, lbl]) => {
+    if (key === 'center') return '<label for="seF_center">' + lbl + '</label><select id="seF_center"><option value="">اختاري المركز</option>' + (LISTS.centers || []).map(x => '<option>' + esc(x) + '</option>').join('') + '</select>';
+    if (key === 'period') return '<label>' + lbl + '</label><div class="chips" id="seF_period"><label class="chip"><input type="checkbox" value="صباحي"><span>صباحي</span></label><label class="chip"><input type="checkbox" value="مسائي"><span>مسائي</span></label></div>';
+    if (key === 'teacher') return '<label for="seF_teacher">' + lbl + '</label><input id="seF_teacher" list="sgTeachers" autocomplete="off">';
+    if (key === 'sem') return '<label for="seF_sem">' + lbl + '</label><select id="seF_sem"><option value="">اختاري</option><option>الأول</option><option>الثاني</option><option>الثالث</option></select>';
+    return '<label for="seF_' + key + '">' + lbl + '</label><input id="seF_' + key + '" autocomplete="off"' + (SE_NUMERIC.indexOf(key) > -1 ? ' inputmode="numeric"' : '') + '>';
+  }).join('');
+  const per = $('seF_period');
+  if (per) per.addEventListener('change', e => { if (e.target.checked) per.querySelectorAll('input').forEach(i => { if (i !== e.target) i.checked = false; }); });
+  // البنود
+  const scored = !!form.grades, sc = d.sc || [], nt = d.nt || [];
+  let html = '', g = null;
+  form.items.forEach((it, i) => {
+    if (it.g && it.g !== g) { g = it.g; html += '<div class="se-grp">' + esc(it.g) + '</div>'; }
+    html += '<div class="se-it" data-i="' + i + '"><div class="se-q">' + (it.g ? '' : arD(i + 1) + '. ') + esc(it.t) + '</div><div class="se-row">' +
+      (scored ? '<span class="ev-sc" style="display:contents"><input class="se-sc" inputmode="decimal" placeholder="الدرجة" value="' + esc(sc[i] || '') + '"></span><span class="se-max">من ' + sgeFmt(it.m) + '</span>' : '') +
+      '<input class="se-nt" placeholder="ملاحظات" value="' + esc(nt[i] || '') + '"></div></div>';
+  });
+  $('seItems').innerHTML = html;
+  $('seOverallBox').classList.toggle('hidden', scored);
+  $('seOverall').value = d.overall || '';
+  $('seBar').classList.toggle('hidden', !scored);
+  $('seMax').textContent = scored ? sgeFmt(form.max) : '';
+  // التوصيات
+  $('seRecs').innerHTML = form.recs.map((lbl, i) => '<label for="seR' + i + '"' + (i ? '' : ' style="margin-top:0"') + '>' + esc(lbl) + '</label><textarea id="seR' + i + '" rows="4">' + esc((d.recs && d.recs[i]) || '') + '</textarea>').join('');
+  seCalc();
+}
+$('seItems').addEventListener('input', e => { if (e.target.classList.contains('se-sc')) seCalc(); });
+function seScores() { return [...document.querySelectorAll('#seItems .se-sc')].map(x => x.value.trim()); }
+function seCalc() {
+  const form = SGE_FORMS[seType]; if (!form || !form.grades) return;
+  const sc = seScores();
+  document.querySelectorAll('#seItems .se-it').forEach((el, i) => { const v = sgeNum(sc[i]); el.classList.toggle('bad', v != null && (v < 0 || v > form.items[i].m)); });
+  const t = sgeTotal(form, sc);
+  $('seSum').textContent = sgeFmt(t);
+  setGrade($('seGrade'), sc.some(x => x !== '') ? sgeGradeOf(form, t) : '—');
+}
+
+let seTFound = null;
+async function seLookupT() {
+  const v = $('seTPhone').value.trim(), hint = $('seTHint');
+  if (!v) { hint.textContent = ''; return; }
+  hint.textContent = 'جارِ البحث عن المعلمة...';
+  try {
+    const out = await api('lookupTeacher', { phone: v });
+    hint.innerHTML = '✔ المعلمة: <b>' + esc(out.data.name) + '</b>';
+    const t = $('seF_teacher'); if (t && !t.value.trim()) t.value = out.data.name;
+  } catch (e) { hint.textContent = '✖ ' + e.message; }
+}
+
+function seFill(k, r) {
+  r = r || {};
+  const edit = !!r.id, d = r.data || {}, f = d.f || {};
+  document.querySelectorAll('#seForm [data-edit]').forEach(x => x.classList.toggle('hidden', !edit));
+  seBuild(k, r);
+  $('seF_center').value = r.center || '';
+  if ($('seF_period')) periodSet('seF_period', r.period);
+  $('seF_teacher').value = r.teacher || '';
+  SGE_FORMS[k].fields.forEach(([key]) => { if (['center', 'period', 'teacher'].indexOf(key) < 0 && $('seF_' + key)) $('seF_' + key).value = f[key] || ''; });
+  hdSet('se', edit ? r : null);
+  $('seTPhone').value = d.tPhone || '';
+  $('seTHint').innerHTML = d.tName ? '✔ المعلمة: <b>' + esc(d.tName) + '</b>' + (d.tchAt ? ' — وقّعت من حسابها' : '') : '';
+  $('seMgrName').value = d.mgrName || r.mgrName || '';
+  const has = d.sigs || {};
+  [['tch', seTch], ['mgr', seMgr]].forEach(([key, w]) => { w.reset(); if (edit && has[key]) w.keepOld('الإبقاء على التوقيع السابق'); else w.setMode('none'); });
+}
+function seNew(k) { seEdit = null; seFill(k, null); show('seForm'); }
+function seEditRec(id) { const r = seById(id); if (!r) return; seEdit = r; seFill(r.data.form, r); show('seForm'); }
+function seBack() { seEdit = null; show('seListView'); renderSge(); }
+
+async function seSave(btn) {
+  const form = SGE_FORMS[seType]; if (!form) return;
+  const hd = hdGet('se');
+  if (!/^\d{4}$/.test(hd.hy)) return toast('اكتبي سنة التاريخ الهجري (مثال: 1448)', false);
+  const f = {};
+  form.fields.forEach(([key]) => { if (['center', 'period', 'teacher'].indexOf(key) < 0 && $('seF_' + key)) f[key] = $('seF_' + key).value.trim().replace(/[٠-٩]/g, x => SE_NUMERIC.indexOf(key) > -1 ? '٠١٢٣٤٥٦٧٨٩'.indexOf(x) : x); });
+  const sc = form.grades ? seScores() : [];
+  if (form.grades) {
+    const bad = form.items.findIndex((it, i) => { const v = sgeNum(sc[i]); return sc[i] !== '' && (v == null || v < 0 || v > it.m); });
+    if (bad > -1) { toast('درجة البند ' + arD(bad + 1) + ' يجب أن تكون بين ٠ و ' + sgeFmt(form.items[bad].m), false); document.querySelectorAll('#seItems .se-it')[bad].scrollIntoView({ block: 'center' }); return; }
+    const empty = sc.filter(x => x === '').length;
+    if (empty && !confirm('توجد ' + arD(empty) + ' بنود بدون درجة (تُحسب صفراً). هل تريدين الحفظ؟')) return;
+  }
+  const total = form.grades ? sgeTotal(form, sc) : null;
+  const req = {
+    id: seEdit ? seEdit.id : '', teacher: $('seF_teacher').value.trim(), center: $('seF_center').value,
+    period: $('seF_period') ? periodGet('seF_period') : '', date: hd.greg, tPhone: $('seTPhone').value.trim(), mgrName: $('seMgrName').value.trim(),
+    score: total == null ? '' : String(Math.round(total * 100) / 100), max: form.max ? String(form.max) : '', grade: form.grades ? sgeGradeOf(form, total) : $('seOverall').value,
+    data: { form: seType, f, sc, nt: [...document.querySelectorAll('#seItems .se-nt')].map(x => x.value.trim()),
+      recs: form.recs.map((_, i) => $('seR' + i).value.trim()), overall: form.grades ? '' : $('seOverall').value,
+      hd: hd.hd, hm: hd.hm, hy: hd.hy, dayName: hd.dayName }
+  };
+  if (!req.teacher) return toast('اكتبي اسم المعلمة', false);
+  if (!req.center) return toast('اختاري المركز', false);
+  if (!form.grades && !req.grade) return toast('اختاري التقدير العام', false);
+  const oldHas = (seEdit && seEdit.data && seEdit.data.sigs) || {};
+  req.sigs = {};
+  [['tch', seTch], ['mgr', seMgr]].forEach(([key, w]) => { const v = w.get(); req.sigs[key] = v || (seEdit && oldHas[key] ? 'keep' : ''); });
+  setBtnBusy(btn, true);
+  try {
+    const res = await api('saveSge', req);
+    toast(seEdit ? 'تم حفظ التعديل' : 'تم حفظ الاستمارة');
+    const rec = { id: res.id, kind: 'eval', formName: form.name, teacher: req.teacher, center: req.center, period: req.period, date: req.date,
+      score: req.score, max: req.max, grade: req.grade, mgrName: req.mgrName, at: seEdit ? seEdit.at : '', visitNo: req.data.f.visitNo || '',
+      data: Object.assign({}, req.data, { mgrName: req.mgrName, sigs: res.sigs || {} }, res.tid ? { tid: res.tid, tName: res.tName, tPhone: req.tPhone, tchAt: res.tchAt } : {}) };
+    SGE = SGE.filter(r => r.id !== rec.id); SGE.unshift(rec);
+    cacheSet('sge', SGE);
+    seEdit = null;
+    show('seListView'); renderSge(); loadSge(true);
+  } catch (e) { toast(e.message, false); }
+  finally { setBtnBusy(btn, false); }
+}
+
 /* ---------- استعادة الجلسة ---------- */
 (function init() {
   loadLoginNames('users', 'un', { unit: SG_UNIT });
@@ -582,5 +746,6 @@ async function ssSave(btn) {
   if (last === 'visitsView') { show('visitsView'); loadVisits(); }
   else if (last === 'sgListView' || last === 'sgForm') sgOpenList();
   else if (last === 'ssListView' || last === 'ssForm') ssOpenList();
+  else if (last === 'seListView' || last === 'seForm') seOpenList();
   else { show('homeView'); loadSgh(true); }
 })();

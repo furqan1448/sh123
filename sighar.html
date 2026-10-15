@@ -13,7 +13,17 @@
 <link rel="preload" as="image" href="letterhead.jpg">
 <style>
   .id-hint{font-size:13px;color:var(--muted);margin-top:4px;min-height:1em}
-  #sgListView .act,#ssListView .act{flex-wrap:wrap;justify-content:center}
+  #sgListView .act,#ssListView .act,#seListView .act{flex-wrap:wrap;justify-content:center}
+  .se-types .tile{padding:16px 8px}
+  .se-types .tile b{font-size:15px}
+  .se-grp{background:#f6f0f2;color:var(--primary);font-weight:800;border-radius:10px;padding:8px 12px;margin:14px 0 6px}
+  .se-it{border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;background:#fff}
+  .se-it .se-q{font-weight:700;line-height:1.6}
+  .se-it .se-row{display:flex;gap:8px;align-items:center;margin-top:8px}
+  .se-it .se-row input{margin:0}
+  .se-it .se-sc{flex:0 0 96px;text-align:center}
+  .se-it .se-max{flex:none;color:var(--muted);font-size:14px;white-space:nowrap}
+  .se-it.bad{border-color:#c0392b;background:#fff5f4}
   .hp-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 10px}
   .hp-grid select,.hp-grid input{margin-top:0}
   .id-note-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px}
@@ -51,6 +61,7 @@
       <button class="tile" onclick="show('visitsView'); loadVisits()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4"/><path d="M10 13l2 2 3.5-4"/><path d="M10 18h5"/></svg><b>كشف الخروج</b></button>
       <button class="tile" onclick="sgOpenList()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M8.5 8h7"/><path d="M8.5 11.5h7"/><path d="M8.5 15h4"/><path d="M14.5 17.5l1.3 1.3 2.7-2.8"/></svg><b>تقرير زيارة مشرفة تحفيظ صغار</b></button>
       <button class="tile" onclick="ssOpenList()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M3.5 9h17"/><path d="M3.5 14.5h17"/><path d="M9 9v11"/><path d="M15 9v11"/></svg><b>خلاصة التقارير التعليمية</b></button>
+      <button class="tile" onclick="seOpenList()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M9 3.5V3h6v.5"/><path d="M8.5 9.5l1.2 1.2 2.3-2.4"/><path d="M13.5 9.5h2.5"/><path d="M8.5 14.5l1.2 1.2 2.3-2.4"/><path d="M13.5 14.5h2.5"/></svg><b>استمارات التقييم</b></button>
     </div>
     <p style="text-align:center;margin-top:22px"><button class="btn light" onclick="logout()">تسجيل الخروج</button></p>
   </div>
@@ -222,6 +233,63 @@
     </div>
   </div>
 
+  <!-- استمارات التقييم: السجل -->
+  <div id="seListView" class="hidden">
+    <button class="back" onclick="show('homeView')">← رجوع</button>
+    <div class="card">
+      <h2>استمارات تقييم الأداء الوظيفي</h2>
+      <p class="rp-hint">اختاري الاستمارة، وتُحسب الدرجة والتقدير تلقائياً، وتصل للمعلمة لتوقّع عليها من حسابها.</p>
+      <div class="grid se-types" id="seTypes"></div>
+    </div>
+    <div class="card">
+      <h2>الاستمارات المحفوظة</h2>
+      <div class="row2">
+        <div><label for="seFType" style="margin-top:0">نوع الاستمارة</label><select id="seFType" onchange="renderSge()"></select></div>
+        <div><label for="seFQ" style="margin-top:0">بحث باسم المعلمة أو المركز</label><input id="seFQ" autocomplete="off" oninput="renderSge()" placeholder="اكتبي للبحث..."></div>
+      </div>
+      <div class="tbl-wrap" style="margin-top:12px">
+        <table style="min-width:720px">
+          <thead><tr><th>م</th><th>الاستمارة</th><th>المعلمة</th><th>المركز</th><th>التاريخ</th><th>الدرجة</th><th>التقدير</th><th>توقيع المعلمة</th><th></th></tr></thead>
+          <tbody id="seBody"><tr><td colspan="9" class="empty">جارِ التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- استمارة التقييم -->
+  <div id="seForm" class="hidden">
+    <button class="back" onclick="seBack()">← رجوع</button>
+    <div class="edit-note hidden" data-edit>وضع التعديل: يُحفظ التعديل على نفس الاستمارة.</div>
+    <div class="card">
+      <h2 id="seTitle"></h2>
+      <label for="seTPhone">جوال المعلمة <span style="font-weight:400;color:var(--muted);font-size:14px">(لتصلها الاستمارة في أيقونة «المعلمات» وتوقّع عليها)</span></label>
+      <input id="seTPhone" inputmode="tel" dir="ltr" placeholder="05xxxxxxxx" style="text-align:right" autocomplete="off" onchange="seLookupT()">
+      <div class="id-hint" id="seTHint"></div>
+      <div id="seFields"></div>
+      <div id="seDateBox"></div>
+    </div>
+    <div class="card">
+      <h2>بنود التقييم</h2>
+      <div id="seItems"></div>
+      <div id="seOverallBox" class="hidden">
+        <label for="seOverall">التقدير العام</label>
+        <select id="seOverall"><option value="">اختاري</option><option>ممتاز</option><option>جيد جداً</option><option>جيد</option><option>مقبول</option></select>
+      </div>
+    </div>
+    <div class="card" id="seRecsCard"><div id="seRecs"></div></div>
+    <div class="card">
+      <h2>التواقيع</h2>
+      <label style="margin-top:0" id="seTchLbl">توقيع المعلمة</label>
+      <p class="rp-hint" style="margin-top:0">اختياري: إن كتبتِ جوال المعلمة توقّع هي من حسابها، أو توقّع هنا على جهازكِ.</p>
+      <div id="seTchW"></div>
+      <label for="seMgrName">اسم المديرة</label><input id="seMgrName">
+      <label>توقيع المديرة <span style="font-weight:400;color:var(--muted);font-size:14px">(اختياري)</span></label>
+      <div id="seMgrW"></div>
+      <button id="seSaveBtn" class="btn block" onclick="seSave(this)">حفظ الاستمارة</button>
+    </div>
+    <div class="ev-bar" id="seBar"><span>المجموع: <b id="seSum">٠</b> من <b id="seMax">٠</b></span><span>التقدير: <b id="seGrade">—</b></span></div>
+  </div>
+
   <!-- عرض تقرير -->
   <div id="sgModal" class="modal hidden" onclick="if (event.target === this) sgCloseModal()">
     <div class="modal-box" style="max-width:860px">
@@ -237,6 +305,7 @@
 <script src="export.js"></script>
 <script src="idari-print.js"></script>
 <script src="sighar-print.js"></script>
+<script src="sighar-evals.js"></script>
 <script src="sighar.js"></script>
 </body>
 </html>
