@@ -265,17 +265,38 @@ const sgNorm = t => String(t || '').replace(/[ً-ْـ]/g, '').replace(/[أإآ]/
 function renderSgh() {
   const q = sgNorm($('sgFilter').value);
   const L = SGH.filter(r => !q || sgNorm(r.teacher + ' ' + r.center).indexOf(q) > -1);
-  if (!L.length) { $('sgBody').innerHTML = '<tr><td colspan="7" class="empty">' + (SGH.length ? 'لا توجد نتائج' : 'لا توجد تقارير محفوظة') + '</td></tr>'; return; }
+  if (!L.length) { $('sgBody').innerHTML = '<tr><td colspan="8" class="empty">' + (SGH.length ? 'لا توجد نتائج' : 'لا توجد تقارير محفوظة') + '</td></tr>'; return; }
   $('sgBody').innerHTML = L.map((r, i) => {
     const id = esc(r.id);
     return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.teacher) + '</td><td>' + esc(r.center) + '</td><td>' + esc(r.period) + '</td><td>' +
-      (esc((r.data && r.data.dayName) || r.day) + ' ' + idHDate(r)).trim() + '</td><td>' + (esc(arD(r.visitNo)) || '—') + '</td>' +
+      (esc((r.data && r.data.dayName) || r.day) + ' ' + idHDate(r)).trim() + '</td><td>' + (esc(arD(r.visitNo)) || '—') + '</td><td>' + sgTStatus(r) + '</td>' +
       '<td><div class="act">' + sBtn('عرض', 'sgOpen(\'' + id + '\')') + sBtn('طباعة', 'sgDo(\'' + id + '\', this, \'print\')') +
       sBtn('PDF', 'sgDo(\'' + id + '\', this, \'pdf\')') + sBtn('مشاركة', 'sgDo(\'' + id + '\', this, \'share\')') +
       sBtn('تعديل', 'sgEditRec(\'' + id + '\')') + sBtn('حذف', 'sgDel(\'' + id + '\')', 'danger') + '</div></td></tr>';
   }).join('');
 }
 const recById = id => SGH.find(r => r.id === id);
+// حالة توقيع المعلمة: من حسابها، أو على جهاز المشرفة، أو بانتظار توقيعها
+function sgTStatus(r) {
+  const d = r.data || {}, signed = d.sigs && d.sigs.tch;
+  if (signed) return '<span class="tag ok">✔ وقّعت' + (d.tchAt ? ' <small>' + esc(d.tchAt) + '</small>' : '') + '</span>';
+  if (d.tid) return '<span class="tag warn">⏳ بانتظار توقيعها</span>';
+  return '<span style="color:var(--muted)">—</span>';
+}
+// البحث عن المعلمة برقم جوالها في سجل المعلمات (شيت الشهادات)
+let sgTFound = null;
+async function sgLookupT() {
+  const v = $('sgTPhone').value.trim(), hint = $('sgTHint');
+  sgTFound = null;
+  if (!v) { hint.textContent = ''; return; }
+  hint.textContent = 'جارِ البحث عن المعلمة...';
+  try {
+    const out = await api('lookupTeacher', { phone: v });
+    sgTFound = out.data;
+    hint.innerHTML = '✔ المعلمة: <b>' + esc(out.data.name) + '</b>';
+    if (!$('sgTeacher').value.trim()) { $('sgTeacher').value = out.data.name; sgUpdateNo(); }
+  } catch (e) { hint.textContent = '✖ ' + e.message; }
+}
 function sgOpen(id) { const r = recById(id); if (r) sgView(r); }
 function sgDo(id, btn, what) { const r = recById(id); if (!r) return; what === 'pdf' ? sgPdf(r, btn) : what === 'share' ? sgShare(r, btn) : sgPrint(r, btn); }
 async function sgDel(id) {
@@ -341,6 +362,9 @@ function sgFill(r) {
   const edit = !!r.id;
   document.querySelectorAll('#sgForm [data-edit]').forEach(x => x.classList.toggle('hidden', !edit));
   $('sgTeacher').value = r.teacher || '';
+  $('sgTPhone').value = (r.data && r.data.tPhone) || '';
+  $('sgTHint').innerHTML = r.data && r.data.tName ? '✔ المعلمة: <b>' + esc(r.data.tName) + '</b>' + (r.data.tchAt ? ' — وقّعت من حسابها' : '') : '';
+  sgTFound = null;
   $('sgCenter').value = r.center || '';
   periodSet('sgPeriod', r.period);
   hdSet('sg', edit ? r : null);
@@ -367,7 +391,7 @@ async function sgSave(btn) {
     teacher: $('sgTeacher').value.trim(), center: $('sgCenter').value, period: periodGet('sgPeriod'),
     visitNo: $('sgVisitNo').value.trim().replace(/[٠-٩]/g, x => '٠١٢٣٤٥٦٧٨٩'.indexOf(x)),
     date: hd.greg, lesson: $('sgLesson').value.trim(), recs: sgRecsGet(),
-    supName: $('sgSupName').value.trim(),
+    supName: $('sgSupName').value.trim(), tPhone: $('sgTPhone').value.trim(),
     data: { hd: hd.hd, hm: hd.hm, hy: hd.hy, dayName: hd.dayName }
   };
   if (!req.teacher) return toast('اكتبي اسم المعلمة', false);
@@ -385,8 +409,8 @@ async function sgSave(btn) {
     SGW.sup.commit();
     toast(sgEdit ? 'تم حفظ التعديل' : 'تم حفظ التقرير');
     const rec = Object.assign({}, req, { id: res.id, kind: 'sgh', day: hd.dayName, at: sgEdit ? sgEdit.at : '',
-      data: Object.assign({}, req.data, { sigs: res.sigs || {} }) });
-    delete rec.sigs;
+      data: Object.assign({}, req.data, { sigs: res.sigs || {} }, res.tid ? { tid: res.tid, tName: res.tName, tPhone: req.tPhone, tchAt: res.tchAt } : {}) });
+    delete rec.sigs; delete rec.tPhone;
     SGH = SGH.filter(r => r.id !== rec.id); SGH.unshift(rec);
     cacheSet('sgh', SGH);
     sgEdit = null;

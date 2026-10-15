@@ -236,11 +236,12 @@ function mgRender() {
   } else if (mgTab === 'sgh') {
     const L = sgs.filter(mine); n = L.length;
     const b = (t, fn) => '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="' + fn + '">' + t + '</button> ';
-    head = '<tr><th>المشرفة</th><th>النموذج</th><th>المعلمة</th><th>المركز</th><th>الفترة</th><th>موضوع الدرس</th><th>التاريخ</th><th>رقم الزيارة</th><th></th></tr>';
+    head = '<tr><th>المشرفة</th><th>النموذج</th><th>المعلمة</th><th>المركز</th><th>الفترة</th><th>موضوع الدرس</th><th>التاريخ</th><th>رقم الزيارة</th><th>توقيع المعلمة</th><th></th></tr>';
+    const tSt = x => { const d = x.data || {}; return x.kind === 'sum' ? '—' : (d.sigs && d.sigs.tch) ? '✔ وقّعت' + (d.tchAt ? ' ' + esc(d.tchAt) : '') : d.tid ? '⏳ بانتظار توقيعها' : '—'; };
     const isSum = x => x.kind === 'sum';
     body = L.slice(0, MG_LIMIT).map(x => '<tr><td>' + who(x) + '</td><td>' + (isSum(x) ? 'خلاصة التقارير التعليمية' : 'تقرير زيارة') + '</td><td>' +
       (isSum(x) ? arDigitsN((x.data && x.data.rows || []).length) + ' معلمات' : esc(x.teacher)) + '</td><td>' + (isSum(x) ? esc([x.sem, x.year].filter(Boolean).join(' ')) : esc(x.center)) + '</td><td>' + esc(x.period) + '</td><td>' + esc(x.lesson || '—') +
-      '</td><td>' + esc((x.data && x.data.dayName) || x.day) + ' ' + idHDate(x) + '</td><td>' + esc(idDigits(x.visitNo)) + '</td><td style="white-space:nowrap">' + b('عرض', 'mgSgOpen(\'' + esc(x.id) + '\')') +
+      '</td><td>' + esc((x.data && x.data.dayName) || x.day) + ' ' + idHDate(x) + '</td><td>' + esc(idDigits(x.visitNo)) + '</td><td>' + tSt(x) + '</td><td style="white-space:nowrap">' + b('عرض', 'mgSgOpen(\'' + esc(x.id) + '\')') +
       b('طباعة', 'mgSgDo(\'' + esc(x.id) + '\', this, \'print\')') + b('PDF', 'mgSgDo(\'' + esc(x.id) + '\', this, \'pdf\')') + b('مشاركة', 'mgSgDo(\'' + esc(x.id) + '\', this, \'share\')') + '</td></tr>').join('');
   } else {
     const L = fs.filter(mine); n = L.length;

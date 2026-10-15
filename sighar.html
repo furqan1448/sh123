@@ -117,8 +117,8 @@
       <input id="sgFilter" autocomplete="off" oninput="renderSgh()" placeholder="اكتبي للبحث...">
       <div class="tbl-wrap" style="margin-top:12px">
         <table style="min-width:640px">
-          <thead><tr><th>م</th><th>المعلمة</th><th>المركز</th><th>الفترة</th><th>التاريخ</th><th>رقم الزيارة</th><th></th></tr></thead>
-          <tbody id="sgBody"><tr><td colspan="7" class="empty">جارِ التحميل...</td></tr></tbody>
+          <thead><tr><th>م</th><th>المعلمة</th><th>المركز</th><th>الفترة</th><th>التاريخ</th><th>رقم الزيارة</th><th>توقيع المعلمة</th><th></th></tr></thead>
+          <tbody id="sgBody"><tr><td colspan="8" class="empty">جارِ التحميل...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -130,6 +130,9 @@
     <div class="edit-note hidden" data-edit>وضع التعديل: يُحفظ التعديل على نفس التقرير.</div>
     <div class="card">
       <h2>تقرير زيارة مشرفة تحفيظ صغار</h2>
+      <label for="sgTPhone">جوال المعلمة <span style="font-weight:400;color:var(--muted);font-size:14px">(ليصلها التقرير في أيقونة «المعلمات» وتوقّع عليه)</span></label>
+      <input id="sgTPhone" inputmode="tel" dir="ltr" placeholder="05xxxxxxxx" style="text-align:right" autocomplete="off" onchange="sgLookupT()">
+      <div class="id-hint" id="sgTHint"></div>
       <label for="sgTeacher">اسم المعلمة</label>
       <input id="sgTeacher" list="sgTeachers" autocomplete="off" oninput="sgUpdateNo()">
       <datalist id="sgTeachers"></datalist>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>المعلمات — منظومة مشرفات مكتب إشراف الداخل</title>
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>
+  .id-hint{font-size:14px;color:var(--muted);margin-top:6px;min-height:1em}
+  .id-hint.ok{color:#1f7a45;font-weight:700}
+  .t-hello{font-size:18px;font-weight:800;color:var(--primary);margin-bottom:4px}
+  .t-item{border:1.5px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px;background:#fff}
+  .t-item.pending{border-color:var(--gold);background:#fffbf2}
+  .t-item b{color:var(--primary)}
+  .t-item .t-meta{font-size:14px;color:var(--muted);margin:4px 0 10px;line-height:1.8}
+  .t-item .act{display:flex;flex-wrap:wrap;gap:8px}
+  .t-item .act .btn{padding:8px 14px;font-size:14px}
+  .t-badge{display:inline-block;background:var(--primary);color:#fff;border-radius:20px;padding:0 10px;font-size:13px;margin-right:6px}
+  .t-signed{font-size:13px;color:#1f7a45;font-weight:700}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <img class="logo" alt="شعار فرقان">
+  <h1>المعلمات</h1>
+  <p>الاطلاع على تقارير المشرفات والتوقيع عليها</p>
+</div>
+
+<div class="wrap">
+
+  <!-- تسجيل الدخول -->
+  <div id="loginView" class="card" style="max-width:420px;margin:30px auto">
+    <h2>تسجيل الدخول</h2>
+    <label for="tPhone">رقم الجوال</label>
+    <input id="tPhone" inputmode="tel" dir="ltr" placeholder="05xxxxxxxx" style="text-align:right" autocomplete="username" onchange="tHint()">
+    <div class="id-hint" id="tHintBox"></div>
+    <label for="tPw">كلمة المرور</label>
+    <div class="pw-wrap">
+      <input id="tPw" type="password" autocomplete="current-password" placeholder="كلمة مرور بوابة المعلمات">
+      <button type="button" class="pw-toggle" onclick="togglePassword('tPw', this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    </div>
+    <button id="tLoginBtn" class="btn block" onclick="tLogin()">دخول</button>
+    <p class="rp-hint" style="margin-top:12px;text-align:center">رقم الجوال وكلمة المرور هما نفسهما المستخدمان في بوابة المعلمات.</p>
+    <p style="margin-top:8px;text-align:center"><a class="lnk" href="index.html">الرئيسية</a></p>
+  </div>
+
+  <!-- الرئيسية -->
+  <div id="homeView" class="hidden">
+    <div class="card">
+      <div class="t-hello" id="tHello"></div>
+      <div class="stats" style="margin:12px 0 0">
+        <div class="stat"><b id="stPending">0</b><span>بانتظار توقيعكِ</span></div>
+        <div class="stat"><b id="stSigned">0</b><span>تقارير موقّعة</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>تقارير بانتظار توقيعكِ <span class="t-badge" id="pendBadge">0</span></h2>
+      <div id="pendList"><p class="empty">جارِ التحميل...</p></div>
+    </div>
+    <div class="card">
+      <h2>التقارير الموقّعة</h2>
+      <div id="signedList"><p class="empty">جارِ التحميل...</p></div>
+    </div>
+    <p style="text-align:center;margin-top:12px">
+      <button class="btn light" onclick="tLoad()">تحديث</button>
+      <button class="btn light" onclick="tLogout()">تسجيل الخروج</button>
+    </p>
+  </div>
+
+  <!-- التقرير والتوقيع -->
+  <div id="signView" class="hidden">
+    <button class="back" onclick="tShow('homeView')">← رجوع</button>
+    <div class="card">
+      <div class="ex-bar" id="tBar"></div>
+      <div id="tDoc"></div>
+    </div>
+    <div class="card" id="tSignCard">
+      <h2>التوقيع بالاطلاع</h2>
+      <label class="check" style="margin-top:0"><input type="checkbox" id="tAgree"><span>اطّلعتُ على التقرير وما فيه من توصيات.</span></label>
+      <label>توقيعكِ</label>
+      <div id="tSigW"></div>
+      <button id="tSignBtn" class="btn block" onclick="tSign(this)">توقيع</button>
+    </div>
+  </div>
+
+</div>
+
+<script src="logo-config.js"></script>
+<script src="config.js"></script>
+<script src="idari-print.js"></script>
+<script src="sighar-print.js"></script>
+<script src="teachers.js"></script>
+</body>
+</html>

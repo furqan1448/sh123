@@ -162,6 +162,8 @@ function doPost(e) {
       if (!mgr) out = { ok: false, error: 'الاسم أو كلمة المرور غير صحيحة' };
       else if (req.action === 'getSigs') out = { ok: true, data: getSigs_(req.items) };   // توقيعات الاستمارات لملف الإكسل
       else out = getManage_(mgr);
+    } else if (String(req.action || '').indexOf('t_') === 0) {   // أيقونة «المعلمات»: دخول برقم الجوال وكلمة مرور بوابة المعلمات
+      out = teacherRoute_(req);
     } else if (!checkAuth_(req.username, req.password)) {
       out = { ok: false, error: 'اسم المستخدم أو كلمة المرور غير صحيحة' };
     } else {
@@ -206,6 +208,7 @@ function route_(r) {
     case 'getSgh': return { ok: true, data: getSghFor_(r.username) };
     case 'saveSgh': return withLock_(() => saveSgh_(r));
     case 'deleteSgh': return withLock_(() => deleteSgh_(r));
+    case 'lookupTeacher': { const t = teacherByPhone_(r.phone); return t ? { ok: true, data: { id: t.id, name: t.name } } : { ok: false, error: 'رقم الجوال غير موجود في سجل المعلمات' }; }
     case 'getSgs': return { ok: true, data: getSgsFor_(r.username) };
     case 'saveSgs': return withLock_(() => saveSgs_(r));
     case 'deleteSgs': return withLock_(() => deleteSgs_(r));
@@ -1046,11 +1049,23 @@ function saveSgh_(r) {
   }
   let oldData = {};
   if (old) { try { oldData = JSON.parse(old[11] || '{}'); } catch (e) {} }
+
+  // ربط التقرير بحساب المعلمة (رقم جوالها في شيت الشهادات) لتوقّع عليه من أيقونة «المعلمات»
+  const tPhone = pPhone_(r.tPhone);
+  if (tPhone) {
+    const t = teacherByPhone_(tPhone);
+    if (!t) throw new Error('رقم جوال المعلمة غير موجود في سجل المعلمات');
+    data.tPhone = tPhone; data.tid = t.id; data.tName = t.name;
+  }
+  const sameTeacher = data.tid && data.tid === oldData.tid;
+  if (sameTeacher && oldData.tchAt) data.tchAt = oldData.tchAt;   // وقّعت المعلمة من حسابها: يبقى توقيعها
+
   const has = {};
   SGH_SIGS.forEach(k => {
     const v = String(sigs[k] || '');
+    if (k === 'tch' && data.tchAt && v.indexOf('data:image/') !== 0) { has[k] = '1'; return; }   // لا يُحذف توقيع وقّعته المعلمة بنفسها
     if (v === 'keep') { if (oldData.sigs && oldData.sigs[k]) has[k] = '1'; return; }
-    if (v.indexOf('data:image/') === 0) { sigPut_(id + '|' + k, v); has[k] = '1'; }
+    if (v.indexOf('data:image/') === 0) { sigPut_(id + '|' + k, v); has[k] = '1'; if (k === 'tch') delete data.tchAt; }
     else if (old) sigDel_(id + '|' + k);
   });
   data.sigs = has;
@@ -1058,7 +1073,7 @@ function saveSgh_(r) {
   const vals = [[id, teacher, center, period, s(r.visitNo, 10), data.dayName, hijri, date, s(r.lesson, 500), recs,
     s(r.supName), JSON.stringify(data), old ? String(old[12] || nowStr_()) : nowStr_(), me.username, me.unit]];
   sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
-  return { ok: true, id: id, sigs: has };
+  return { ok: true, id: id, sigs: has, tid: data.tid || '', tName: data.tName || '', tchAt: data.tchAt || '' };
 }
 
 function deleteSgh_(r) {
@@ -1181,4 +1196,140 @@ function deleteSgs_(r) {
     }
   }
   throw new Error('السجل غير موجود');
+}
+
+
+
+/* ============ أيقونة «المعلمات»: دخول المعلمة وتوقيعها على تقارير المشرفات ============
+   سجل المعلمات (الاسم، الجوال، كلمة المرور، Teacher ID) يُقرأ من شيت الشهادات — قراءة فقط ولا يُعدَّل فيه شيء.
+   كلمة المرور هي نفسها كلمة مرور بوابة المعلمات. */
+const CERT_SHEET_ID = '10SGdGcDEUJS0G8_s_m12Ix8A7hoN4iPLWm_p7yi6j88';
+const CERT_COLS = { pass: 'م', name: 'اسم المعلمة', phone: 'رقم الجوال', id: 'Teacher ID' };
+const T_MAX_FAILS = 5, T_LOCK_MIN = 15;
+
+function pPhone_(v) {
+  let p = String(v == null ? '' : v).replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/\D/g, '');
+  if (p.indexOf('00966') === 0) p = p.slice(5);
+  else if (p.indexOf('966') === 0) p = p.slice(3);
+  if (p.length === 9) p = '0' + p;
+  return p.length === 10 ? p : '';
+}
+
+// سجل المعلمات في الكاش 6 ساعات (يُعاد قراءته إن لم توجد المعلمة، مرة كل دقيقة كحد أقصى)
+const CERT_CACHE_KEY = 'cert_v2', CERT_CACHE_TTL = 21600;
+function certRowsFresh_() {
+  const sh = SpreadsheetApp.openById(CERT_SHEET_ID).getSheets().find(x => x.getName().indexOf('شهادة') !== -1);
+  if (!sh) throw new Error('ورقة الشهادات غير موجودة');
+  const v = sh.getDataRange().getDisplayValues();
+  const hr = v.findIndex(r => r.some(c => String(c).trim() === CERT_COLS.name));
+  if (hr < 0) throw new Error('صف العناوين غير موجود في ورقة الشهادات');
+  const h = v[hr].map(c => String(c).trim());
+  const ix = {}; Object.keys(CERT_COLS).forEach(k => ix[k] = h.indexOf(CERT_COLS[k]));
+  if (ix.name < 0 || ix.phone < 0 || ix.id < 0 || ix.pass < 0) throw new Error('أعمدة ناقصة في ورقة الشهادات');
+  return v.slice(hr + 1).map(r => ({ id: String(r[ix.id]).trim(), name: String(r[ix.name]).trim(), phone: pPhone_(r[ix.phone]), pass: String(r[ix.pass]).trim().toUpperCase() }))
+    .filter(t => t.id && t.name && t.phone);
+}
+function certCachePut_(rows) {
+  try {
+    const s = JSON.stringify(rows.map(t => [t.id, t.name, t.phone, t.pass])), CH = 30000, cnt = Math.ceil(s.length / CH);
+    if (cnt < 1 || cnt > 60) return;
+    const o = {};
+    for (let i = 0; i < cnt; i++) o[CERT_CACHE_KEY + '_' + i] = s.substr(i * CH, CH);
+    o[CERT_CACHE_KEY + '_n'] = String(cnt);
+    o[CERT_CACHE_KEY + '_at'] = String(Date.now());
+    CacheService.getScriptCache().putAll(o, CERT_CACHE_TTL);
+  } catch (e) {}
+}
+function certCacheGet_() {
+  try {
+    const c = CacheService.getScriptCache();
+    const n = parseInt(c.get(CERT_CACHE_KEY + '_n') || '0', 10);
+    if (!n) return null;
+    const keys = []; for (let i = 0; i < n; i++) keys.push(CERT_CACHE_KEY + '_' + i);
+    const parts = c.getAll(keys); let s = '';
+    for (let i = 0; i < n; i++) { const p = parts[keys[i]]; if (p == null) return null; s += p; }
+    return JSON.parse(s).map(a => ({ id: a[0], name: a[1], phone: a[2], pass: a[3] }));
+  } catch (e) { return null; }
+}
+function certRows_(fresh) {
+  if (!fresh) { const hit = certCacheGet_(); if (hit) return hit; }
+  const rows = certRowsFresh_(); certCachePut_(rows); return rows;
+}
+function certFind_(test) {
+  let hit = certRows_(false).filter(test);
+  if (!hit.length) {
+    const at = Number(CacheService.getScriptCache().get(CERT_CACHE_KEY + '_at') || 0);
+    if (Date.now() - at > 60000) hit = certRows_(true).filter(test);
+  }
+  return hit.length ? hit[0] : null;
+}
+function teacherByPhone_(phone) { const p = pPhone_(phone); return p ? certFind_(t => t.phone === p) : null; }
+
+// تحقق دخول المعلمة (مع إيقاف مؤقت بعد 5 محاولات خاطئة)
+function teacherAuth_(req) {
+  const phone = pPhone_(req.phone), pass = String(req.password || '').trim().toUpperCase();
+  if (!phone || !pass) throw new Error('تحققي من رقم الجوال وكلمة المرور');
+  const c = CacheService.getScriptCache(), key = 'tfail_' + phone;
+  const fails = Number(c.get(key) || 0);
+  if (fails >= T_MAX_FAILS) throw new Error('تم إيقاف المحاولات مؤقتاً، حاولي بعد ' + T_LOCK_MIN + ' دقيقة');
+  const t = certFind_(x => x.phone === phone && x.pass === pass);
+  if (!t) { c.put(key, String(fails + 1), T_LOCK_MIN * 60); throw Object.assign(new Error('رقم الجوال أو كلمة المرور غير صحيحة'), { auth: true }); }
+  if (fails) c.remove(key);
+  return t;
+}
+
+// تقارير المعلمة (المرتبطة بمعرّفها فقط)
+function teacherReports_(t) {
+  return getSgh_().filter(x => x.data && x.data.tid === t.id).map(x => {
+    const o = Object.assign({}, x); delete o.owner;
+    o.signed = !!(x.data.sigs && x.data.sigs.tch);
+    return o;
+  });
+}
+
+function teacherRoute_(r) {
+  try {
+    if (r.action === 't_hint') {   // اسم مختصر للتأكد قبل كتابة كلمة المرور
+      const t = teacherByPhone_(r.phone);
+      return t ? { ok: true, name: t.name.split(/\s+/).slice(0, 2).join(' ') } : { ok: false, error: 'رقم الجوال غير موجود في سجل المعلمات' };
+    }
+    const t = teacherAuth_(r);
+    if (r.action === 't_login' || r.action === 't_list') return { ok: true, teacher: { id: t.id, name: t.name }, data: teacherReports_(t) };
+    if (r.action === 't_sigs') {   // تواقيع تقرير من تقاريرها فقط (للعرض والطباعة)
+      const rec = getSgh_().find(x => x.id === String(r.id || '') && x.data && x.data.tid === t.id);
+      if (!rec) throw new Error('التقرير غير موجود');
+      return { ok: true, data: getSigs_(['sup', 'tch'].map(k => ({ id: rec.id + '|' + k }))) };
+    }
+    if (r.action === 't_sign') return withLock_(() => teacherSign_(t, r));
+    throw new Error('إجراء غير معروف');
+  } catch (e) {
+    return { ok: false, error: String(e && e.message ? e.message : e) };
+  }
+}
+
+function teacherSign_(t, r) {
+  const id = String(r.id || ''), sig = String(r.signature || '');
+  if (sig.indexOf('data:image/') !== 0 || sig.length > 49000) throw new Error('التوقيع غير صالح، أعيدي التوقيع');
+  const sh = ss_().getSheetByName(SHEET.SGH);
+  if (!sh || sh.getLastRow() < 2) throw new Error('التقرير غير موجود');
+  const ids = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues();
+  for (let i = 0; i < ids.length; i++) {
+    if (String(ids[i][0]) !== id) continue;
+    const cell = sh.getRange(i + 2, 12);
+    let data = {};
+    try { data = JSON.parse(cell.getValue() || '{}'); } catch (e) {}
+    if (data.tid !== t.id) throw new Error('هذا التقرير ليس لكِ');
+    sigPut_(id + '|tch', sig);
+    data.sigs = data.sigs || {}; data.sigs.tch = '1';
+    data.tchAt = nowStr_();
+    cell.setNumberFormat('@').setValue(JSON.stringify(data));
+    return { ok: true, at: data.tchAt };
+  }
+  throw new Error('التقرير غير موجود');
+}
+
+/* شغّليها مرة واحدة من Apps Script لمنح الإذن بقراءة شيت الشهادات والتأكد من الربط */
+function testTeacherRegistry() {
+  const rows = certRows_(true);
+  Logger.log('عدد المعلمات في سجل الشهادات: ' + rows.length + (rows[0] ? ' — مثال: ' + rows[0].name : ''));
 }

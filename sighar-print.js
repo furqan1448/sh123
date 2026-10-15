@@ -199,9 +199,23 @@ async function sgView(rec) {
   let sigs = {};
   try { sigs = await sgLoadSigs(rec); } catch (e) {}
   b.innerHTML = '<div class="ex-bar"><button class="btn light" id="sgVPrint">طباعة</button><button class="btn light" id="sgVPdf">تحميل PDF</button><button class="btn light" id="sgVShare">مشاركة (واتساب)</button></div>' +
-    '<style>' + SG_CSS + '</style><div class="id-scroll">' + sgDocHtml(rec, sigs) + '</div>';
+    '<style>' + SG_CSS + '</style><div class="id-scroll sg-fit">' + sgDocHtml(rec, sigs) + '</div>';
   document.getElementById('sgVPrint').onclick = e => sgPrint(rec, e.currentTarget, sigs);
   document.getElementById('sgVPdf').onclick = e => sgPdf(rec, e.currentTarget, sigs);
   document.getElementById('sgVShare').onclick = e => sgShare(rec, e.currentTarget, sigs);
+  sgFitBox(b.querySelector('.sg-fit'));
 }
+// تصغير التقرير ليناسب عرض الشاشة (الجوال) دون تمرير أفقي
+function sgFitBox(box) {
+  if (!box) return;
+  const doc = box.querySelector('.idoc'); if (!doc) return;
+  doc.style.transform = ''; box.style.height = '';
+  const w = doc.offsetWidth, k = Math.min(1, (box.clientWidth - 4) / w);
+  if (k >= 1) return;
+  doc.style.transform = 'scale(' + k + ')'; doc.style.transformOrigin = 'top right';
+  box.style.height = Math.ceil(doc.offsetHeight * k) + 8 + 'px'; box.style.overflow = 'hidden';
+  // إعادة الحساب بعد تحميل الصور (الكليشة والتواقيع) حتى لا يُقصّ أسفل التقرير
+  box.querySelectorAll('img').forEach(im => { if (!im.complete && !im._fit) { im._fit = 1; im.addEventListener('load', () => sgFitBox(box)); } });
+}
+window.addEventListener('resize', () => document.querySelectorAll('.sg-fit').forEach(sgFitBox));
 function sgCloseModal() { const m = document.getElementById('sgModal'); if (m) m.classList.add('hidden'); }
