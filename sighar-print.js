@@ -5,10 +5,10 @@ const SG_BG = 'letterhead.jpg';   // الكليشة الحمراء الموحّ�
 const SG_UNIT = 'وحدة تحفيظ الصغار';
 const SG_TITLE = 'تقرير زيارة مشرفة وحدة تحفيظ الصغار';
 const SGS_TITLE = 'خلاصة التقارير التعليمية – متابعة المشرفة للمعلمة';
-const sgTitleOf = rec => rec && rec.kind === 'sum' ? SGS_TITLE : rec && rec.kind === 'eval' && typeof sgeFormOf === 'function' && sgeFormOf(rec) ? sgeFormOf(rec).title : SG_TITLE;
+const sgTitleOf = rec => rec && rec.kind === 'min' ? 'محضر اجتماع رقم ' + (rec.no || '') : rec && rec.kind === 'sum' ? SGS_TITLE : rec && rec.kind === 'eval' && typeof sgeFormOf === 'function' && sgeFormOf(rec) ? sgeFormOf(rec).title : SG_TITLE;
 // استمارات التقييم صفحة طولية، وباقي النماذج عرضية
-const sgPortrait = rec => !!(rec && rec.kind === 'eval');
-const sgAllCss = () => SG_CSS + (typeof SGE_CSS === 'string' ? SGE_CSS : '');
+const sgPortrait = rec => !!(rec && (rec.kind === 'eval' || rec.kind === 'min'));
+const sgAllCss = () => SG_CSS + (typeof SGE_CSS === 'string' ? SGE_CSS : '') + (typeof MN_CSS === 'string' ? MN_CSS : '');
 
 // جلب التواقيع (تُستبدل في صفحة إدارة الوحدات بدخول المديرة)
 let sgSigFetch = items => api('getSigs', { items }).then(o => o.data || {});
@@ -40,6 +40,7 @@ const sgRecList = rec => String(rec.recs || '').split('\n').map(x => x.trim()).f
 function sgDocHtml(rec, sigs, lhUrl) {
   if (rec && rec.kind === 'sum') return sgsDocHtml(rec, sigs, lhUrl);
   if (rec && rec.kind === 'eval') return sgeDocHtml(rec, sigs, lhUrl);
+  if (rec && rec.kind === 'min') return mnDocHtml(rec, sigs, lhUrl);
   sigs = sigs || {};
   const d = rec.data || {};
   const per = String(rec.period || '');

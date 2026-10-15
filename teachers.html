@@ -66,6 +66,7 @@
     <div class="grid">
       <button class="tile" onclick="tShow('reportsView')"><span class="t-tbadge hidden" id="tileBadge">0</span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V6a2 2 0 0 1 2-2h9l5 5v10.5a.5.5 0 0 1-.5.5H6a2 2 0 0 1-2-2z"/><path d="M14 4v5h5"/><path d="M7.5 16.5c1.2-1.6 2.2-1.6 3 0s1.8 1.6 3 0"/></svg><b>تقارير المشرفات</b></button>
       <button class="tile" onclick="tCertOpen()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="17" height="12" rx="1.5"/><path d="M7 8h10"/><path d="M8.5 11.5h7"/><circle cx="12" cy="17.5" r="2.5"/><path d="M10.6 19.6 10 22l2-1 2 1-.6-2.4"/></svg><b>شهادتي</b></button>
+      <button class="tile" onclick="tMinOpen()"><span class="t-tbadge hidden" id="minBadge">0</span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="2.5"/><circle cx="16" cy="8" r="2.5"/><path d="M3.5 18c0-2.8 2-4.5 4.5-4.5s4.5 1.7 4.5 4.5"/><path d="M11.5 18c0-2.8 2-4.5 4.5-4.5s4.5 1.7 4.5 4.5"/><path d="M3 21h18"/></svg><b>محاضر الاجتماعات</b></button>
     </div>
     <p style="text-align:center;margin-top:22px"><button class="btn light" onclick="tLogout()">تسجيل الخروج</button></p>
   </div>
@@ -106,6 +107,28 @@
     </div>
   </div>
 
+  <!-- محاضر الاجتماعات -->
+  <div id="minView" class="hidden">
+    <button class="back" onclick="tShow('homeView')">← رجوع</button>
+    <div class="card">
+      <h2>محاضر بانتظار اطلاعكِ <span class="t-badge" id="minPendBadge">0</span></h2>
+      <div id="minPend"><p class="empty">جارِ التحميل...</p></div>
+    </div>
+    <div class="card">
+      <h2>محاضر اطّلعتِ عليها</h2>
+      <div id="minDone"><p class="empty">جارِ التحميل...</p></div>
+    </div>
+  </div>
+  <div id="minDocView" class="hidden">
+    <button class="back" onclick="tShow('minView')">← رجوع</button>
+    <div class="card">
+      <div class="ex-bar" id="minBar"></div>
+      <div id="minDoc"></div>
+      <button id="minAckBtn" class="btn block hidden" style="margin-top:14px" onclick="tMinAck(this)">✔ تم الاطلاع</button>
+      <p id="minAcked" class="t-signed hidden" style="text-align:center;margin-top:12px;font-size:15px"></p>
+    </div>
+  </div>
+
   <!-- التقرير والتوقيع -->
   <div id="signView" class="hidden">
     <button class="back" onclick="tShow('reportsView')">← رجوع</button>
@@ -129,6 +152,8 @@
 <script src="idari-print.js"></script>
 <script src="sighar-print.js"></script>
 <script src="sighar-evals.js"></script>
+<script>window.MN_NO_UI = 1;</script>
+<script src="minutes.js"></script>
 <script src="teachers.js"></script>
 </body>
 </html>

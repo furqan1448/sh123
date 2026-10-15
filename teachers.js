@@ -2,10 +2,10 @@
    الدخول برقم الجوال وكلمة مرور بوابة المعلمات، والتقارير مرتبطة بها عن طريق رقم جوالها في تقرير المشرفة. */
 const $ = id => document.getElementById(id);
 const T_PHONE = 'tch_phone', T_PW = 'tch_pw', T_CACHE = 'tch_reports';
-let TREP = [], tCur = null, tSigsCur = {}, TME = null;
+let TREP = [], tCur = null, tSigsCur = {}, TME = null, TMIN = [], tMinCur = null;
 
 function tShow(id) {
-  ['loginView', 'homeView', 'reportsView', 'certView', 'signView'].forEach(v => $(v).classList.add('hidden'));
+  ['loginView', 'homeView', 'reportsView', 'certView', 'signView', 'minView', 'minDocView'].forEach(v => $(v).classList.add('hidden'));
   $(id).classList.remove('hidden');
   window.scrollTo(0, 0);
   setTimeout(() => SIG_WIDGETS.forEach(w => w.resize()), 60);
@@ -71,7 +71,9 @@ function tLogout() {
 function tApply(out) {
   TREP = out.data || [];
   TME = out.teacher || TME;
-  try { localStorage.setItem(T_CACHE, JSON.stringify({ name: out.teacher.name, me: out.teacher, data: TREP })); } catch (e) {}
+  TMIN = out.minutes || [];
+  try { localStorage.setItem(T_CACHE, JSON.stringify({ name: out.teacher.name, me: out.teacher, data: TREP, minutes: TMIN })); } catch (e) {}
+  tMinRender();
   $('tHello').textContent = 'مرحباً ' + out.teacher.name;
   tRender();
 }
@@ -169,12 +171,51 @@ async function tCertPdf(btn) {
   finally { setBtnBusy(btn, false); }
 }
 
+/* ---------- محاضر الاجتماعات: تطّلع المعلمة وتضغط «تم الاطلاع» ---------- */
+function tMinOpen() { tShow('minView'); tMinRender(); tLoad(); }
+function tMinItem(m) {
+  return '<div class="t-item' + (m.acked ? '' : ' pending') + '"><b>محضر اجتماع رقم ( ' + esc(idDigits(m.no)) + ' )</b>' +
+    '<div class="t-meta">' + esc(m.dayName || '') + ' ' + esc(idDigits(m.hijri || '')) + (m.center ? ' — ' + esc(m.center) : '') +
+    (m.acked ? '<br><span class="t-signed">✔ اطّلعتِ' + (m.ackAt ? ' بتاريخ ' + esc(m.ackAt) : '') + '</span>' : '') + '</div>' +
+    '<div class="act"><button class="btn' + (m.acked ? ' light' : '') + '" onclick="tMinShow(\'' + esc(m.id) + '\')">' + (m.acked ? 'عرض' : 'فتح المحضر') + '</button></div></div>';
+}
+function tMinRender() {
+  const pend = TMIN.filter(m => !m.acked), done = TMIN.filter(m => m.acked);
+  $('minBadge').textContent = pend.length; $('minBadge').classList.toggle('hidden', !pend.length);
+  $('minPendBadge').textContent = pend.length;
+  $('minPend').innerHTML = pend.length ? pend.map(tMinItem).join('') : '<p class="empty">لا توجد محاضر جديدة</p>';
+  $('minDone').innerHTML = done.length ? done.map(tMinItem).join('') : '<p class="empty">لا توجد محاضر بعد</p>';
+}
+function tMinShow(id) {
+  const m = TMIN.find(x => x.id === id); if (!m) return;
+  tMinCur = m;
+  $('minBar').innerHTML = '<button class="btn light" id="minPdfBtn">تحميل PDF</button>';
+  $('minPdfBtn').onclick = e => sgPdf(m, e.currentTarget, {});
+  $('minDoc').innerHTML = '<style>' + sgAllCss() + '</style><div class="id-scroll sg-fit">' + sgDocHtml(m, {}) + '</div>';
+  $('minAckBtn').classList.toggle('hidden', !!m.acked);
+  $('minAcked').classList.toggle('hidden', !m.acked);
+  $('minAcked').textContent = m.acked ? '✔ اطّلعتِ على هذا المحضر' + (m.ackAt ? ' بتاريخ ' + m.ackAt : '') : '';
+  tShow('minDocView');
+  sgFitBox($('minDoc').querySelector('.sg-fit'));
+}
+async function tMinAck(btn) {
+  if (!tMinCur) return;
+  setBtnBusy(btn, true, 'جارِ الحفظ...');
+  try {
+    const out = await tApi('t_ack', { id: tMinCur.id });
+    tMinCur.acked = true; tMinCur.ackAt = out.at;
+    toast('تم تسجيل اطلاعكِ، شكراً لكِ');
+    tMinShow(tMinCur.id); tMinRender();
+  } catch (e) { toast(e.message, false); }
+  finally { setBtnBusy(btn, false); }
+}
+
 /* ---------- استعادة الجلسة ---------- */
 (function init() {
   if (!localStorage.getItem(T_PHONE) || !localStorage.getItem(T_PW)) return;
   try {
     const c = JSON.parse(localStorage.getItem(T_CACHE) || 'null');
-    if (c) { TREP = c.data || []; TME = c.me || null; $('tHello').textContent = 'مرحباً ' + c.name; tRender(); }
+    if (c) { TREP = c.data || []; TME = c.me || null; TMIN = c.minutes || []; $('tHello').textContent = 'مرحباً ' + c.name; tRender(); tMinRender(); }
   } catch (e) {}
   tShow('homeView');
   tLoad();

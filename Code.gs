@@ -19,6 +19,8 @@ const SHEET = {
   IDARI: 'نماذج الإشراف الإداري',   // نماذج وحدة الإشراف الإداري (تقرير الزيارة، برنامج مشرفة مقيمة، الاقتراحات والصعوبات)، تُنشأ تلقائياً
   SGH: 'تقارير تحفيظ الصغار',   // تقارير زيارة مشرفات وحدة تحفيظ الصغار، تُنشأ تلقائياً
   SGS: 'خلاصة التقارير التعليمية',
+  MIN: 'محاضر الاجتماعات',   // محاضر الاجتماعات (الإشراف التربوي وتحفيظ الصغار) تُنشر للمعلمات، تُنشأ تلقائياً
+  MINACK: 'اطلاع المحاضر',   // من اطّلعت على كل محضر ومتى
   SGE: 'استمارات تحفيظ الصغار'   // استمارات تقييم الأداء الوظيفي لتحفيظ الصغار (7 استمارات)، تُنشأ تلقائياً   // خلاصة التقارير التعليمية – متابعة المشرفة للمعلمة (تحفيظ الصغار)، تُنشأ تلقائياً
 };
 
@@ -211,6 +213,10 @@ function route_(r) {
     case 'saveSgh': return withLock_(() => saveSgh_(r));
     case 'deleteSgh': return withLock_(() => deleteSgh_(r));
     case 'lookupTeacher': { const t = teacherByPhone_(r.phone); return t ? { ok: true, data: { id: t.id, name: t.name } } : { ok: false, error: 'رقم الجوال غير موجود في سجل المعلمات' }; }
+    case 'getMinutes': return { ok: true, data: getMinutesFor_(r.username) };
+    case 'saveMinute': return withLock_(() => saveMinute_(r));
+    case 'deleteMinute': return withLock_(() => deleteMinute_(r));
+    case 'teacherDir': return { ok: true, data: certRows_(false).map(t => ({ id: t.id, name: t.name })) };
     case 'getSge': return { ok: true, data: getSgeFor_(r.username) };
     case 'saveSge': return withLock_(() => saveSge_(r));
     case 'deleteSge': return withLock_(() => deleteSge_(r));
@@ -287,6 +293,9 @@ function getLists_(fresh) {
     if (r[3] != null && String(r[3]).trim()) typesIdari.push(String(r[3]).trim());
     if (r[4] != null && String(r[4]).trim()) typesSgh.push(String(r[4]).trim());
   });
+  // أسماء المعلمات للقائمة المنسدلة: من «القوائم» + سجل المعلمات (شيت الشهادات)
+  try { certRows_(false).forEach(t => { if (teachers.indexOf(t.name) < 0) teachers.push(t.name); }); } catch (e) {}
+  teachers.sort((a, b) => a.localeCompare(b, 'ar'));
   const out = { centers: centers, types: types, teachers: teachers, typesIdari: typesIdari, typesSgh: typesSgh };
   try { cache.put('lists_v3', JSON.stringify(out), 120); } catch (e) {}
   return out;
@@ -1061,6 +1070,9 @@ function saveSgh_(r) {
     const t = teacherByPhone_(tPhone);
     if (!t) throw new Error('رقم جوال المعلمة غير موجود في سجل المعلمات');
     data.tPhone = tPhone; data.tid = t.id; data.tName = t.name;
+  } else {
+    const t = teacherByName_(teacher);   // اختيرت المعلمة من القائمة: تُربط تلقائياً إن كان اسمها لا يتكرر
+    if (t) { data.tid = t.id; data.tName = t.name; }
   }
   const sameTeacher = data.tid && data.tid === oldData.tid;
   if (sameTeacher && oldData.tchAt) data.tchAt = oldData.tchAt;   // وقّعت المعلمة من حسابها: يبقى توقيعها
@@ -1221,7 +1233,7 @@ function pPhone_(v) {
 }
 
 // سجل المعلمات في الكاش 6 ساعات (يُعاد قراءته إن لم توجد المعلمة، مرة كل دقيقة كحد أقصى)
-const CERT_CACHE_KEY = 'cert_v3', CERT_CACHE_TTL = 21600;
+const CERT_CACHE_KEY = 'cert_v4', CERT_CACHE_TTL = 21600;
 function certRowsFresh_() {
   const sh = SpreadsheetApp.openById(CERT_SHEET_ID).getSheets().find(x => x.getName().indexOf('شهادة') !== -1);
   if (!sh) throw new Error('ورقة الشهادات غير موجودة');
@@ -1233,7 +1245,8 @@ function certRowsFresh_() {
   if (ix.name < 0 || ix.phone < 0 || ix.id < 0 || ix.pass < 0) throw new Error('أعمدة ناقصة في ورقة الشهادات');
   return v.slice(hr + 1).map(r => ({ id: String(r[ix.id]).trim(), name: String(r[ix.name]).trim(), phone: pPhone_(r[ix.phone]), pass: String(r[ix.pass]).trim().toUpperCase(),
     cat: ix.cat > -1 ? String(r[ix.cat]).trim() : '' }))
-    .filter(t => t.id && t.name && t.phone);
+    .filter(t => t.name && t.phone)
+    .map(t => { if (!t.id) t.id = 'P-' + t.phone; return t; });   // معلمة جديدة بلا Teacher ID: معرّف ثابت من رقم جوالها
 }
 function certCachePut_(rows) {
   try {
@@ -1269,6 +1282,14 @@ function certFind_(test) {
   }
   return hit.length ? hit[0] : null;
 }
+function teacherByName_(name) {
+  const k = norm_(name).replace(/\s+/g, ' ');
+  if (!k) return null;
+  try {
+    const L = certRows_(false).filter(t => t.name.replace(/\s+/g, ' ') === k);
+    return L.length === 1 ? L[0] : null;
+  } catch (e) { return null; }
+}
 function teacherByPhone_(phone) { const p = pPhone_(phone); return p ? certFind_(t => t.phone === p) : null; }
 
 // تحقق دخول المعلمة (مع إيقاف مؤقت بعد 5 محاولات خاطئة)
@@ -1300,7 +1321,8 @@ function teacherRoute_(r) {
       return t ? { ok: true, name: t.name.split(/\s+/).slice(0, 2).join(' ') } : { ok: false, error: 'رقم الجوال غير موجود في سجل المعلمات' };
     }
     const t = teacherAuth_(r);
-    if (r.action === 't_login' || r.action === 't_list') return { ok: true, teacher: { id: t.id, name: t.name, category: t.cat }, data: teacherReports_(t) };
+    if (r.action === 't_login' || r.action === 't_list') return { ok: true, teacher: { id: t.id, name: t.name, category: t.cat }, data: teacherReports_(t), minutes: minutesFor_(t) };
+    if (r.action === 't_ack') return withLock_(() => minuteAck_(t, r));
     if (r.action === 't_sigs') {   // تواقيع تقرير من تقاريرها فقط (للعرض والطباعة)
       const rec = getSgh_().concat(getSge_()).find(x => x.id === String(r.id || '') && x.data && x.data.tid === t.id);
       if (!rec) throw new Error('التقرير غير موجود');
@@ -1430,6 +1452,9 @@ function saveSge_(r) {
     const t = teacherByPhone_(tPhone);
     if (!t) throw new Error('رقم جوال المعلمة غير موجود في سجل المعلمات');
     data.tPhone = tPhone; data.tid = t.id; data.tName = t.name;
+  } else {
+    const t = teacherByName_(teacher);   // اختيرت المعلمة من القائمة: تُربط تلقائياً إن كان اسمها لا يتكرر
+    if (t) { data.tid = t.id; data.tName = t.name; }
   }
   if (data.tid && data.tid === oldData.tid && oldData.tchAt) data.tchAt = oldData.tchAt;
 
@@ -1469,4 +1494,124 @@ function deleteSge_(r) {
     }
   }
   throw new Error('السجل غير موجود');
+}
+
+
+/* ============ فحص ربط أرقام المعلمات (للتشخيص) ============
+   اكتبي رقم الجوال بين علامتي التنصيص ثم شغّلي الدالة checkTeacherPhone من Apps Script وانظري إلى «سجل التنفيذ». */
+const CHECK_PHONE = '05xxxxxxxx';
+function checkTeacherPhone() {
+  const ss = SpreadsheetApp.openById(CERT_SHEET_ID);
+  Logger.log('الملف المرتبط: «' + ss.getName() + '»');
+  Logger.log('رابطه: ' + ss.getUrl());
+  Logger.log('الأوراق فيه: ' + ss.getSheets().map(x => x.getName()).join(' | '));
+  const sh = ss.getSheets().find(x => x.getName().indexOf('شهادة') !== -1);
+  if (!sh) { Logger.log('✖ لا توجد ورقة اسمها يحتوي «شهادة»'); return; }
+  Logger.log('الورقة المقروءة: «' + sh.getName() + '» — عدد الصفوف: ' + sh.getLastRow());
+  const v = sh.getDataRange().getDisplayValues();
+  const hr = v.findIndex(r => r.some(c => String(c).trim() === CERT_COLS.name));
+  Logger.log('صف العناوين رقم ' + (hr + 1) + ': ' + (hr > -1 ? v[hr].filter(String).join(' | ') : 'غير موجود'));
+  const h = v[hr].map(c => String(c).trim()), cP = h.indexOf(CERT_COLS.phone), cN = h.indexOf(CERT_COLS.name);
+  const want = pPhone_(CHECK_PHONE);
+  let found = false;
+  for (let i = hr + 1; i < v.length; i++) {
+    if (pPhone_(v[i][cP]) === want) { found = true; Logger.log('✔ وُجد الرقم في الصف ' + (i + 1) + ' — الاسم: ' + v[i][cN] + ' — الرقم كما هو مكتوب: ' + v[i][cP]); }
+  }
+  if (!found) Logger.log('✖ الرقم ' + CHECK_PHONE + ' غير موجود في هذه الورقة. آخر 3 أرقام مكتوبة فيها: ' + v.slice(-3).map(r => r[cP]).join(' ، '));
+  CacheService.getScriptCache().remove(CERT_CACHE_KEY + '_n');   // يمسح القائمة المؤقتة لتُقرأ من جديد
+  Logger.log('تم مسح القائمة المؤقتة، جرّبي الموقع الآن.');
+}
+
+
+
+/* ============ محاضر الاجتماعات: تنشرها المشرفة للمعلمات (الكل أو محددات) وتضغط المعلمة «تم الاطلاع» ============ */
+const MIN_HEADERS = ['الرقم', 'رقم الاجتماع', 'اليوم', 'التاريخ الهجري', 'المركز', 'المستهدفات', 'البيانات', 'وقت النشر', 'المسجِّلة', 'الوحدة'];
+const MINACK_HEADERS = ['رقم المحضر', 'Teacher ID', 'اسم المعلمة', 'وقت الاطلاع'];
+function minSheet_() {
+  const ss = ss_();
+  let sh = ss.getSheetByName(SHEET.MIN);
+  if (!sh) { sh = ss.insertSheet(SHEET.MIN); sh.getRange(1, 1, 1, MIN_HEADERS.length).setValues([MIN_HEADERS]); styleHeader_(sh, MIN_HEADERS.length); sh.setColumnWidths(1, MIN_HEADERS.length, 140); sh.setColumnWidth(7, 380); }
+  return sh;
+}
+function minAckSheet_() {
+  const ss = ss_();
+  let sh = ss.getSheetByName(SHEET.MINACK);
+  if (!sh) { sh = ss.insertSheet(SHEET.MINACK); sh.getRange(1, 1, 1, MINACK_HEADERS.length).setValues([MINACK_HEADERS]); styleHeader_(sh, MINACK_HEADERS.length); sh.setColumnWidths(1, MINACK_HEADERS.length, 160); }
+  return sh;
+}
+function getMinutes_() {
+  const sh = ss_().getSheetByName(SHEET.MIN);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, MIN_HEADERS.length).getDisplayValues().filter(r => r[0]).map(r => {
+    let data = {}; try { data = JSON.parse(r[6] || '{}'); } catch (e) {}
+    return { id: r[0], kind: 'min', no: r[1], dayName: r[2], hijri: r[3], center: r[4], targetTxt: r[5], data: data, at: r[7], owner: r[8] || '', unit: r[9] || '' };
+  }).reverse();
+}
+function minAcks_() {
+  const sh = ss_().getSheetByName(SHEET.MINACK);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, 4).getDisplayValues().filter(r => r[0]).map(r => ({ mid: r[0], tid: r[1], name: r[2], at: r[3] }));
+}
+function getMinutesFor_(username) {
+  const u = norm_(username).toLowerCase(), acks = minAcks_();
+  return getMinutes_().filter(m => m.owner === u).map(m => Object.assign(m, { acks: acks.filter(a => a.mid === m.id) }));
+}
+// محاضر المعلمة: المنشورة للجميع أو لها بالتحديد
+function minutesFor_(t) {
+  const acks = minAcks_().filter(a => a.tid === t.id);
+  return getMinutes_().filter(m => { const tg = m.data.target || {}; return tg.all || (tg.ids || []).indexOf(t.id) > -1; })
+    .map(m => { const a = acks.find(x => x.mid === m.id); const o = Object.assign({}, m, { acked: !!a, ackAt: a ? a.at : '' }); delete o.owner; delete o.data.target; return o; });
+}
+function saveMinute_(r) {
+  const s = (v, n) => String(v == null ? '' : v).trim().slice(0, n || 300);
+  const me = profileOf_(r.username);
+  const d = r.data && typeof r.data === 'object' ? r.data : {};
+  const list = (a, n, len) => (Array.isArray(a) ? a : []).map(x => s(x, len)).filter(Boolean).slice(0, n);
+  const tg = d.target && typeof d.target === 'object' ? d.target : {};
+  const target = { all: !!tg.all, ids: tg.all ? [] : list(tg.ids, 400, 40), names: tg.all ? [] : list(tg.names, 400, 120) };
+  if (!target.all && !target.ids.length) throw new Error('حدّدي المعلمات اللاتي يصلهن المحضر، أو اختاري «كل المعلمات»');
+  const data = { points: list(d.points, 40, 1000), outs: list(d.outs, 40, 1000), parts: list(d.parts, 80, 120), target: target,
+    hd: s(d.hd, 2), hm: s(d.hm, 2), hy: s(d.hy, 4) };
+  if (!data.points.length) throw new Error('اكتبي نقطة واحدة على الأقل من نقاط الاجتماع');
+  const json = JSON.stringify(data);
+  if (json.length > 45000) throw new Error('المحضر طويل جداً، اختصري النقاط');
+  const hijri = data.hy ? data.hd + '/' + data.hm + '/' + data.hy + 'هـ' : '';
+  const tTxt = target.all ? 'كل المعلمات' : target.names.join('، ').slice(0, 1000);
+  const sh = minSheet_(); minAckSheet_();
+  let id = s(r.id, 60), row = 0, old = null;
+  if (id) {
+    const last = sh.getLastRow();
+    if (last > 1) { const ids = sh.getRange(2, 1, last - 1, 1).getValues(); for (let i = 0; i < ids.length; i++) if (String(ids[i][0]) === id) { row = i + 2; break; } }
+    if (!row) throw new Error('السجل غير موجود');
+    old = sh.getRange(row, 1, 1, MIN_HEADERS.length).getDisplayValues()[0];
+    if (String(old[8]) !== me.username) throw new Error('لا يمكن تعديل محضر نشرته مشرفة أخرى');
+  } else { id = Utilities.getUuid(); row = sh.getLastRow() + 1; }
+  sh.getRange(row, 1, 1, MIN_HEADERS.length).setNumberFormat('@').setValues([[id, s(r.no, 10), s(r.dayName, 10), hijri, s(r.center, 200), tTxt, json,
+    old ? String(old[7] || nowStr_()) : nowStr_(), me.username, me.unit]]);
+  return { ok: true, id: id };
+}
+function deleteMinute_(r) {
+  const id = String(r.id || ''), me = profileOf_(r.username);
+  const sh = ss_().getSheetByName(SHEET.MIN);
+  if (!sh || !id || sh.getLastRow() < 2) throw new Error('السجل غير موجود');
+  const rows = sh.getRange(2, 1, sh.getLastRow() - 1, 9).getValues();
+  for (let i = 0; i < rows.length; i++) {
+    if (String(rows[i][0]) !== id) continue;
+    if (String(rows[i][8]) !== me.username) throw new Error('لا يمكن حذف محضر نشرته مشرفة أخرى');
+    sh.deleteRow(i + 2);
+    const ak = ss_().getSheetByName(SHEET.MINACK);   // حذف سجل الاطلاع الخاص به
+    if (ak && ak.getLastRow() > 1) { const a = ak.getRange(2, 1, ak.getLastRow() - 1, 1).getValues(); for (let j = a.length - 1; j >= 0; j--) if (String(a[j][0]) === id) ak.deleteRow(j + 2); }
+    return { ok: true };
+  }
+  throw new Error('السجل غير موجود');
+}
+function minuteAck_(t, r) {
+  const id = String(r.id || '');
+  const m = minutesFor_(t).find(x => x.id === id);
+  if (!m) throw new Error('المحضر غير موجود');
+  if (m.acked) return { ok: true, at: m.ackAt };
+  const at = nowStr_();
+  const ak = minAckSheet_();
+  ak.getRange(ak.getLastRow() + 1, 1, 1, 4).setNumberFormat('@').setValues([[id, t.id, t.name, at]]);
+  return { ok: true, at: at };
 }

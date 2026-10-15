@@ -5,7 +5,7 @@ const VIEW_KEY = 'sgh_view', NAME_KEY = 'sgh_name';
 let LISTS = { centers: [], types: [], teachers: [], typesSgh: [] };
 let VISITS = [], SGH = [], sgEdit = null, SGS = [], ssEdit = null, SGE = [], seEdit = null, seType = '';
 
-const ALL_VIEWS = ['loginView', 'homeView', 'visitsView', 'sgListView', 'sgForm', 'ssListView', 'ssForm', 'seListView', 'seForm'];
+const ALL_VIEWS = ['loginView', 'homeView', 'visitsView', 'sgListView', 'sgForm', 'ssListView', 'ssForm', 'seListView', 'seForm', 'mnListView', 'mnForm'];
 
 function show(id) {
   ALL_VIEWS.forEach(v => $(v).classList.add('hidden'));
@@ -752,5 +752,6 @@ async function seSave(btn) {
   else if (last === 'sgListView' || last === 'sgForm') sgOpenList();
   else if (last === 'ssListView' || last === 'ssForm') ssOpenList();
   else if (last === 'seListView' || last === 'seForm') seOpenList();
+  else if (last === 'mnListView' || last === 'mnForm') mnOpenList();
   else { show('homeView'); loadSgh(true); }
 })();
