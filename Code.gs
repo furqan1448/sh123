@@ -1204,7 +1204,7 @@ function deleteSgs_(r) {
    سجل المعلمات (الاسم، الجوال، كلمة المرور، Teacher ID) يُقرأ من شيت الشهادات — قراءة فقط ولا يُعدَّل فيه شيء.
    كلمة المرور هي نفسها كلمة مرور بوابة المعلمات. */
 const CERT_SHEET_ID = '10SGdGcDEUJS0G8_s_m12Ix8A7hoN4iPLWm_p7yi6j88';
-const CERT_COLS = { pass: 'م', name: 'اسم المعلمة', phone: 'رقم الجوال', id: 'Teacher ID' };
+const CERT_COLS = { pass: 'م', name: 'اسم المعلمة', phone: 'رقم الجوال', id: 'Teacher ID', cat: 'الفئة المناسبة للتدريس' };
 const T_MAX_FAILS = 5, T_LOCK_MIN = 15;
 
 function pPhone_(v) {
@@ -1216,7 +1216,7 @@ function pPhone_(v) {
 }
 
 // سجل المعلمات في الكاش 6 ساعات (يُعاد قراءته إن لم توجد المعلمة، مرة كل دقيقة كحد أقصى)
-const CERT_CACHE_KEY = 'cert_v2', CERT_CACHE_TTL = 21600;
+const CERT_CACHE_KEY = 'cert_v3', CERT_CACHE_TTL = 21600;
 function certRowsFresh_() {
   const sh = SpreadsheetApp.openById(CERT_SHEET_ID).getSheets().find(x => x.getName().indexOf('شهادة') !== -1);
   if (!sh) throw new Error('ورقة الشهادات غير موجودة');
@@ -1226,12 +1226,13 @@ function certRowsFresh_() {
   const h = v[hr].map(c => String(c).trim());
   const ix = {}; Object.keys(CERT_COLS).forEach(k => ix[k] = h.indexOf(CERT_COLS[k]));
   if (ix.name < 0 || ix.phone < 0 || ix.id < 0 || ix.pass < 0) throw new Error('أعمدة ناقصة في ورقة الشهادات');
-  return v.slice(hr + 1).map(r => ({ id: String(r[ix.id]).trim(), name: String(r[ix.name]).trim(), phone: pPhone_(r[ix.phone]), pass: String(r[ix.pass]).trim().toUpperCase() }))
+  return v.slice(hr + 1).map(r => ({ id: String(r[ix.id]).trim(), name: String(r[ix.name]).trim(), phone: pPhone_(r[ix.phone]), pass: String(r[ix.pass]).trim().toUpperCase(),
+    cat: ix.cat > -1 ? String(r[ix.cat]).trim() : '' }))
     .filter(t => t.id && t.name && t.phone);
 }
 function certCachePut_(rows) {
   try {
-    const s = JSON.stringify(rows.map(t => [t.id, t.name, t.phone, t.pass])), CH = 30000, cnt = Math.ceil(s.length / CH);
+    const s = JSON.stringify(rows.map(t => [t.id, t.name, t.phone, t.pass, t.cat])), CH = 30000, cnt = Math.ceil(s.length / CH);
     if (cnt < 1 || cnt > 60) return;
     const o = {};
     for (let i = 0; i < cnt; i++) o[CERT_CACHE_KEY + '_' + i] = s.substr(i * CH, CH);
@@ -1248,7 +1249,7 @@ function certCacheGet_() {
     const keys = []; for (let i = 0; i < n; i++) keys.push(CERT_CACHE_KEY + '_' + i);
     const parts = c.getAll(keys); let s = '';
     for (let i = 0; i < n; i++) { const p = parts[keys[i]]; if (p == null) return null; s += p; }
-    return JSON.parse(s).map(a => ({ id: a[0], name: a[1], phone: a[2], pass: a[3] }));
+    return JSON.parse(s).map(a => ({ id: a[0], name: a[1], phone: a[2], pass: a[3], cat: a[4] || '' }));
   } catch (e) { return null; }
 }
 function certRows_(fresh) {
@@ -1294,7 +1295,7 @@ function teacherRoute_(r) {
       return t ? { ok: true, name: t.name.split(/\s+/).slice(0, 2).join(' ') } : { ok: false, error: 'رقم الجوال غير موجود في سجل المعلمات' };
     }
     const t = teacherAuth_(r);
-    if (r.action === 't_login' || r.action === 't_list') return { ok: true, teacher: { id: t.id, name: t.name }, data: teacherReports_(t) };
+    if (r.action === 't_login' || r.action === 't_list') return { ok: true, teacher: { id: t.id, name: t.name, category: t.cat }, data: teacherReports_(t) };
     if (r.action === 't_sigs') {   // تواقيع تقرير من تقاريرها فقط (للعرض والطباعة)
       const rec = getSgh_().find(x => x.id === String(r.id || '') && x.data && x.data.tid === t.id);
       if (!rec) throw new Error('التقرير غير موجود');

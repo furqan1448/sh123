@@ -2,13 +2,14 @@
    الدخول برقم الجوال وكلمة مرور بوابة المعلمات، والتقارير مرتبطة بها عن طريق رقم جوالها في تقرير المشرفة. */
 const $ = id => document.getElementById(id);
 const T_PHONE = 'tch_phone', T_PW = 'tch_pw', T_CACHE = 'tch_reports';
-let TREP = [], tCur = null, tSigsCur = {};
+let TREP = [], tCur = null, tSigsCur = {}, TME = null;
 
 function tShow(id) {
-  ['loginView', 'homeView', 'signView'].forEach(v => $(v).classList.add('hidden'));
+  ['loginView', 'homeView', 'reportsView', 'certView', 'signView'].forEach(v => $(v).classList.add('hidden'));
   $(id).classList.remove('hidden');
   window.scrollTo(0, 0);
   setTimeout(() => SIG_WIDGETS.forEach(w => w.resize()), 60);
+  if (id === 'certView') tCertFont();
 }
 
 // طلب بدخول المعلمة (رقم الجوال + كلمة المرور) مع إعادة محاولة تلقائية
@@ -69,7 +70,8 @@ function tLogout() {
 /* ---------- قائمة التقارير ---------- */
 function tApply(out) {
   TREP = out.data || [];
-  try { localStorage.setItem(T_CACHE, JSON.stringify({ name: out.teacher.name, data: TREP })); } catch (e) {}
+  TME = out.teacher || TME;
+  try { localStorage.setItem(T_CACHE, JSON.stringify({ name: out.teacher.name, me: out.teacher, data: TREP })); } catch (e) {}
   $('tHello').textContent = 'مرحباً ' + out.teacher.name;
   tRender();
 }
@@ -92,6 +94,7 @@ function tItem(r, pending) {
 function tRender() {
   const pend = TREP.filter(r => !r.signed), done = TREP.filter(r => r.signed);
   $('stPending').textContent = pend.length; $('stSigned').textContent = done.length; $('pendBadge').textContent = pend.length;
+  $('tileBadge').textContent = pend.length; $('tileBadge').classList.toggle('hidden', !pend.length);
   $('pendList').innerHTML = pend.length ? pend.map(r => tItem(r, true)).join('') : '<p class="empty">لا توجد تقارير بانتظار توقيعكِ</p>';
   $('signedList').innerHTML = done.length ? done.map(r => tItem(r, false)).join('') : '<p class="empty">لا توجد تقارير موقّعة بعد</p>';
 }
@@ -133,12 +136,45 @@ async function tSign(btn) {
   finally { setBtnBusy(btn, false); }
 }
 
+/* ---------- شهادتي: نفس شهادة موقع الشهادات (القالب + الاسم + فئة التدريس) ---------- */
+function tCertOpen() {
+  if (!TME) return toast('جارِ تحميل بياناتكِ، أعيدي المحاولة بعد لحظات', false);
+  $('certName').textContent = TME.name || '';
+  $('certCat').textContent = TME.category || '';
+  tShow('certView');
+}
+function tCertFont() {
+  const c = $('certificate'); if (!c || !c.offsetWidth) return;
+  c.style.setProperty('--cert-font-size', Math.round(c.offsetWidth * 0.04) + 'px');
+}
+window.addEventListener('resize', tCertFont);
+function tLoadScript(src) {
+  return new Promise((res, rej) => {
+    if (document.querySelector('script[src="' + src + '"]')) return res();
+    const sc = document.createElement('script'); sc.src = src; sc.onload = () => res(); sc.onerror = () => rej(new Error('تعذّر تحميل أداة PDF، تأكدي من الإنترنت'));
+    document.body.appendChild(sc);
+  });
+}
+async function tCertPdf(btn) {
+  setBtnBusy(btn, true, 'جارِ التجهيز...');
+  try {
+    await tLoadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+    await tLoadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    const canvas = await html2canvas($('certificate'), { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
+    const pdf = new window.jspdf.jsPDF({ orientation: 'portrait', unit: 'cm', format: [21, 29.7] });
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 21, 29.7);
+    pdf.save('شهادة-اجتياز-' + ((TME && TME.name) || 'المعلمة') + '.pdf');
+    toast('تم التحميل');
+  } catch (e) { toast(e.message || 'تعذّر إنشاء ملف PDF', false); }
+  finally { setBtnBusy(btn, false); }
+}
+
 /* ---------- استعادة الجلسة ---------- */
 (function init() {
   if (!localStorage.getItem(T_PHONE) || !localStorage.getItem(T_PW)) return;
   try {
     const c = JSON.parse(localStorage.getItem(T_CACHE) || 'null');
-    if (c) { TREP = c.data || []; $('tHello').textContent = 'مرحباً ' + c.name; tRender(); }
+    if (c) { TREP = c.data || []; TME = c.me || null; $('tHello').textContent = 'مرحباً ' + c.name; tRender(); }
   } catch (e) {}
   tShow('homeView');
   tLoad();

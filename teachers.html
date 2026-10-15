@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Cairo:wght@700&display=swap">
 <link rel="stylesheet" href="style.css">
 <style>
   .id-hint{font-size:14px;color:var(--muted);margin-top:6px;min-height:1em}
@@ -22,13 +22,24 @@
   .t-item .act .btn{padding:8px 14px;font-size:14px}
   .t-badge{display:inline-block;background:var(--primary);color:#fff;border-radius:20px;padding:0 10px;font-size:13px;margin-right:6px}
   .t-signed{font-size:13px;color:#1f7a45;font-weight:700}
+  .tile{position:relative}
+  .t-tbadge{position:absolute;top:10px;left:10px;background:#c0392b;color:#fff;border-radius:20px;min-width:24px;padding:1px 8px;font-size:13px;font-weight:800}
+  /* الشهادة: نفس تنسيق موقع الشهادات */
+  .certificate{position:relative;width:min(100%,650px);aspect-ratio:1414/2000;margin:auto;overflow:hidden;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,.12)}
+  .certificate-image{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}
+  .certificate-text{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;justify-content:flex-start;align-items:center;gap:4.5%;text-align:center;direction:rtl;
+    font-family:"Cairo",sans-serif;font-size:var(--cert-font-size,22px);font-weight:700;color:#545454;padding:40% 8% 22%}
+  .certificate-text>div{width:100%;line-height:1.7}
+  .certificate-text .dynamic{color:#991529}
+  .certificate-actions{display:flex;justify-content:center;margin:18px auto;max-width:650px}
+  .certificate-actions .btn{flex:1}
 </style>
 </head>
 <body>
 <div class="topbar">
   <img class="logo" alt="شعار فرقان">
   <h1>المعلمات</h1>
-  <p>الاطلاع على تقارير المشرفات والتوقيع عليها</p>
+  <p>خدمات المعلمات</p>
 </div>
 
 <div class="wrap">
@@ -49,14 +60,22 @@
     <p style="margin-top:8px;text-align:center"><a class="lnk" href="index.html">الرئيسية</a></p>
   </div>
 
-  <!-- الرئيسية -->
+  <!-- الرئيسية: أيقونات خدمات المعلمة -->
   <div id="homeView" class="hidden">
-    <div class="card">
-      <div class="t-hello" id="tHello"></div>
-      <div class="stats" style="margin:12px 0 0">
-        <div class="stat"><b id="stPending">0</b><span>بانتظار توقيعكِ</span></div>
-        <div class="stat"><b id="stSigned">0</b><span>تقارير موقّعة</span></div>
-      </div>
+    <div class="t-hello" id="tHello" style="text-align:center;margin:4px 0 16px"></div>
+    <div class="grid">
+      <button class="tile" onclick="tShow('reportsView')"><span class="t-tbadge hidden" id="tileBadge">0</span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V6a2 2 0 0 1 2-2h9l5 5v10.5a.5.5 0 0 1-.5.5H6a2 2 0 0 1-2-2z"/><path d="M14 4v5h5"/><path d="M7.5 16.5c1.2-1.6 2.2-1.6 3 0s1.8 1.6 3 0"/></svg><b>تقارير المشرفات</b></button>
+      <button class="tile" onclick="tCertOpen()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="17" height="12" rx="1.5"/><path d="M7 8h10"/><path d="M8.5 11.5h7"/><circle cx="12" cy="17.5" r="2.5"/><path d="M10.6 19.6 10 22l2-1 2 1-.6-2.4"/></svg><b>شهادتي</b></button>
+    </div>
+    <p style="text-align:center;margin-top:22px"><button class="btn light" onclick="tLogout()">تسجيل الخروج</button></p>
+  </div>
+
+  <!-- تقارير المشرفات -->
+  <div id="reportsView" class="hidden">
+    <button class="back" onclick="tShow('homeView')">← رجوع</button>
+    <div class="stats">
+      <div class="stat"><b id="stPending">0</b><span>بانتظار توقيعكِ</span></div>
+      <div class="stat"><b id="stSigned">0</b><span>تقارير موقّعة</span></div>
     </div>
     <div class="card">
       <h2>تقارير بانتظار توقيعكِ <span class="t-badge" id="pendBadge">0</span></h2>
@@ -66,15 +85,30 @@
       <h2>التقارير الموقّعة</h2>
       <div id="signedList"><p class="empty">جارِ التحميل...</p></div>
     </div>
-    <p style="text-align:center;margin-top:12px">
-      <button class="btn light" onclick="tLoad()">تحديث</button>
-      <button class="btn light" onclick="tLogout()">تسجيل الخروج</button>
-    </p>
+    <p style="text-align:center"><button class="btn light" onclick="tLoad()">تحديث</button></p>
+  </div>
+
+  <!-- شهادتي (نفس شهادة موقع الشهادات) -->
+  <div id="certView" class="hidden">
+    <button class="back" onclick="tShow('homeView')">← رجوع</button>
+    <div id="certificate" class="certificate">
+      <img src="certificate.jpg" alt="قالب الشهادة" class="certificate-image">
+      <div class="certificate-text">
+        <div>تهنئ إدارة التعليم النسائي<br>بجمعية فرقان لتحفيظ القرآن الكريم</div>
+        <div>الأستاذة الفاضلة/ <span id="certName" class="dynamic"></span></div>
+        <div>لاجتيازها اختبار قياس الثاني في القرآن الكريم لعام ١٤٤٧هـ</div>
+        <div>فئة التدريس: <span id="certCat" class="dynamic"></span></div>
+        <div>سائلين الله لها التوفيق والسداد<br>وأن يجعل القرآن حجةً لها لا عليها.</div>
+      </div>
+    </div>
+    <div class="certificate-actions">
+      <button id="certPdfBtn" class="btn" type="button" onclick="tCertPdf(this)">تحميل الشهادة PDF</button>
+    </div>
   </div>
 
   <!-- التقرير والتوقيع -->
   <div id="signView" class="hidden">
-    <button class="back" onclick="tShow('homeView')">← رجوع</button>
+    <button class="back" onclick="tShow('reportsView')">← رجوع</button>
     <div class="card">
       <div class="ex-bar" id="tBar"></div>
       <div id="tDoc"></div>
