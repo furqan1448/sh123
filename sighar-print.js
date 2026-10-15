@@ -4,7 +4,7 @@
 const SG_BG = 'letterhead.jpg';   // الكليشة الحمراء الموحّدة
 const SG_UNIT = 'وحدة تحفيظ الصغار';
 const SG_TITLE = 'تقرير زيارة مشرفة تحفيظ صغار';
-const SG_MIN_LINES = 13;   // عدد أسطر «توصيات عامة» في النموذج الورقي
+const SG_MIN_LINES = 13;   // مساحة «توصيات عامة» تقريباً (بالأسطر) للتنبيه عند طول النص
 
 // جلب التواقيع (تُستبدل في صفحة إدارة الوحدات بدخول المديرة)
 let sgSigFetch = items => api('getSigs', { items }).then(o => o.data || {});
@@ -12,26 +12,25 @@ let sgSigFetch = items => api('getSigs', { items }).then(o => o.data || {});
 const sgPeriodTxt = p => { p = String(p || ''); return p.indexOf('مسائي') > -1 ? 'المسائية' : p.indexOf('صباحي') > -1 ? 'الصباحية' : p; };
 
 const SG_CSS = `
-.sgdoc{position:relative;width:794px;min-height:1123px;background:#fff;color:#231f20;
-  font-family:'Tajawal','Segoe UI',Tahoma,Arial,sans-serif;direction:rtl;font-size:15px;line-height:1.6;box-sizing:border-box;padding:0 0 40px}
-.sgdoc .sg-lh{width:100%;height:auto;aspect-ratio:2000/351;display:block}
-.sgdoc .sg-body{padding:0 58px}
-.sgdoc .sg-unit{text-align:center;color:#7a1f2b;font-weight:800;font-size:15px;margin:22px 0 2px}
+.sgdoc{position:relative;width:794px;min-height:1123px;background:#fff;color:#1d1a1b;
+  font-family:'Tajawal','Segoe UI',Tahoma,Arial,sans-serif;direction:rtl;font-size:17px;line-height:1.7;box-sizing:border-box;padding:0 0 40px}
 .sgdoc *{box-sizing:border-box}
 .sgdoc bdi{unicode-bidi:isolate}
-.sgdoc .sg-title{text-align:center;font-size:21px;font-weight:800;margin:0 0 30px;color:#231f20}
-.sgdoc .sg-line{display:flex;align-items:flex-end;gap:14px;margin:0 0 14px;font-size:15.5px}
-.sgdoc .sg-f{display:flex;align-items:flex-end;gap:6px;min-width:0}
+.sgdoc .sg-lh{width:100%;height:auto;aspect-ratio:2000/351;display:block}
+.sgdoc .sg-body{padding:0 54px}
+.sgdoc .sg-unit{text-align:center;color:#7a1f2b;font-weight:800;font-size:17px;margin:24px 0 2px}
+.sgdoc .sg-title{text-align:center;font-size:25px;font-weight:800;margin:0 0 30px;color:#1d1a1b}
+.sgdoc .sg-line{display:flex;align-items:baseline;gap:22px;margin:0 0 16px;font-size:18px}
+.sgdoc .sg-f{display:flex;align-items:baseline;gap:8px;min-width:0}
 .sgdoc .sg-f>b{font-weight:800;white-space:nowrap}
-.sgdoc .sg-v{flex:1;min-width:40px;border-bottom:1.6px dotted #555;color:#7a1f2b;font-weight:700;padding:0 6px 1px;min-height:26px;line-height:1.5;word-break:break-word}
-.sgdoc .sg-recs-h{font-weight:800;font-size:16px;margin:26px 22px 4px 0}
-.sgdoc .sg-recs{--lh:30px;line-height:var(--lh);min-height:calc(var(--lh) * ${SG_MIN_LINES});font-size:15px;color:#231f20;white-space:pre-wrap;word-break:break-word;padding:0 4px;
-  background-image:radial-gradient(circle at 2px calc(var(--lh) - 5px),#666 1px,transparent 1.4px);background-size:6px var(--lh);background-repeat:repeat}
-.sgdoc .sg-ack{display:flex;align-items:center;gap:8px;margin:30px 0 0;font-weight:800;font-size:15.5px}
-.sgdoc .sg-ack .sg-sigbox{width:250px;border-bottom:1.6px dotted #555;min-height:46px;display:flex;align-items:flex-end;justify-content:center}
-.sgdoc .sg-sup{margin:34px 0 0;width:60%;margin-right:auto}
+.sgdoc .sg-v{flex:1;min-width:40px;color:#7a1f2b;font-weight:800;font-size:18px;line-height:1.5;word-break:break-word}
+.sgdoc .sg-recs-h{font-weight:800;font-size:19px;margin:28px 0 8px}
+.sgdoc .sg-recs{min-height:360px;font-size:18px;line-height:1.9;font-weight:500;color:#1d1a1b;white-space:pre-wrap;word-break:break-word;padding:0 4px}
+.sgdoc .sg-ack{display:flex;align-items:flex-end;gap:10px;margin:30px 0 0;font-weight:800;font-size:18px}
+.sgdoc .sg-ack .sg-sigbox{min-width:250px;min-height:56px;display:flex;align-items:flex-end;justify-content:center}
+.sgdoc .sg-sup{margin:30px 0 0;width:60%;margin-right:auto}
 .sgdoc .sg-sup .sg-line{margin-bottom:18px}
-.sgdoc .sg-sig{max-height:58px;max-width:220px;display:block}
+.sgdoc .sg-sig{max-height:62px;max-width:230px;display:block}
 .sgdoc .sg-date{display:inline-block;direction:rtl}
 `;
 
