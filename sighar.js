@@ -8,7 +8,7 @@ let VISITS = [], SGH = [], sgEdit = null, SGS = [], ssEdit = null, SGE = [], seE
 const ALL_VIEWS = ['loginView', 'homeView', 'visitsView', 'sgListView', 'sgForm', 'ssListView', 'ssForm', 'seListView', 'seForm', 'mnListView', 'mnForm', 'atView'];
 
 function show(id) {
-  ALL_VIEWS.forEach(v => $(v).classList.add('hidden'));
+  ALL_VIEWS.forEach(v => { const el = $(v); if (el) el.classList.add('hidden'); });
   $(id).classList.remove('hidden');
   if (id !== 'loginView') localStorage.setItem(VIEW_KEY, id);
   window.scrollTo(0, 0);
@@ -292,6 +292,7 @@ async function sgLookupT() {
   hint.textContent = 'جارِ البحث عن المعلمة...';
   try {
     const out = await api('lookupTeacher', { phone: v });
+    if (!out.found) throw new Error('رقم الجوال غير موجود في سجل المعلمات');
     sgTFound = out.data;
     hint.innerHTML = '✔ المعلمة: <b>' + esc(out.data.name) + '</b>';
     if (!$('sgTeacher').value.trim()) { $('sgTeacher').value = out.data.name; sgUpdateNo(); }
@@ -407,6 +408,7 @@ async function sgSave(btn) {
   try {
     const res = await api('saveSgh', req);
     SGW.sup.commit();
+    AD.done('sgForm', sgEdit && sgEdit.id);
     toast(sgEdit ? 'تم حفظ التعديل' : 'تم حفظ التقرير');
     const rec = Object.assign({}, req, { id: res.id, kind: 'sgh', day: hd.dayName, at: sgEdit ? sgEdit.at : '',
       data: Object.assign({}, req.data, { sigs: res.sigs || {} }, res.tid ? { tid: res.tid, tName: res.tName, tPhone: req.tPhone, tchAt: res.tchAt } : {}) });
@@ -561,6 +563,7 @@ async function ssSave(btn) {
   try {
     const res = await api('saveSgs', req);
     ssSupW.commit();
+    AD.done('ssForm', ssEdit && ssEdit.id);
     toast(ssEdit ? 'تم حفظ التعديل' : 'تم حفظ الخلاصة');
     const rec = { id: res.id, kind: 'sum', sem: req.sem, year: req.year, visitNo: req.visitNo, period: req.period, supName: req.supName,
       date: req.date, at: ssEdit ? ssEdit.at : '', data: Object.assign({}, req.data, { sigs: res.sigs || {} }) };
@@ -674,6 +677,7 @@ async function seLookupT() {
   hint.textContent = 'جارِ البحث عن المعلمة...';
   try {
     const out = await api('lookupTeacher', { phone: v });
+    if (!out.found) throw new Error('رقم الجوال غير موجود في سجل المعلمات');
     hint.innerHTML = '✔ المعلمة: <b>' + esc(out.data.name) + '</b>';
     const t = $('seF_teacher'); if (t && !t.value.trim()) t.value = out.data.name;
   } catch (e) { hint.textContent = '✖ ' + e.message; }
@@ -730,6 +734,7 @@ async function seSave(btn) {
   setBtnBusy(btn, true);
   try {
     const res = await api('saveSge', req);
+    AD.clear('seForm', seEdit ? seEdit.id : 'new-' + seType);
     toast(seEdit ? 'تم حفظ التعديل' : 'تم حفظ الاستمارة');
     const rec = { id: res.id, kind: 'eval', formName: form.name, teacher: req.teacher, center: req.center, period: req.period, date: req.date,
       score: req.score, max: req.max, grade: req.grade, mgrName: req.mgrName, at: seEdit ? seEdit.at : '', visitNo: req.data.f.visitNo || '',
@@ -742,6 +747,42 @@ async function seSave(btn) {
   finally { setBtnBusy(btn, false); }
 }
 
+/* ======================= الحفظ التلقائي (autosave.js) ======================= */
+const adHd = p => { const h = hdGet(p); return { hd: h.hd, hm: h.hm, hy: h.hy, dayName: h.dayName }; };
+const adWrap = (name, after) => { const o = window[name]; window[name] = function () { const r = o.apply(this, arguments); after.apply(this, arguments); return r; }; };
+// تقرير الزيارة
+AD.register('sgForm', {
+  key: () => sgEdit ? sgEdit.id : 'new',
+  collect: () => ({ teacher: $('sgTeacher').value, center: $('sgCenter').value, period: periodGet('sgPeriod'), visitNo: $('sgVisitNo').value, lesson: $('sgLesson').value,
+    recs: sgRecsGet(), supName: $('sgSupName').value, data: Object.assign(adHd('sg'), { tPhone: $('sgTPhone').value, tName: sgEdit && sgEdit.data ? sgEdit.data.tName : '' }) }),
+  apply: d => { sgFill(Object.assign({}, sgEdit || {}, d, { data: Object.assign({}, (sgEdit && sgEdit.data) || {}, d.data) })); hdSet('sg', d); },
+  reset: () => sgFill(sgEdit)
+});
+adWrap('sgNew', () => AD.offer('sgForm')); adWrap('sgEditRec', () => AD.offer('sgForm'));
+// خلاصة التقارير التعليمية
+AD.register('ssForm', {
+  key: () => ssEdit ? ssEdit.id : 'new',
+  collect: () => ({ sem: $('ssSem').value, year: $('ssYear').value, visitNo: $('ssVisitNo').value, period: periodGet('ssPeriod'), supName: $('ssSupName').value,
+    data: Object.assign(adHd('ss'), { rows: ssRowsGet(), from: hpGet('ssFrom'), to: hpGet('ssTo') }) }),
+  apply: d => { ssFill(Object.assign({}, ssEdit || {}, d, { data: Object.assign({}, (ssEdit && ssEdit.data) || {}, d.data) })); hdSet('ss', d); },
+  reset: () => ssFill(ssEdit)
+});
+adWrap('ssNew', () => AD.offer('ssForm')); adWrap('ssEditRec', () => AD.offer('ssForm'));
+// استمارات التقييم (لكل نوع مسودته)
+AD.register('seForm', {
+  key: () => seEdit ? seEdit.id : 'new-' + seType,
+  collect: () => {
+    const form = SGE_FORMS[seType], f = {};
+    form.fields.forEach(([key]) => { if (['center', 'period', 'teacher'].indexOf(key) < 0 && $('seF_' + key)) f[key] = $('seF_' + key).value; });
+    return { teacher: $('seF_teacher').value, center: $('seF_center').value, period: $('seF_period') ? periodGet('seF_period') : '', mgrName: $('seMgrName').value,
+      data: Object.assign(adHd('se'), { form: seType, f, sc: form.grades ? seScores() : [], nt: [...document.querySelectorAll('#seItems .se-nt')].map(x => x.value),
+        recs: form.recs.map((_, i) => $('seR' + i).value), overall: $('seOverall').value, tPhone: $('seTPhone').value, mgrName: $('seMgrName').value }) };
+  },
+  apply: d => { seFill(d.data.form, Object.assign({}, seEdit || {}, d, { data: Object.assign({}, (seEdit && seEdit.data) || {}, d.data) })); hdSet('se', d); seCalc(); },
+  reset: () => seFill(seType, seEdit)
+});
+adWrap('seNew', () => AD.offer('seForm')); adWrap('seEditRec', () => AD.offer('seForm'));
+
 /* ---------- استعادة الجلسة ---------- */
 (function init() {
   loadLoginNames('users', 'un', { unit: SG_UNIT });
@@ -749,6 +790,10 @@ async function seSave(btn) {
   const last = localStorage.getItem(VIEW_KEY);
   preload();
   if (last === 'visitsView') { show('visitsView'); loadVisits(); }
+  else if (last === 'sgForm' && AD.has('sgForm')) { sgOpenList(); sgNew(); }
+  else if (last === 'ssForm' && AD.has('ssForm')) { ssOpenList(); ssNew(); }
+  else if (last === 'mnForm' && AD.has('mnForm')) { mnOpenList(); mnNew(); }
+  else if (last === 'seForm' && AD.last() && AD.last().view === 'seForm' && /^new-/.test(AD.last().id)) { seOpenList(); seNew(AD.last().id.slice(4)); }
   else if (last === 'sgListView' || last === 'sgForm') sgOpenList();
   else if (last === 'ssListView' || last === 'ssForm') ssOpenList();
   else if (last === 'seListView' || last === 'seForm') seOpenList();

@@ -9,7 +9,7 @@ const ALL_VIEWS = ['loginView', 'homeView', 'visitsView', 'idListView', 'idVisit
 const FORM_OF = { visit: 'idVisitForm', program: 'idProgramForm', suggest: 'idSuggestForm' };
 
 function show(id) {
-  ALL_VIEWS.forEach(v => $(v).classList.add('hidden'));
+  ALL_VIEWS.forEach(v => { const el = $(v); if (el) el.classList.add('hidden'); });
   $(id).classList.remove('hidden');
   if (id !== 'loginView') localStorage.setItem(VIEW_KEY, id);
   window.scrollTo(0, 0);
@@ -532,6 +532,7 @@ async function idSave(kind, btn, sendAfter) {
   try {
     const res = await api('saveIdari', req);
     Object.keys(SIGS_OF[kind]).forEach(k => SIGW[SIGS_OF[kind][k]].commit());
+    AD.done(FORM_OF[kind], idEdit && idEdit.id);
     toast(idEdit ? 'تم حفظ التعديل' : 'تم حفظ النموذج');
     const rec = { id: res.id, kind, center: req.center || '', sem: req.sem || '', year: req.year || '', period: req.period || '', date: req.date || '',
       day: res.day || dayOf(req.date), visitNo: req.visitNo || '', supName: req.supName || '', mgrName: req.mgrName || '',
@@ -546,6 +547,37 @@ async function idSave(kind, btn, sendAfter) {
   finally { setBtnBusy(btn, false); }
 }
 
+/* ---------- الحفظ التلقائي (autosave.js): نماذج الإشراف الإداري الثلاثة ---------- */
+function idCollect(kind) {
+  const p = { visit: 'iv', program: 'ip', suggest: 'is' }[kind];
+  const h = hdGet(p), dateData = { hd: h.hd, hm: h.hm, hy: h.hy, dayName: h.dayName };
+  if (kind === 'visit') return { center: $('ivCenter').value, sem: $('ivSem').value, year: $('ivYear').value, period: periodGet('ivPeriod'), visitNo: $('ivVisitNo').value,
+    mgrName: $('ivMgrName').value, supName: $('ivSupName').value,
+    data: Object.assign({ vtype: $('ivType').value, ackCol: $('ivAckCol').checked ? '1' : '', about: $('ivAbout').value, notes: ivNotesGet(), recText: $('ivRec').value, mgrPhone: $('ivMgrPhone').value }, dateData) };
+  if (kind === 'program') {
+    const data = Object.assign({}, dateData);
+    ['content', 'plan', 'method', 'tools', 'results', 'ratio'].forEach(k => { data[k] = $('ip' + k[0].toUpperCase() + k.slice(1)).value; });
+    return { center: $('ipCenter').value, supName: $('ipSupName').value, data };
+  }
+  return { sem: $('isSem').value, year: $('isYear').value, period: periodGet('isPeriod'), supName: $('isSupName').value, data: Object.assign({ rows: idRowsGet('isRows') }, dateData) };
+}
+['visit', 'program', 'suggest'].forEach(kind => {
+  const p = { visit: 'iv', program: 'ip', suggest: 'is' }[kind];
+  AD.register(FORM_OF[kind], {
+    key: () => idEdit ? idEdit.id : 'new',
+    collect: () => idCollect(kind),
+    apply: d => {
+      const merged = Object.assign({}, idEdit || {}, d, { data: Object.assign({}, (idEdit && idEdit.data) || {}, d.data) });
+      idFill(kind, merged); hdSet(p, d);
+      if (kind === 'visit') { $('ivMgrName').value = d.mgrName || ''; $('ivMgrPhone').value = (d.data && d.data.mgrPhone) || ''; $('ivVisitNo').value = d.visitNo || ''; }
+    },
+    reset: () => idFill(kind, idEdit)
+  });
+});
+{ const _n = idNew, _e = idEditRec;
+  idNew = function () { _n(); AD.offer(FORM_OF[idKind]); };
+  idEditRec = function (id) { _e(id); AD.offer(FORM_OF[idKind]); }; }
+
 /* ---------- استعادة الجلسة ---------- */
 (function init() {
   loadLoginNames('users', 'un', { unit: ID_UNIT });
@@ -554,6 +586,7 @@ async function idSave(kind, btn, sendAfter) {
   const last = localStorage.getItem(VIEW_KEY);
   preload();
   if (last === 'visitsView') { show('visitsView'); loadVisits(); }
+  else if (last && FORM_OF[idKind] === last && AD.has(last)) { idOpenList(idKind); idNew(); }
   else if (last === 'idListView' || (last && last.indexOf('id') === 0)) idOpenList(idKind);
   else { show('homeView'); loadIdari(true); }
 })();

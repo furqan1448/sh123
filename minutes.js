@@ -251,10 +251,26 @@ async function mnSave(btn) {
   setBtnBusy(btn, true, 'جارِ النشر...');
   try {
     const res = await api('saveMinute', req);
+    if (typeof AD !== 'undefined') AD.done('mnForm', mnEdit && mnEdit.id);
     toast(mnEdit ? 'تم حفظ التعديل' : 'تم نشر المحضر');
     const rec = { id: res.id, kind: 'min', no: req.no, dayName: req.dayName, hijri: req.data.hd + '/' + req.data.hm + '/' + hy + 'هـ', center: req.center, data: req.data, acks: mnEdit ? mnEdit.acks : [] };
     MN = MN.filter(r => r.id !== rec.id); MN.unshift(rec); cacheSet('minutes', MN);
     mnEdit = null; show('mnListView'); mnRender(); mnLoad();
   } catch (e) { toast(e.message, false); }
   finally { setBtnBusy(btn, false); }
+}
+
+/* ---------- الحفظ التلقائي للمحضر (autosave.js) ---------- */
+if (typeof AD !== 'undefined' && document.getElementById('mnForm')) {
+  AD.register('mnForm', {
+    key: () => mnEdit ? mnEdit.id : 'new',
+    collect: () => ({ id: mnEdit ? mnEdit.id : '', no: mn$('mnNo').value, center: mn$('mnCenter').value, dayName: mn$('mnDay').value,
+      data: { points: mnGet('mnPoints'), outs: mnGet('mnOuts'), parts: mnGet('mnParts'), hd: mn$('mnHD').value, hm: mn$('mnHM').value, hy: mn$('mnHY').value,
+        target: { all: mnMode() === 'all', ids: mnPicked.map(t => t.id), names: mnPicked.map(t => t.name) } } }),
+    apply: d => { mnFill(Object.assign({}, mnEdit || {}, d, { id: mnEdit ? mnEdit.id : '' })); },
+    reset: () => mnFill(mnEdit)
+  });
+  const _n = mnNew, _e = mnEditRec;
+  mnNew = function () { _n(); AD.offer('mnForm'); };
+  mnEditRec = function (id) { _e(id); AD.offer('mnForm'); };
 }
