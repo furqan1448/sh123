@@ -21,7 +21,8 @@ const SHEET = {
   SGS: 'خلاصة التقارير التعليمية',
   MIN: 'محاضر الاجتماعات',   // محاضر الاجتماعات (الإشراف التربوي وتحفيظ الصغار) تُنشر للمعلمات، تُنشأ تلقائياً
   MINACK: 'اطلاع المحاضر',   // من اطّلعت على كل محضر ومتى
-  FILEACK: 'اطلاع المرفقات',   // من اطّلعت على كل مرفق مشارك ومتى
+  FILEACK: 'اطلاع المرفقات',
+  RPT: 'خلاصة التقارير',   // «خلاصة التقارير» في الإشراف التربوي (reports.js)، تُنشأ تلقائياً   // من اطّلعت على كل مرفق مشارك ومتى
   SGE: 'استمارات تحفيظ الصغار'   // استمارات تقييم الأداء الوظيفي لتحفيظ الصغار (7 استمارات)، تُنشأ تلقائياً   // خلاصة التقارير التعليمية – متابعة المشرفة للمعلمة (تحفيظ الصغار)، تُنشأ تلقائياً
 };
 
@@ -214,11 +215,15 @@ function route_(r) {
     case 'getSgh': return { ok: true, data: getSghFor_(r.username) };
     case 'saveSgh': return withLock_(() => saveSgh_(r));
     case 'deleteSgh': return withLock_(() => deleteSgh_(r));
-    case 'lookupTeacher': { const t = teacherByPhone_(r.phone); return t ? { ok: true, data: { id: t.id, name: t.name } } : { ok: false, error: 'رقم الجوال غير موجود في سجل المعلمات' }; }
+    case 'lookupTeacher': { const t = teacherByPhone_(r.phone); return { ok: true, found: !!t, name: t ? t.name : '', id: t ? t.id : '', data: t ? { id: t.id, name: t.name } : null }; }
     case 'getMinutes': return { ok: true, data: getMinutesFor_(r.username) };
     case 'saveMinute': return withLock_(() => saveMinute_(r));
     case 'deleteMinute': return withLock_(() => deleteMinute_(r));
     case 'teacherDir': return { ok: true, data: certRows_(false).map(t => ({ id: t.id, name: t.name })) };
+    case 'getReports': return { ok: true, data: getReportsFor_(r.username) };
+    case 'getReport': return { ok: true, data: getReport_(r) };
+    case 'saveReport': return withLock_(() => saveReport_(r));
+    case 'deleteReport': return withLock_(() => deleteReport_(r));
     case 'getSge': return { ok: true, data: getSgeFor_(r.username) };
     case 'saveSge': return withLock_(() => saveSge_(r));
     case 'deleteSge': return withLock_(() => deleteSge_(r));
@@ -840,15 +845,19 @@ function getManage_(me) {
     status: v.status, counted: v.counted, signature: v.signature, at: v.at }));
   // الاستمارات كاملة (البنود والدرجات والملاحظات) ليتمكن الموقع من عرضها وتصديرها إكسل كما عند المشرفة
   const evals = getEvalsCached_().filter(e => inScope(e.unit)).map(e => Object.assign({}, e, { unit: U(e.unit) }));
+  const fAcks = ackRows_(SHEET.FILEACK);
   const files = getFiles_().filter(f => inScope(f.unit)).map(f => ({
-    id: f.id, owner: f.owner, unit: U(f.unit), title: f.title, name: f.name, url: f.url, at: f.at }));
+    id: f.id, owner: f.owner, unit: U(f.unit), title: f.title, name: f.name, url: f.url, at: f.at, target: f.target, acks: fAcks.filter(a => a.mid === f.id) }));
+  const mAcks = minAcks_();
+  const minutes = getMinutes_().filter(m => inScope(m.unit)).map(m => Object.assign({}, m, { unit: U(m.unit), acks: mAcks.filter(a => a.mid === m.id) }));
   const idari = getIdari_().filter(x => inScope(x.unit)).map(x => Object.assign({}, x, { unit: U(x.unit) }));
   const sgh = getSgh_().concat(getSgs_(), getSge_()).filter(x => inScope(x.unit)).map(x => Object.assign({}, x, { unit: U(x.unit) }));
 
   const seen = {};
-  users.concat(visits, evals, files, idari, sgh).forEach(x => { seen[x.unit] = 1; });
+  users.concat(visits, evals, files, idari, sgh, minutes).forEach(x => { seen[x.unit] = 1; });
   if (!all) seen[me.unit] = 1;
-  return { ok: true, me: me, units: Object.keys(seen).sort(), users: users, visits: visits, evals: evals, files: files, idari: idari, sgh: sgh };
+  const reports = reportsList_().filter(x => inScope(x.unit)).map(x => Object.assign(x, { unit: U(x.unit) }));
+  return { ok: true, me: me, units: Object.keys(seen).sort(), users: users, visits: visits, evals: evals, files: files, idari: idari, sgh: sgh, minutes: minutes, reports: reports };
 }
 
 
@@ -1677,4 +1686,78 @@ function fileAck_(t, r) {
   const at = nowStr_(), sh = ackSheet_(SHEET.FILEACK);
   sh.getRange(sh.getLastRow() + 1, 1, 1, 4).setNumberFormat('@').setValues([[id, t.id, t.name, at]]);
   return { ok: true, at: at };
+}
+
+
+
+/* ============ خلاصة التقارير (الإشراف التربوي — reports.js) ============
+   كل خلاصة صف واحد؛ بياناتها (الإعدادات + صفوف المعلمات) JSON مقسّم على عدة خلايا لأن الخلية لا تتسع لأكثر من 50 ألف حرف. */
+const RPT_HEADERS = ['الرقم', 'العنوان', 'المشرفة', 'الفترة', 'الفصل الدراسي', 'العام', 'عدد المعلمات', 'وقت الحفظ', 'المسجِّلة', 'الوحدة', 'البيانات'];
+const RPT_DATA_COL = 11, RPT_CHUNK = 45000, RPT_MAX_CHUNKS = 20;
+function rptSheet_() {
+  const ss = ss_();
+  let sh = ss.getSheetByName(SHEET.RPT);
+  if (!sh) { sh = ss.insertSheet(SHEET.RPT); sh.getRange(1, 1, 1, RPT_HEADERS.length).setValues([RPT_HEADERS]); styleHeader_(sh, RPT_HEADERS.length); sh.setColumnWidths(1, RPT_HEADERS.length, 140); }
+  return sh;
+}
+function rptTitle_(m) {
+  m = m || {};
+  return 'خلاصة التقارير' + (m.period ? ' — الفترة ' + m.period : '') + (m.semester ? ' — الفصل ' + m.semester : '') + (m.year ? ' ' + m.year + 'هـ' : '');
+}
+function reportsList_() {
+  const sh = ss_().getSheetByName(SHEET.RPT);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, 10).getDisplayValues().filter(r => r[0]).map(r => ({
+    id: r[0], title: r[1], supervisor: r[2], period: r[3], semester: r[4], year: r[5], count: r[6], at: r[7], owner: r[8], unit: r[9] })).reverse();
+}
+function getReportsFor_(username) {
+  const u = norm_(username).toLowerCase();
+  return reportsList_().filter(x => x.owner === u);
+}
+function rptRow_(sh, id) {
+  const last = sh.getLastRow();
+  if (last < 2) return 0;
+  const ids = sh.getRange(2, 1, last - 1, 1).getValues();
+  for (let i = 0; i < ids.length; i++) if (String(ids[i][0]) === String(id)) return i + 2;
+  return 0;
+}
+function getReport_(r) {
+  const sh = ss_().getSheetByName(SHEET.RPT), id = String(r.id || '');
+  const row = sh ? rptRow_(sh, id) : 0;
+  if (!row) throw new Error('الخلاصة غير موجودة');
+  const head = sh.getRange(row, 1, 1, 10).getValues()[0];
+  if (String(head[8]) !== norm_(r.username).toLowerCase()) throw new Error('هذه الخلاصة لمشرفة أخرى');
+  const n = Math.max(1, sh.getLastColumn() - RPT_DATA_COL + 1);
+  const json = sh.getRange(row, RPT_DATA_COL, 1, n).getValues()[0].map(String).join('');
+  let d = {};
+  try { d = JSON.parse(json || '{}'); } catch (e) { throw new Error('تعذّرت قراءة بيانات الخلاصة'); }
+  return { id: id, meta: d.meta || {}, rows: d.rows || [] };
+}
+function saveReport_(r) {
+  const me = profileOf_(r.username), rep = r.report && typeof r.report === 'object' ? r.report : {};
+  const meta = rep.meta && typeof rep.meta === 'object' ? rep.meta : {};
+  const rows = Array.isArray(rep.rows) ? rep.rows.slice(0, 500) : [];
+  const json = JSON.stringify({ meta: meta, rows: rows });
+  const chunks = [];
+  for (let i = 0; i < json.length; i += RPT_CHUNK) chunks.push(json.substr(i, RPT_CHUNK));
+  if (chunks.length > RPT_MAX_CHUNKS) throw new Error('الخلاصة كبيرة جداً، قسّميها على خلاصتين');
+  const sh = rptSheet_();
+  let id = String(rep.id || ''), row = id ? rptRow_(sh, id) : 0;
+  if (row && String(sh.getRange(row, 9).getValue()) !== me.username) throw new Error('لا يمكن تعديل خلاصة مشرفة أخرى');
+  if (!row) { id = Utilities.getUuid(); row = sh.getLastRow() + 1; }
+  const count = rows.filter(x => x && String(x.name || '').trim()).length;
+  sh.getRange(row, 1, 1, 10).setNumberFormat('@').setValues([[id, rptTitle_(meta), String(meta.supervisor || '').slice(0, 200), String(meta.period || ''), String(meta.semester || ''),
+    String(meta.year || ''), String(count), nowStr_(), me.username, me.unit]]);
+  const width = Math.max(chunks.length, sh.getLastColumn() - RPT_DATA_COL + 1, 1);
+  const vals = []; for (let i = 0; i < width; i++) vals.push(chunks[i] || '');
+  sh.getRange(row, RPT_DATA_COL, 1, width).setNumberFormat('@').setValues([vals]);
+  return { ok: true, id: id };
+}
+function deleteReport_(r) {
+  const sh = ss_().getSheetByName(SHEET.RPT), id = String(r.id || '');
+  const row = sh ? rptRow_(sh, id) : 0;
+  if (!row) throw new Error('الخلاصة غير موجودة');
+  if (String(sh.getRange(row, 9).getValue()) !== norm_(r.username).toLowerCase()) throw new Error('لا يمكن حذف خلاصة مشرفة أخرى');
+  sh.deleteRow(row);
+  return { ok: true };
 }
