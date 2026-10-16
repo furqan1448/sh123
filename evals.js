@@ -599,6 +599,7 @@ function normPhone(v) {
 function sendWire(p) {
   const chk = document.getElementById(p + 'Send'), box = document.getElementById(p + 'SendBox');
   const ph = document.getElementById(p + 'Phone'), who = document.getElementById(p + 'Who'), tid = document.getElementById(p + 'Tid');
+  if (!chk || !box || !ph || !who) return;   // صفحة لا تحتوي نموذج الاستمارة (مثل إدارة الوحدات)
   let timer = 0, seq = 0;
   const show = () => {
     box.classList.toggle('hidden', !chk.checked);

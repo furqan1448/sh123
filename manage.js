@@ -100,6 +100,18 @@ function mgIdDo(id, btn, what) { const r = mgIdari().find(x => x.id === id); if 
 // تقارير وحدة تحفيظ الصغار (sighar-print.js): التواقيع بدخول مديرة الوحدة
 sgSigFetch = items => mgApi('getSigs', { items, mgr: true }).then(o => o.data || {});
 const mgSgh = () => (MG && MG.sgh) || [];
+// محاضر الاجتماعات (minutes.js): عرض و PDF ومن اطّلعت
+const mgMinById = id => ((MG && MG.minutes) || []).find(x => x.id === id);
+function mgMinDo(id, btn, what) { const r = mgMinById(id); if (!r) return; what === 'pdf' ? sgPdf(r, btn) : sgView(r); }
+function mgMinAcks(id) {
+  const r = mgMinById(id); if (!r) return;
+  const tg = (r.data && r.data.target) || {}, acks = r.acks || [];
+  let h = '<h2>من اطّلعت على المحضر رقم ( ' + esc(idDigits(r.no)) + ' )</h2><div class="tbl-wrap"><table style="min-width:0"><tr><th>المعلمة</th><th>الحالة</th></tr>';
+  if (tg.all) h += acks.length ? acks.map(a => '<tr><td>' + esc(a.name) + '</td><td>✔ ' + esc(a.at) + '</td></tr>').join('') : '<tr><td colspan="2" class="empty">لم تطّلع أي معلمة بعد</td></tr>';
+  else h += (tg.ids || []).map((t, i) => { const a = acks.find(k => k.tid === t); return '<tr><td>' + esc((tg.names || [])[i] || t) + '</td><td>' + (a ? '✔ ' + esc(a.at) : '⏳ لم تطّلع') + '</td></tr>'; }).join('');
+  document.getElementById('sgModalBody').innerHTML = h + '</table></div>';
+  document.getElementById('sgModal').classList.remove('hidden');
+}
 const arDigitsN = n => idDigits(n);
 function mgSgOpen(id) { const r = mgSgh().find(x => x.id === id); if (r) sgView(r); }
 function mgSgDo(id, btn, what) { const r = mgSgh().find(x => x.id === id); if (!r) return; what === 'pdf' ? sgPdf(r, btn) : what === 'share' ? sgShare(r, btn) : sgPrint(r, btn); }
@@ -177,10 +189,20 @@ function mgRender() {
   const es = MG.evals.filter(x => x.unit === unit && inR(x.date));
   const fs = MG.files.filter(x => x.unit === unit && inR(x.at));
   const ids = mgIdari().filter(x => x.unit === unit && inR(x.date || x.at));
+  const mins = ((MG && MG.minutes) || []).filter(x => x.unit === unit && inR(x.at));
+  // التبويبات حسب الوحدة: الاستمارات للإشراف التربوي، والنماذج للإداري، والتقارير لتحفيظ الصغار
+  const rpts = ((MG && MG.reports) || []).filter(x => x.unit === unit && inR(x.at));
+  const TAB_UNITS = { rpt: 'وحدة الإشراف التربوي', evals: 'وحدة الإشراف التربوي', idari: 'وحدة الإشراف الإداري', sgh: 'وحدة تحفيظ الصغار' };
+  document.querySelectorAll('#mgTabs button').forEach(bt => {
+    const t = bt.dataset.t, u = TAB_UNITS[t];
+    const show = t === 'min' ? (unit !== 'وحدة الإشراف الإداري' || mins.length) : !u || u === unit || (t === 'evals' && es.length) || (t === 'rpt' && rpts.length) || (t === 'idari' && ids.length) || (t === 'sgh' && mgSgh().some(x => x.unit === unit));
+    bt.classList.toggle('hidden', !show);
+    if (!show && mgTab === t) { mgTab = 'visits'; document.querySelectorAll('#mgTabs button').forEach(b2 => b2.classList.toggle('on', b2.dataset.t === 'visits')); }
+  });
   const sgs = mgSgh().filter(x => x.unit === unit && inR(x.date || x.at));
 
   const rows = users.map(u => ({ key: u.username, name: u.name }));
-  if (vs.concat(es, fs, ids, sgs).some(x => okey(x) === '')) rows.push({ key: '', name: MG_NONE });
+  if (vs.concat(es, fs, ids, sgs, mins).some(x => okey(x) === '')) rows.push({ key: '', name: MG_NONE });
 
   // قائمة تصفية المشرفة (نحافظ على الاختيار الحالي)
   const supSel = document.getElementById('mgSup');
@@ -197,12 +219,12 @@ function mgRender() {
   document.getElementById('mgStats').innerHTML =
     '<div class="stat"><b>' + users.length + '</b><span>المشرفات</span></div>' +
     '<div class="stat"><b>' + vs.length + '</b><span>الزيارات</span></div>' +
-    '<div class="stat"><b>' + (es.length + ids.length + sgs.length) + '</b><span>' + ((ids.length || sgs.length) && !es.length ? (sgs.length && !ids.length ? 'تقارير الزيارة' : 'النماذج') : (ids.length || sgs.length) ? 'الاستمارات والنماذج' : 'الاستمارات') + '</span></div>' +
+    '<div class="stat"><b>' + (es.length + ids.length + sgs.length + mins.length) + '</b><span>' + ((ids.length || sgs.length) && !es.length ? (sgs.length && !ids.length ? 'تقارير الزيارة' : 'النماذج') : (ids.length || sgs.length) ? 'الاستمارات والنماذج' : 'الاستمارات') + '</span></div>' +
     '<div class="stat"><b>' + fs.length + '</b><span>المرفقات</span></div>';
 
   // جدول المشرفات
   document.getElementById('mgSum').innerHTML = rows.length ? rows.map(r => {
-    const v = vs.filter(x => okey(x) === r.key), e = es.filter(x => okey(x) === r.key).concat(ids.filter(x => okey(x) === r.key), sgs.filter(x => okey(x) === r.key)), f = fs.filter(x => okey(x) === r.key);
+    const v = vs.filter(x => okey(x) === r.key), e = es.filter(x => okey(x) === r.key).concat(ids.filter(x => okey(x) === r.key), sgs.filter(x => okey(x) === r.key), mins.filter(x => okey(x) === r.key)), f = fs.filter(x => okey(x) === r.key);
     const pres = v.filter(x => x.counted).length, abs = v.length - pres;
     const last = v.concat(e, f).map(x => x.at || x.date || '').sort().pop() || '—';
     return '<tr class="mg-row" data-k="' + esc(r.key) + '" onclick="mgPick(this.dataset.k)"><td><b>' + esc(r.name) + '</b></td><td>' + pres +
@@ -233,6 +255,18 @@ function mgRender() {
     body = L.slice(0, MG_LIMIT).map(x => '<tr><td>' + who(x) + '</td><td>' + esc(ID_KINDS[x.kind] || '') + '</td><td>' + esc(x.center || [x.sem, x.year].filter(Boolean).join(' ') || '—') +
       '</td><td>' + esc(idDayName(x)) + ' ' + idHDate(x) + '</td><td style="white-space:nowrap">' + b('عرض', 'mgIdOpen(\'' + esc(x.id) + '\')') +
       b('طباعة', 'mgIdDo(\'' + esc(x.id) + '\', this, \'print\')') + b('PDF', 'mgIdDo(\'' + esc(x.id) + '\', this, \'pdf\')') + b('مشاركة', 'mgIdDo(\'' + esc(x.id) + '\', this, \'share\')') + '</td></tr>').join('');
+  } else if (mgTab === 'rpt') {
+    const L = rpts.filter(mine); n = L.length;
+    head = '<tr><th>المشرفة</th><th>الخلاصة</th><th>الفترة</th><th>الفصل</th><th>العام</th><th>عدد المعلمات</th><th>آخر حفظ</th></tr>';
+    body = L.slice(0, MG_LIMIT).map(x => '<tr><td>' + who(x) + '</td><td>' + esc(x.title) + '</td><td>' + esc(x.period) + '</td><td>' + esc(x.semester) + '</td><td>' + esc(x.year) + '</td><td>' + esc(x.count) + '</td><td>' + esc(x.at) + '</td></tr>').join('');
+  } else if (mgTab === 'min') {
+    const L = mins.filter(mine); n = L.length;
+    const b = (t, fn) => '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="' + fn + '">' + t + '</button> ';
+    head = '<tr><th>المشرفة</th><th>رقم الاجتماع</th><th>التاريخ</th><th>المركز</th><th>يصل إلى</th><th>اطّلعت</th><th></th></tr>';
+    body = L.slice(0, MG_LIMIT).map(x => { const tg = (x.data && x.data.target) || {}, cnt = tg.all ? null : (tg.ids || []).length;
+      return '<tr><td>' + who(x) + '</td><td>' + esc(idDigits(x.no)) + '</td><td>' + esc(x.dayName || '') + ' ' + esc(idDigits(x.hijri || '')) + '</td><td>' + esc(x.center || '—') + '</td><td>' +
+        (tg.all ? 'كل المعلمات' : idDigits(cnt) + ' معلمة') + '</td><td>' + idDigits((x.acks || []).length) + (cnt != null ? ' من ' + idDigits(cnt) : '') + '</td><td style="white-space:nowrap">' +
+        b('من اطّلعت', 'mgMinAcks(\'' + esc(x.id) + '\')') + b('عرض', 'mgMinDo(\'' + esc(x.id) + '\', this, \'view\')') + b('PDF', 'mgMinDo(\'' + esc(x.id) + '\', this, \'pdf\')') + '</td></tr>'; }).join('');
   } else if (mgTab === 'sgh') {
     const L = sgs.filter(mine); n = L.length;
     const b = (t, fn) => '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="' + fn + '">' + t + '</button> ';
@@ -245,9 +279,9 @@ function mgRender() {
       b('طباعة', 'mgSgDo(\'' + esc(x.id) + '\', this, \'print\')') + b('PDF', 'mgSgDo(\'' + esc(x.id) + '\', this, \'pdf\')') + b('مشاركة', 'mgSgDo(\'' + esc(x.id) + '\', this, \'share\')') + '</td></tr>').join('');
   } else {
     const L = fs.filter(mine); n = L.length;
-    head = '<tr><th>المشرفة</th><th>العنوان</th><th>الملف</th><th>وقت الرفع</th></tr>';
+    head = '<tr><th>المشرفة</th><th>العنوان</th><th>الملف</th><th>وقت الرفع</th><th>المشاركة مع المعلمات</th></tr>';
     body = L.slice(0, MG_LIMIT).map(x => '<tr><td>' + who(x) + '</td><td>' + esc(x.title) + '</td><td>' + mgLink(x.url, x.name && x.name !== 'رابط' ? x.name : 'فتح الرابط') +
-      '</td><td>' + esc(x.at) + '</td></tr>').join('');
+      '</td><td>' + esc(x.at) + '</td><td>' + (x.target ? (x.target.all ? 'كل المعلمات' : idDigits((x.target.ids || []).length) + ' معلمة') + ' — اطّلعت ' + idDigits((x.acks || []).length) : '—') + '</td></tr>').join('');
   }
   document.getElementById('mgBar').innerHTML = bar;
   document.getElementById('mgHead').innerHTML = head;

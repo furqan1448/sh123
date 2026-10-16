@@ -74,9 +74,11 @@
       <div class="ev-tabs" id="mgTabs">
         <button class="on" data-t="visits" onclick="mgTabSet('visits')">كشف الخروج</button>
         <button data-t="evals" onclick="mgTabSet('evals')">الاستمارات</button>
+        <button data-t="rpt" onclick="mgTabSet('rpt')">خلاصة التقارير</button>
         <button data-t="files" onclick="mgTabSet('files')">المرفقات</button>
         <button data-t="idari" onclick="mgTabSet('idari')">نماذج الإشراف الإداري</button>
-        <button data-t="sgh" onclick="mgTabSet('sgh')">تحفيظ الصغار</button>
+        <button data-t="sgh" onclick="mgTabSet('sgh')">تقارير واستمارات تحفيظ الصغار</button>
+        <button data-t="min" onclick="mgTabSet('min')">محاضر الاجتماعات</button>
       </div>
       <div class="ex-bar" id="mgBar"></div>
       <div class="tbl-wrap">
@@ -121,6 +123,8 @@
 <script src="idari-print.js"></script>
 <script src="sighar-print.js"></script>
 <script src="sighar-evals.js"></script>
+<script>window.MN_NO_UI = 1;</script>
+<script src="minutes.js"></script>
 <script src="manage.js"></script>
 </body>
 </html>
