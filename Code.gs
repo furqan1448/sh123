@@ -21,6 +21,7 @@ const SHEET = {
   SGS: 'خلاصة التقارير التعليمية',
   MIN: 'محاضر الاجتماعات',   // محاضر الاجتماعات (الإشراف التربوي وتحفيظ الصغار) تُنشر للمعلمات، تُنشأ تلقائياً
   MINACK: 'اطلاع المحاضر',   // من اطّلعت على كل محضر ومتى
+  FILEACK: 'اطلاع المرفقات',   // من اطّلعت على كل مرفق مشارك ومتى
   SGE: 'استمارات تحفيظ الصغار'   // استمارات تقييم الأداء الوظيفي لتحفيظ الصغار (7 استمارات)، تُنشأ تلقائياً   // خلاصة التقارير التعليمية – متابعة المشرفة للمعلمة (تحفيظ الصغار)، تُنشأ تلقائياً
 };
 
@@ -36,7 +37,7 @@ const VISIT_HEADERS = ['الرقم', 'اسم المركز', 'نوع الزيار
 const VISIT_STATUS = ['تمت الزيارة', 'تمت الزيارة والمديرة متغيبة', 'تمت الزيارة وتعذر التوثيق لتعليق الموقع أو الشبكة', 'تمت الزيارة قبل توفر موقع النظام', 'لم تتم الزيارة'];
 const VISIT_NONE = VISIT_STATUS[4]; // لم تتم الزيارة: تُحسب يوم غياب ولا تحتاج نوع زيارة ولا توقيع
 const VISIT_STATUS_COL = 11;
-const FILE_HEADERS = ['الرقم', 'العنوان', 'اسم الملف', 'الرابط', 'وقت الرفع', 'المسجِّلة', 'الوحدة'];
+const FILE_HEADERS = ['الرقم', 'العنوان', 'اسم الملف', 'الرابط', 'وقت الرفع', 'المسجِّلة', 'الوحدة', 'المشاركة مع المعلمات'];
 const EVAL_HEADERS = ['الرقم', 'اسم المركز', 'الفترة', 'اسم المعلمة', 'المؤهل', 'الفئة', 'اليوم', 'التاريخ',
   'عنوان الدرس', 'سنوات الخبرة', 'العدد الكلي', 'العدد الحاضر', 'رقم الزيارة', 'اسم المشرفة',
   'الدرجة الكلية', 'الدرجة الموزونة', 'التقدير', 'البنود', 'ملاحظات المشرفة', 'توصيات المشرفة', 'التوقيع', 'وقت التسجيل', 'نوع الاستمارة', 'بيانات إضافية', 'المسجِّلة', 'الوحدة'];
@@ -190,7 +191,8 @@ function route_(r) {
     case 'getVisits': return { ok: true, data: visitsFor_(r) };
     case 'addVisit': return withLock_(() => addVisit_(r));
     case 'deleteVisit': return withLock_(() => { const o = deleteById_(SHEET.VISITS, r.id); sigDel_(r.id); return o; });
-    case 'getFiles': return { ok: true, data: getFiles_() };
+    case 'getFiles': return { ok: true, data: getFilesFor_(r) };
+    case 'shareFile': return withLock_(() => shareFile_(r));
     case 'addFile': return withLock_(() => addFile_(r));
     case 'deleteFile': return withLock_(() => deleteFile_(r.id));
     case 'getEvals': return { ok: true, data: getEvals_() };
@@ -383,9 +385,38 @@ function visitsFor_(r) {
 function getFiles_() {
   const sh = ss_().getSheetByName(SHEET.FILES);
   const rows = sh.getDataRange().getDisplayValues().slice(1);
-  return rows.filter(r => r[0]).map(r => ({
-    id: r[0], title: r[1], name: r[2], url: r[3], at: r[4], owner: r[5] || '', unit: r[6] || ''
-  })).reverse();
+  return rows.filter(r => r[0]).map(r => {
+    let target = null;
+    try { target = r[7] ? JSON.parse(r[7]) : null; } catch (e) {}
+    return { id: r[0], title: r[1], name: r[2], url: r[3], at: r[4], owner: r[5] || '', unit: r[6] || '', target: target };
+  }).reverse();
+}
+// مرفقات وحدة المشرفة فقط (مع من اطّلعت من المعلمات على المرفقات المشاركة)
+function getFilesFor_(r) {
+  const me = profileOf_(r.username), acks = ackRows_(SHEET.FILEACK);
+  return getFiles_().filter(f => (f.unit || DEFAULT_UNIT) === me.unit).map(f => Object.assign(f, { acks: acks.filter(a => a.mid === f.id) }));
+}
+// مشاركة مرفق مع المعلمات (الكل أو محددات) أو إلغاء المشاركة
+function shareFile_(r) {
+  const me = profileOf_(r.username), id = String(r.id || '');
+  const sh = ss_().getSheetByName(SHEET.FILES);
+  ensureExtraHeaders_(sh, FILE_HEADERS);
+  const last = sh.getLastRow();
+  const rows = last > 1 ? sh.getRange(2, 1, last - 1, 7).getValues() : [];
+  for (let i = 0; i < rows.length; i++) {
+    if (String(rows[i][0]) !== id) continue;
+    if ((String(rows[i][6]) || DEFAULT_UNIT) !== me.unit) throw new Error('هذا المرفق ليس من وحدتكِ');
+    const tg = r.target && typeof r.target === 'object' ? r.target : null;
+    let val = '';
+    if (tg && (tg.all || (Array.isArray(tg.ids) && tg.ids.length))) {
+      const list = a => (Array.isArray(a) ? a : []).map(x => String(x).trim().slice(0, 120)).filter(Boolean).slice(0, 400);
+      val = JSON.stringify(tg.all ? { all: true } : { all: false, ids: list(tg.ids), names: list(tg.names) });
+      if (val.length > 45000) throw new Error('عدد المعلمات كبير جداً، اختاري «كل المعلمات»');
+    }
+    sh.getRange(i + 2, 8).setNumberFormat('@').setValue(val);
+    return { ok: true };
+  }
+  throw new Error('المرفق غير موجود');
 }
 
 function addFile_(r) {
@@ -1321,8 +1352,9 @@ function teacherRoute_(r) {
       return t ? { ok: true, name: t.name.split(/\s+/).slice(0, 2).join(' ') } : { ok: false, error: 'رقم الجوال غير موجود في سجل المعلمات' };
     }
     const t = teacherAuth_(r);
-    if (r.action === 't_login' || r.action === 't_list') return { ok: true, teacher: { id: t.id, name: t.name, category: t.cat }, data: teacherReports_(t), minutes: minutesFor_(t) };
+    if (r.action === 't_login' || r.action === 't_list') return { ok: true, teacher: { id: t.id, name: t.name, category: t.cat }, data: teacherReports_(t), minutes: minutesFor_(t), files: filesForTeacher_(t) };
     if (r.action === 't_ack') return withLock_(() => minuteAck_(t, r));
+    if (r.action === 't_fack') return withLock_(() => fileAck_(t, r));
     if (r.action === 't_sigs') {   // تواقيع تقرير من تقاريرها فقط (للعرض والطباعة)
       const rec = getSgh_().concat(getSge_()).find(x => x.id === String(r.id || '') && x.data && x.data.tid === t.id);
       if (!rec) throw new Error('التقرير غير موجود');
@@ -1613,5 +1645,36 @@ function minuteAck_(t, r) {
   const at = nowStr_();
   const ak = minAckSheet_();
   ak.getRange(ak.getLastRow() + 1, 1, 1, 4).setNumberFormat('@').setValues([[id, t.id, t.name, at]]);
+  return { ok: true, at: at };
+}
+
+
+
+/* ============ سجلات الاطلاع العامة + المرفقات المشاركة مع المعلمات ============ */
+function ackSheet_(name) {
+  const ss = ss_();
+  let sh = ss.getSheetByName(name);
+  if (!sh) { sh = ss.insertSheet(name); sh.getRange(1, 1, 1, MINACK_HEADERS.length).setValues([MINACK_HEADERS.map((h, i) => i ? h : 'الرقم')]); styleHeader_(sh, MINACK_HEADERS.length); sh.setColumnWidths(1, MINACK_HEADERS.length, 160); }
+  return sh;
+}
+function ackRows_(name) {
+  const sh = ss_().getSheetByName(name);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, 4).getDisplayValues().filter(r => r[0]).map(r => ({ mid: r[0], tid: r[1], name: r[2], at: r[3] }));
+}
+function filesForTeacher_(t) {
+  const acks = ackRows_(SHEET.FILEACK).filter(a => a.tid === t.id);
+  return getFiles_().filter(f => f.target && (f.target.all || (f.target.ids || []).indexOf(t.id) > -1)).map(f => {
+    const a = acks.find(x => x.mid === f.id);
+    return { id: f.id, title: f.title, name: f.name, url: f.url, at: f.at, unit: f.unit, acked: !!a, ackAt: a ? a.at : '' };
+  });
+}
+function fileAck_(t, r) {
+  const id = String(r.id || '');
+  const f = filesForTeacher_(t).find(x => x.id === id);
+  if (!f) throw new Error('المرفق غير موجود');
+  if (f.acked) return { ok: true, at: f.ackAt };
+  const at = nowStr_(), sh = ackSheet_(SHEET.FILEACK);
+  sh.getRange(sh.getLastRow() + 1, 1, 1, 4).setNumberFormat('@').setValues([[id, t.id, t.name, at]]);
   return { ok: true, at: at };
 }

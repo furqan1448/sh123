@@ -2,10 +2,10 @@
    الدخول برقم الجوال وكلمة مرور بوابة المعلمات، والتقارير مرتبطة بها عن طريق رقم جوالها في تقرير المشرفة. */
 const $ = id => document.getElementById(id);
 const T_PHONE = 'tch_phone', T_PW = 'tch_pw', T_CACHE = 'tch_reports';
-let TREP = [], tCur = null, tSigsCur = {}, TME = null, TMIN = [], tMinCur = null;
+let TREP = [], tCur = null, tSigsCur = {}, TME = null, TMIN = [], tMinCur = null, TFILES = [];
 
 function tShow(id) {
-  ['loginView', 'homeView', 'reportsView', 'certView', 'signView', 'minView', 'minDocView'].forEach(v => $(v).classList.add('hidden'));
+  ['loginView', 'homeView', 'reportsView', 'certView', 'signView', 'minView', 'minDocView', 'filesView'].forEach(v => $(v).classList.add('hidden'));
   $(id).classList.remove('hidden');
   window.scrollTo(0, 0);
   setTimeout(() => SIG_WIDGETS.forEach(w => w.resize()), 60);
@@ -72,8 +72,9 @@ function tApply(out) {
   TREP = out.data || [];
   TME = out.teacher || TME;
   TMIN = out.minutes || [];
-  try { localStorage.setItem(T_CACHE, JSON.stringify({ name: out.teacher.name, me: out.teacher, data: TREP, minutes: TMIN })); } catch (e) {}
-  tMinRender();
+  TFILES = out.files || [];
+  try { localStorage.setItem(T_CACHE, JSON.stringify({ name: out.teacher.name, me: out.teacher, data: TREP, minutes: TMIN, files: TFILES })); } catch (e) {}
+  tMinRender(); tFilesRender();
   $('tHello').textContent = 'مرحباً ' + out.teacher.name;
   tRender();
 }
@@ -210,12 +211,37 @@ async function tMinAck(btn) {
   finally { setBtnBusy(btn, false); }
 }
 
+/* ---------- المرفقات المشاركة: تفتح المعلمة المرفق ثم تضغط «تم الاطلاع» ---------- */
+function tFilesOpen() { tShow('filesView'); tFilesRender(); tLoad(); }
+const tHref = u => /^https?:\/\//i.test(u || '') ? u : '#';
+function tFileItem(f) {
+  const id = esc(f.id);
+  return '<div class="t-item' + (f.acked ? '' : ' pending') + '"><b>' + esc(f.title) + '</b>' +
+    '<div class="t-meta">' + (f.name === 'رابط' ? 'رابط' : esc(f.name)) + ' — ' + esc(String(f.at || '').split(' ')[0]) +
+    (f.acked ? '<br><span class="t-signed">✔ اطّلعتِ' + (f.ackAt ? ' بتاريخ ' + esc(f.ackAt) : '') + '</span>' : '') + '</div>' +
+    '<div class="act"><a class="btn light" target="_blank" rel="noopener noreferrer" href="' + esc(tHref(f.url)) + '">فتح المرفق</a>' +
+    (f.acked ? '' : '<button class="btn" onclick="tFileAck(\'' + id + '\', this)">✔ تم الاطلاع</button>') + '</div></div>';
+}
+function tFilesRender() {
+  const pend = TFILES.filter(f => !f.acked), done = TFILES.filter(f => f.acked);
+  $('filesBadge').textContent = pend.length; $('filesBadge').classList.toggle('hidden', !pend.length);
+  $('filesPendBadge').textContent = pend.length;
+  $('filesPend').innerHTML = pend.length ? pend.map(tFileItem).join('') : '<p class="empty">لا توجد مرفقات جديدة</p>';
+  $('filesDone').innerHTML = done.length ? done.map(tFileItem).join('') : '<p class="empty">لا توجد مرفقات بعد</p>';
+}
+async function tFileAck(id, btn) {
+  const f = TFILES.find(x => x.id === id); if (!f) return;
+  setBtnBusy(btn, true, '...');
+  try { const out = await tApi('t_fack', { id }); f.acked = true; f.ackAt = out.at; toast('تم تسجيل اطلاعكِ'); tFilesRender(); }
+  catch (e) { toast(e.message, false); setBtnBusy(btn, false); }
+}
+
 /* ---------- استعادة الجلسة ---------- */
 (function init() {
   if (!localStorage.getItem(T_PHONE) || !localStorage.getItem(T_PW)) return;
   try {
     const c = JSON.parse(localStorage.getItem(T_CACHE) || 'null');
-    if (c) { TREP = c.data || []; TME = c.me || null; TMIN = c.minutes || []; $('tHello').textContent = 'مرحباً ' + c.name; tRender(); tMinRender(); }
+    if (c) { TREP = c.data || []; TME = c.me || null; TMIN = c.minutes || []; TFILES = c.files || []; $('tHello').textContent = 'مرحباً ' + c.name; tRender(); tMinRender(); tFilesRender(); }
   } catch (e) {}
   tShow('homeView');
   tLoad();

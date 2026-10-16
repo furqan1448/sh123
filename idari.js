@@ -5,7 +5,7 @@ const VIEW_KEY = 'idari_view', NAME_KEY = 'idari_name', KIND_KEY = 'idari_kind';
 let LISTS = { centers: [], types: [], typesIdari: [] };
 let VISITS = [], IDR = [], idKind = 'visit', idEdit = null;
 
-const ALL_VIEWS = ['loginView', 'homeView', 'visitsView', 'idListView', 'idVisitForm', 'idProgramForm', 'idSuggestForm'];
+const ALL_VIEWS = ['loginView', 'homeView', 'visitsView', 'idListView', 'idVisitForm', 'idProgramForm', 'idSuggestForm', 'atView'];
 const FORM_OF = { visit: 'idVisitForm', program: 'idProgramForm', suggest: 'idSuggestForm' };
 
 function show(id) {
