@@ -832,7 +832,7 @@ function mgrAuth_(name, pw) {
 }
 
 function getManage_(me) {
-  const all = me.unit === ALL_UNITS;
+  const all = [ALL_UNITS, 'جميع الوحدات', 'كل الوحدات'].indexOf(me.unit) > -1;   // مديرة عامة ترى كل الوحدات
   const U = u => u || DEFAULT_UNIT;
   const inScope = u => all || U(u) === me.unit;
 
