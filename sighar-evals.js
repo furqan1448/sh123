@@ -997,6 +997,8 @@ function sgeDocHtml(rec, sigs, lhUrl) {
     '<div class="idc-title">' + esc(form.title) + '</div>' +
     '<table class="sge-info">' + info + '</table>' +
     '<table><colgroup>' + cols + '</colgroup>' + thead + body + sum + '</table>' + recs +
-    '<div class="idc-foot idc-avoid">' + sigCol('اسم ' + form.who + ' والتوقيع', rec.teacher, sigs.tch) + sigCol('اسم المديرة والتوقيع', d.mgrName, sigs.mgr) + '</div>' +
+    '<div class="idc-foot idc-avoid">' + sigCol('اسم ' + form.who + ' والتوقيع', rec.teacher, sigs.tch) + sigCol('اسم المشرفة والتوقيع', d.supName || rec.supName, sigs.sup) +
+      // استمارات قديمة حُفظت قبل إلغاء خانة المديرة: يبقى ما سُجّل فيها كما هو
+      (!d.supName && (d.mgrName || sigs.mgr) ? sigCol('اسم المديرة والتوقيع', d.mgrName, sigs.mgr) : '') + '</div>' +
   '</div></div>';
 }

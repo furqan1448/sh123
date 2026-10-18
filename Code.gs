@@ -1410,11 +1410,12 @@ function testTeacherRegistry() {
 
 /* ============ وحدة تحفيظ الصغار: استمارات تقييم الأداء الوظيفي ============
    ورقة «استمارات تحفيظ الصغار» تُنشأ تلقائياً. الدرجات والملاحظات والتوصيات في عمود «البيانات».
-   التواقيع في ورقة «التواقيع» بالمعرّف: الرقم|tch (المعلمة) و الرقم|mgr (المديرة) */
+   التواقيع في ورقة «التواقيع» بالمعرّف: الرقم|sup (المشرفة) و الرقم|tch (المعلمة، من حسابها في «المعلمات» أو على جهاز المشرفة).
+   (أُلغيت خانة المديرة؛ الاستمارات القديمة يبقى فيها توقيعها الرقم|mgr كما هو) */
 const SGE_HEADERS = ['الرقم', 'نوع الاستمارة', 'اسم المعلمة', 'اسم المركز', 'الفترة', 'التاريخ الهجري', 'اليوم', 'التاريخ',
-  'الدرجة', 'من', 'التقدير', 'اسم المديرة', 'البيانات', 'وقت التسجيل', 'المسجِّلة', 'الوحدة'];
+  'الدرجة', 'من', 'التقدير', 'اسم المشرفة', 'البيانات', 'وقت التسجيل', 'المسجِّلة', 'الوحدة'];
 const SGE_TYPES = { tilawa: 'التلاوة', tibyan: 'التبيان', madda: 'المادة', liqa: 'لقاء أخير', wajba: 'أثناء الوجبة', arkan: 'معلمة الأركان', saha: 'مشرفة الساحة' };
-const SGE_SIGS = ['tch', 'mgr'];
+const SGE_SIGS = ['sup', 'tch'];
 
 function sgeSheet_() {
   const ss = ss_();
@@ -1425,6 +1426,8 @@ function sgeSheet_() {
     styleHeader_(sh, SGE_HEADERS.length);
     sh.setColumnWidths(1, SGE_HEADERS.length, 130);
     sh.setColumnWidth(13, 380);
+  } else if (String(sh.getRange(1, 12).getValue()).trim() === 'اسم المديرة') {
+    sh.getRange(1, 12).setValue('اسم المشرفة');   // تحديث عنوان العمود في الورقة القديمة
   }
   return sh;
 }
@@ -1437,7 +1440,7 @@ function getSge_() {
     let data = {};
     try { data = JSON.parse(r[12] || '{}'); } catch (e) {}
     return { id: r[0], kind: 'eval', formName: r[1], teacher: r[2], center: r[3], period: r[4], hijri: r[5], day: r[6], date: r[7],
-      score: r[8], max: r[9], grade: r[10], mgrName: r[11], data: data, at: r[13], owner: r[14] || '', unit: r[15] || '',
+      score: r[8], max: r[9], grade: r[10], supName: data.supName || '', mgrName: data.mgrName || '', data: data, at: r[13], owner: r[14] || '', unit: r[15] || '',
       visitNo: (data.f && data.f.visitNo) || '', lesson: (data.f && data.f.lesson) || '' };
   }).reverse();
 }
@@ -1465,7 +1468,8 @@ function saveSge_(r) {
   const f = {};
   Object.keys(d.f && typeof d.f === 'object' ? d.f : {}).slice(0, 20).forEach(k => { f[k] = s(d.f[k], 200); });
   const data = { form: form, f: f, sc: arr(d.sc, 60, 8), nt: arr(d.nt, 60, 400), recs: arr(d.recs, 4, 3000), overall: s(d.overall, 40),
-    hd: s(d.hd, 2), hm: s(d.hm, 2), hy: s(d.hy, 4), dayName: s(d.dayName, 10), mgrName: s(r.mgrName) };
+    hd: s(d.hd, 2), hm: s(d.hm, 2), hy: s(d.hy, 4), dayName: s(d.dayName, 10), supName: s(r.supName) };
+  if (!data.supName) throw new Error('اكتبي اسم المشرفة');
   const hijri = data.hy ? data.hd + '/' + data.hm + '/' + data.hy + 'هـ' : '';
   const sigs = r.sigs && typeof r.sigs === 'object' ? r.sigs : {};
 
@@ -1507,12 +1511,14 @@ function saveSge_(r) {
     if (v.indexOf('data:image/') === 0) { sigPut_(id + '|' + k, v); has[k] = '1'; if (k === 'tch') delete data.tchAt; }
     else if (old) sigDel_(id + '|' + k);
   });
+  if (!has.sup) throw new Error('توقيع المشرفة مطلوب');
+  if (old) sigDel_(id + '|mgr');   // إزالة توقيع المديرة من الاستمارات القديمة عند تعديلها
   data.sigs = has;
   const json = JSON.stringify(data);
   if (json.length > 45000) throw new Error('الاستمارة طويلة جداً، اختصري الملاحظات');
 
   const vals = [[id, SGE_TYPES[form], teacher, center, s(r.period, 20), hijri, data.dayName, date,
-    s(r.score, 10), s(r.max, 10), s(r.grade, 20), data.mgrName, json,
+    s(r.score, 10), s(r.max, 10), s(r.grade, 20), data.supName, json,
     old ? String(old[13] || nowStr_()) : nowStr_(), me.username, me.unit]];
   sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
   return { ok: true, id: id, sigs: has, tid: data.tid || '', tName: data.tName || '', tchAt: data.tchAt || '' };
@@ -1530,7 +1536,7 @@ function deleteSge_(r) {
       if (String(rows[i][0]) !== id) continue;
       if (String(rows[i][14]) !== me.username) throw new Error('لا يمكن حذف استمارة سجّلتها مشرفة أخرى');
       sh.deleteRow(i + 2);
-      SGE_SIGS.forEach(k => sigDel_(id + '|' + k));
+      SGE_SIGS.concat(['mgr']).forEach(k => sigDel_(id + '|' + k));
       return { ok: true };
     }
   }

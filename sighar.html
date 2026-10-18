@@ -287,12 +287,12 @@
     <div class="card" id="seRecsCard"><div id="seRecs"></div></div>
     <div class="card">
       <h2>التواقيع</h2>
-      <label style="margin-top:0" id="seTchLbl">توقيع المعلمة</label>
-      <p class="rp-hint" style="margin-top:0">اختياري: إن كتبتِ جوال المعلمة توقّع هي من حسابها، أو توقّع هنا على جهازكِ.</p>
+      <label for="seSupName" style="margin-top:0">اسم المشرفة</label><input id="seSupName">
+      <label>توقيع المشرفة</label>
+      <div id="seSupW"></div>
+      <label id="seTchLbl">توقيع المعلمة</label>
+      <p class="rp-hint" style="margin-top:0">بعد الحفظ تصل الاستمارة للمعلمة في أيقونة «المعلمات» (عند كتابة جوالها أعلى الاستمارة) فتطّلع عليها وتوقّع من حسابها، ويمكن بدلاً من ذلك التوقيع هنا على جهازكِ.</p>
       <div id="seTchW"></div>
-      <label for="seMgrName">اسم المديرة</label><input id="seMgrName">
-      <label>توقيع المديرة <span style="font-weight:400;color:var(--muted);font-size:14px">(اختياري)</span></label>
-      <div id="seMgrW"></div>
       <button id="seSaveBtn" class="btn block" onclick="seSave(this)">حفظ الاستمارة</button>
     </div>
     <div class="ev-bar" id="seBar"><span>المجموع: <b id="seSum">٠</b> من <b id="seMax">٠</b></span><span>التقدير: <b id="seGrade">—</b></span></div>

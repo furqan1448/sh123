@@ -578,7 +578,7 @@ async function ssSave(btn) {
 
 /* ======================= استمارات تقييم الأداء الوظيفي (7 استمارات) ======================= */
 const seTch = makeSigWidget('seTchW', { none: true });
-const seMgr = makeSigWidget('seMgrW', { none: true });
+const seSup = makeSigWidget('seSupW', { saved: true });   // توقيع المشرفة (يمكن حفظه للاستمارات القادمة)
 hdBuild('se');
 // أزرار اختيار الاستمارة + قائمة التصفية
 $('seTypes').innerHTML = SGE_ORDER.map(k => '<button class="tile" onclick="seNew(\'' + k + '\')"><b>' + esc(SGE_FORMS[k].name) + '</b></button>').join('');
@@ -695,9 +695,10 @@ function seFill(k, r) {
   hdSet('se', edit ? r : null);
   $('seTPhone').value = d.tPhone || '';
   $('seTHint').innerHTML = d.tName ? '✔ المعلمة: <b>' + esc(d.tName) + '</b>' + (d.tchAt ? ' — وقّعت من حسابها' : '') : '';
-  $('seMgrName').value = d.mgrName || r.mgrName || '';
+  $('seSupName').value = edit ? (d.supName || r.supName || '') : (d.supName || myName());
   const has = d.sigs || {};
-  [['tch', seTch], ['mgr', seMgr]].forEach(([key, w]) => { w.reset(); if (edit && has[key]) w.keepOld('الإبقاء على التوقيع السابق'); else w.setMode('none'); });
+  seTch.reset(); if (edit && has.tch) seTch.keepOld('الإبقاء على التوقيع السابق'); else seTch.setMode('none');
+  seSup.reset(); if (edit && has.sup) seSup.keepOld('الإبقاء على التوقيع السابق');
 }
 function seNew(k) { seEdit = null; seFill(k, null); show('seForm'); }
 function seEditRec(id) { const r = seById(id); if (!r) return; seEdit = r; seFill(r.data.form, r); show('seForm'); }
@@ -719,7 +720,7 @@ async function seSave(btn) {
   const total = form.grades ? sgeTotal(form, sc) : null;
   const req = {
     id: seEdit ? seEdit.id : '', teacher: $('seF_teacher').value.trim(), center: $('seF_center').value,
-    period: $('seF_period') ? periodGet('seF_period') : '', date: hd.greg, tPhone: $('seTPhone').value.trim(), mgrName: $('seMgrName').value.trim(),
+    period: $('seF_period') ? periodGet('seF_period') : '', date: hd.greg, tPhone: $('seTPhone').value.trim(), supName: $('seSupName').value.trim(),
     score: total == null ? '' : String(Math.round(total * 100) / 100), max: form.max ? String(form.max) : '', grade: form.grades ? sgeGradeOf(form, total) : $('seOverall').value,
     data: { form: seType, f, sc, nt: [...document.querySelectorAll('#seItems .se-nt')].map(x => x.value.trim()),
       recs: form.recs.map((_, i) => $('seR' + i).value.trim()), overall: form.grades ? '' : $('seOverall').value,
@@ -728,17 +729,20 @@ async function seSave(btn) {
   if (!req.teacher) return toast('اكتبي اسم المعلمة', false);
   if (!req.center) return toast('اختاري المركز', false);
   if (!form.grades && !req.grade) return toast('اختاري التقدير العام', false);
+  if (!req.supName) return toast('اكتبي اسم المشرفة', false);
   const oldHas = (seEdit && seEdit.data && seEdit.data.sigs) || {};
   req.sigs = {};
-  [['tch', seTch], ['mgr', seMgr]].forEach(([key, w]) => { const v = w.get(); req.sigs[key] = v || (seEdit && oldHas[key] ? 'keep' : ''); });
+  [['tch', seTch], ['sup', seSup]].forEach(([key, w]) => { const v = w.get(); req.sigs[key] = v || (seEdit && oldHas[key] ? 'keep' : ''); });
+  if (!req.sigs.sup) return toast('وقّعي توقيع المشرفة', false);
   setBtnBusy(btn, true);
   try {
     const res = await api('saveSge', req);
+    seSup.commit();
     AD.clear('seForm', seEdit ? seEdit.id : 'new-' + seType);
     toast(seEdit ? 'تم حفظ التعديل' : 'تم حفظ الاستمارة');
     const rec = { id: res.id, kind: 'eval', formName: form.name, teacher: req.teacher, center: req.center, period: req.period, date: req.date,
-      score: req.score, max: req.max, grade: req.grade, mgrName: req.mgrName, at: seEdit ? seEdit.at : '', visitNo: req.data.f.visitNo || '',
-      data: Object.assign({}, req.data, { mgrName: req.mgrName, sigs: res.sigs || {} }, res.tid ? { tid: res.tid, tName: res.tName, tPhone: req.tPhone, tchAt: res.tchAt } : {}) };
+      score: req.score, max: req.max, grade: req.grade, supName: req.supName, at: seEdit ? seEdit.at : '', visitNo: req.data.f.visitNo || '',
+      data: Object.assign({}, req.data, { supName: req.supName, sigs: res.sigs || {} }, res.tid ? { tid: res.tid, tName: res.tName, tPhone: req.tPhone, tchAt: res.tchAt } : {}) };
     SGE = SGE.filter(r => r.id !== rec.id); SGE.unshift(rec);
     cacheSet('sge', SGE);
     seEdit = null;
@@ -774,9 +778,9 @@ AD.register('seForm', {
   collect: () => {
     const form = SGE_FORMS[seType], f = {};
     form.fields.forEach(([key]) => { if (['center', 'period', 'teacher'].indexOf(key) < 0 && $('seF_' + key)) f[key] = $('seF_' + key).value; });
-    return { teacher: $('seF_teacher').value, center: $('seF_center').value, period: $('seF_period') ? periodGet('seF_period') : '', mgrName: $('seMgrName').value,
+    return { teacher: $('seF_teacher').value, center: $('seF_center').value, period: $('seF_period') ? periodGet('seF_period') : '', supName: $('seSupName').value,
       data: Object.assign(adHd('se'), { form: seType, f, sc: form.grades ? seScores() : [], nt: [...document.querySelectorAll('#seItems .se-nt')].map(x => x.value),
-        recs: form.recs.map((_, i) => $('seR' + i).value), overall: $('seOverall').value, tPhone: $('seTPhone').value, mgrName: $('seMgrName').value }) };
+        recs: form.recs.map((_, i) => $('seR' + i).value), overall: $('seOverall').value, tPhone: $('seTPhone').value, supName: $('seSupName').value }) };
   },
   apply: d => { seFill(d.data.form, Object.assign({}, seEdit || {}, d, { data: Object.assign({}, (seEdit && seEdit.data) || {}, d.data) })); hdSet('se', d); seCalc(); },
   reset: () => seFill(seType, seEdit)
