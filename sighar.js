@@ -283,20 +283,52 @@ function sgTStatus(r) {
   if (d.tid) return '<span class="tag warn">⏳ بانتظار توقيعها</span>';
   return '<span style="color:var(--muted)">—</span>';
 }
-// البحث عن المعلمة برقم جوالها في سجل المعلمات (شيت الشهادات)
-let sgTFound = null;
-async function sgLookupT() {
-  const v = $('sgTPhone').value.trim(), hint = $('sgTHint');
-  sgTFound = null;
-  if (!v) { hint.textContent = ''; return; }
-  hint.textContent = 'جارِ البحث عن المعلمة...';
-  try {
-    const out = await api('lookupTeacher', { phone: v });
-    if (!out.found) throw new Error('رقم الجوال غير موجود في سجل المعلمات');
-    sgTFound = out.data;
-    hint.innerHTML = '✔ المعلمة: <b>' + esc(out.data.name) + '</b>';
-    if (!$('sgTeacher').value.trim()) { $('sgTeacher').value = out.data.name; sgUpdateNo(); }
-  } catch (e) { hint.textContent = '✖ ' + e.message; }
+/* ---------- اختيار المعلمة (المُرسَل إليها) من قائمة أسماء سجل المعلمات ----------
+   قائمة منسدلة بالأسماء (مع إمكانية الكتابة للبحث). الأسماء المكررة تظهر مرقّمة: «الاسم (٢)». */
+let T_DIR = null, T_BY_LABEL = {}, T_LABEL_BY_ID = {}, tDirLoading = null;
+const tdKey = s => sgNorm(s);
+function tdBuild(list) {
+  T_DIR = list || []; T_BY_LABEL = {}; T_LABEL_BY_ID = {};
+  const count = {}, seen = {};
+  T_DIR.forEach(t => { const k = tdKey(t.name); count[k] = (count[k] || 0) + 1; });
+  const rows = T_DIR.slice().sort((a, b) => a.name.localeCompare(b.name, 'ar')).map(t => {
+    const k = tdKey(t.name);
+    seen[k] = (seen[k] || 0) + 1;
+    const label = count[k] > 1 ? t.name + ' (' + arD(seen[k]) + ')' : t.name;
+    T_BY_LABEL[tdKey(label)] = t; T_LABEL_BY_ID[t.id] = label;
+    return label;
+  });
+  $('tDirList').innerHTML = rows.map(l => '<option value="' + esc(l) + '">').join('');
+}
+function loadTDir() {
+  if (T_DIR) return Promise.resolve(T_DIR);
+  if (tDirLoading) return tDirLoading;
+  const c = cacheGet('tdir'); if (c) tdBuild(c);
+  tDirLoading = api('teacherDir').then(out => { tdBuild(out.data || []); cacheSet('tdir', T_DIR); return T_DIR; })
+    .catch(e => { if (!T_DIR) toast('تعذّر تحميل أسماء المعلمات: ' + e.message, false); return T_DIR || []; })
+    .finally(() => { tDirLoading = null; });
+  return tDirLoading;
+}
+// يرجّع المعلمة المختارة {id,name}، أو null إن كانت الخانة فارغة، أو false إن كان الاسم غير موجود
+function tdResolve(p) {
+  const v = $(p + 'TSel').value.trim();
+  if (!v) return null;
+  return T_BY_LABEL[tdKey(v)] || false;
+}
+function tdPicked(p) {
+  const hint = $(p + 'THint'), t = tdResolve(p);
+  if (t === null) { hint.textContent = ''; return; }
+  if (t === false) { hint.textContent = '✖ الاسم غير موجود في سجل المعلمات، اختاريه من القائمة'; return; }
+  hint.innerHTML = '✔ يصل إلى: <b>' + esc(t.name) + '</b>';
+  const nameEl = p === 'sg' ? $('sgTeacher') : $('seF_teacher');
+  if (nameEl && !nameEl.value.trim()) { nameEl.value = t.name; if (p === 'sg') sgUpdateNo(); }
+}
+// تعبئة الخانة عند فتح تقرير/استمارة محفوظة
+function tdSet(p, d) {
+  d = d || {};
+  $(p + 'TSel').value = d.tid ? (T_LABEL_BY_ID[d.tid] || d.tName || '') : (d.tSel || '');
+  $(p + 'THint').innerHTML = d.tid && d.tName ? '✔ يصل إلى: <b>' + esc(d.tName) + '</b>' + (d.tchAt ? ' — وقّعت من حسابها' : '') : '';
+  if (d.tid && !T_LABEL_BY_ID[d.tid]) loadTDir().then(() => { if (T_LABEL_BY_ID[d.tid] && $(p + 'TSel').value === (d.tName || '')) $(p + 'TSel').value = T_LABEL_BY_ID[d.tid]; });
 }
 function sgOpen(id) { const r = recById(id); if (r) sgView(r); }
 function sgDo(id, btn, what) { const r = recById(id); if (!r) return; what === 'pdf' ? sgPdf(r, btn) : what === 'share' ? sgShare(r, btn) : sgPrint(r, btn); }
@@ -363,9 +395,8 @@ function sgFill(r) {
   const edit = !!r.id;
   document.querySelectorAll('#sgForm [data-edit]').forEach(x => x.classList.toggle('hidden', !edit));
   $('sgTeacher').value = r.teacher || '';
-  $('sgTPhone').value = (r.data && r.data.tPhone) || '';
-  $('sgTHint').innerHTML = r.data && r.data.tName ? '✔ المعلمة: <b>' + esc(r.data.tName) + '</b>' + (r.data.tchAt ? ' — وقّعت من حسابها' : '') : '';
-  sgTFound = null;
+  tdSet('sg', r.data);
+  loadTDir();
   $('sgCenter').value = r.center || '';
   periodSet('sgPeriod', r.period);
   hdSet('sg', edit ? r : null);
@@ -392,7 +423,7 @@ async function sgSave(btn) {
     teacher: $('sgTeacher').value.trim(), center: $('sgCenter').value, period: periodGet('sgPeriod'),
     visitNo: $('sgVisitNo').value.trim().replace(/[٠-٩]/g, x => '٠١٢٣٤٥٦٧٨٩'.indexOf(x)),
     date: hd.greg, lesson: $('sgLesson').value.trim(), recs: sgRecsGet(),
-    supName: $('sgSupName').value.trim(), tPhone: $('sgTPhone').value.trim(),
+    supName: $('sgSupName').value.trim(),
     data: { hd: hd.hd, hm: hd.hm, hy: hd.hy, dayName: hd.dayName }
   };
   if (!req.teacher) return toast('اكتبي اسم المعلمة', false);
@@ -400,6 +431,9 @@ async function sgSave(btn) {
   if (!req.period) return toast('اختاري الفترة (صباحي أو مسائي)', false);
   if (!req.lesson) return toast('اكتبي موضوع الدرس', false);
   if (!req.recs) return toast('اكتبي توصية واحدة على الأقل', false);
+  const sgT = tdResolve('sg');
+  if (sgT === false) return toast('اسم المعلمة المُرسَل إليها غير موجود في سجل المعلمات، اختاريه من القائمة', false);
+  req.tid = sgT ? sgT.id : '';
   const oldHas = (sgEdit && sgEdit.data && sgEdit.data.sigs) || {};
   req.sigs = {};
   Object.keys(SGW).forEach(k => { const v = SGW[k].get(); req.sigs[k] = v || (sgEdit && oldHas[k] ? 'keep' : ''); });
@@ -411,8 +445,8 @@ async function sgSave(btn) {
     AD.done('sgForm', sgEdit && sgEdit.id);
     toast(sgEdit ? 'تم حفظ التعديل' : 'تم حفظ التقرير');
     const rec = Object.assign({}, req, { id: res.id, kind: 'sgh', day: hd.dayName, at: sgEdit ? sgEdit.at : '',
-      data: Object.assign({}, req.data, { sigs: res.sigs || {} }, res.tid ? { tid: res.tid, tName: res.tName, tPhone: req.tPhone, tchAt: res.tchAt } : {}) });
-    delete rec.sigs; delete rec.tPhone;
+      data: Object.assign({}, req.data, { sigs: res.sigs || {} }, res.tid ? { tid: res.tid, tName: res.tName, tchAt: res.tchAt } : {}) });
+    delete rec.sigs; delete rec.tid;
     SGH = SGH.filter(r => r.id !== rec.id); SGH.unshift(rec);
     cacheSet('sgh', SGH);
     sgEdit = null;
@@ -670,18 +704,7 @@ function seCalc() {
   setGrade($('seGrade'), sc.some(x => x !== '') ? sgeGradeOf(form, t) : '—');
 }
 
-let seTFound = null;
-async function seLookupT() {
-  const v = $('seTPhone').value.trim(), hint = $('seTHint');
-  if (!v) { hint.textContent = ''; return; }
-  hint.textContent = 'جارِ البحث عن المعلمة...';
-  try {
-    const out = await api('lookupTeacher', { phone: v });
-    if (!out.found) throw new Error('رقم الجوال غير موجود في سجل المعلمات');
-    hint.innerHTML = '✔ المعلمة: <b>' + esc(out.data.name) + '</b>';
-    const t = $('seF_teacher'); if (t && !t.value.trim()) t.value = out.data.name;
-  } catch (e) { hint.textContent = '✖ ' + e.message; }
-}
+
 
 function seFill(k, r) {
   r = r || {};
@@ -693,8 +716,8 @@ function seFill(k, r) {
   $('seF_teacher').value = r.teacher || '';
   SGE_FORMS[k].fields.forEach(([key]) => { if (['center', 'period', 'teacher'].indexOf(key) < 0 && $('seF_' + key)) $('seF_' + key).value = f[key] || ''; });
   hdSet('se', edit ? r : null);
-  $('seTPhone').value = d.tPhone || '';
-  $('seTHint').innerHTML = d.tName ? '✔ المعلمة: <b>' + esc(d.tName) + '</b>' + (d.tchAt ? ' — وقّعت من حسابها' : '') : '';
+  tdSet('se', d);
+  loadTDir();
   $('seSupName').value = edit ? (d.supName || r.supName || '') : (d.supName || myName());
   const has = d.sigs || {};
   seTch.reset(); if (edit && has.tch) seTch.keepOld('الإبقاء على التوقيع السابق'); else seTch.setMode('none');
@@ -720,7 +743,7 @@ async function seSave(btn) {
   const total = form.grades ? sgeTotal(form, sc) : null;
   const req = {
     id: seEdit ? seEdit.id : '', teacher: $('seF_teacher').value.trim(), center: $('seF_center').value,
-    period: $('seF_period') ? periodGet('seF_period') : '', date: hd.greg, tPhone: $('seTPhone').value.trim(), supName: $('seSupName').value.trim(),
+    period: $('seF_period') ? periodGet('seF_period') : '', date: hd.greg, supName: $('seSupName').value.trim(),
     score: total == null ? '' : String(Math.round(total * 100) / 100), max: form.max ? String(form.max) : '', grade: form.grades ? sgeGradeOf(form, total) : $('seOverall').value,
     data: { form: seType, f, sc, nt: [...document.querySelectorAll('#seItems .se-nt')].map(x => x.value.trim()),
       recs: form.recs.map((_, i) => $('seR' + i).value.trim()), overall: form.grades ? '' : $('seOverall').value,
@@ -730,6 +753,9 @@ async function seSave(btn) {
   if (!req.center) return toast('اختاري المركز', false);
   if (!form.grades && !req.grade) return toast('اختاري التقدير العام', false);
   if (!req.supName) return toast('اكتبي اسم المشرفة', false);
+  const seT = tdResolve('se');
+  if (seT === false) return toast('اسم المعلمة المُرسَل إليها غير موجود في سجل المعلمات، اختاريه من القائمة', false);
+  req.tid = seT ? seT.id : '';
   const oldHas = (seEdit && seEdit.data && seEdit.data.sigs) || {};
   req.sigs = {};
   [['tch', seTch], ['sup', seSup]].forEach(([key, w]) => { const v = w.get(); req.sigs[key] = v || (seEdit && oldHas[key] ? 'keep' : ''); });
@@ -742,7 +768,7 @@ async function seSave(btn) {
     toast(seEdit ? 'تم حفظ التعديل' : 'تم حفظ الاستمارة');
     const rec = { id: res.id, kind: 'eval', formName: form.name, teacher: req.teacher, center: req.center, period: req.period, date: req.date,
       score: req.score, max: req.max, grade: req.grade, supName: req.supName, at: seEdit ? seEdit.at : '', visitNo: req.data.f.visitNo || '',
-      data: Object.assign({}, req.data, { supName: req.supName, sigs: res.sigs || {} }, res.tid ? { tid: res.tid, tName: res.tName, tPhone: req.tPhone, tchAt: res.tchAt } : {}) };
+      data: Object.assign({}, req.data, { supName: req.supName, sigs: res.sigs || {} }, res.tid ? { tid: res.tid, tName: res.tName, tchAt: res.tchAt } : {}) };
     SGE = SGE.filter(r => r.id !== rec.id); SGE.unshift(rec);
     cacheSet('sge', SGE);
     seEdit = null;
@@ -758,7 +784,7 @@ const adWrap = (name, after) => { const o = window[name]; window[name] = functio
 AD.register('sgForm', {
   key: () => sgEdit ? sgEdit.id : 'new',
   collect: () => ({ teacher: $('sgTeacher').value, center: $('sgCenter').value, period: periodGet('sgPeriod'), visitNo: $('sgVisitNo').value, lesson: $('sgLesson').value,
-    recs: sgRecsGet(), supName: $('sgSupName').value, data: Object.assign(adHd('sg'), { tPhone: $('sgTPhone').value, tName: sgEdit && sgEdit.data ? sgEdit.data.tName : '' }) }),
+    recs: sgRecsGet(), supName: $('sgSupName').value, data: Object.assign(adHd('sg'), { tSel: $('sgTSel').value }) }),
   apply: d => { sgFill(Object.assign({}, sgEdit || {}, d, { data: Object.assign({}, (sgEdit && sgEdit.data) || {}, d.data) })); hdSet('sg', d); },
   reset: () => sgFill(sgEdit)
 });
@@ -780,7 +806,7 @@ AD.register('seForm', {
     form.fields.forEach(([key]) => { if (['center', 'period', 'teacher'].indexOf(key) < 0 && $('seF_' + key)) f[key] = $('seF_' + key).value; });
     return { teacher: $('seF_teacher').value, center: $('seF_center').value, period: $('seF_period') ? periodGet('seF_period') : '', supName: $('seSupName').value,
       data: Object.assign(adHd('se'), { form: seType, f, sc: form.grades ? seScores() : [], nt: [...document.querySelectorAll('#seItems .se-nt')].map(x => x.value),
-        recs: form.recs.map((_, i) => $('seR' + i).value), overall: $('seOverall').value, tPhone: $('seTPhone').value, supName: $('seSupName').value }) };
+        recs: form.recs.map((_, i) => $('seR' + i).value), overall: $('seOverall').value, tSel: $('seTSel').value, supName: $('seSupName').value }) };
   },
   apply: d => { seFill(d.data.form, Object.assign({}, seEdit || {}, d, { data: Object.assign({}, (seEdit && seEdit.data) || {}, d.data) })); hdSet('se', d); seCalc(); },
   reset: () => seFill(seType, seEdit)

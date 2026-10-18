@@ -149,9 +149,10 @@
     <div class="edit-note hidden" data-edit>وضع التعديل: يُحفظ التعديل على نفس التقرير.</div>
     <div class="card">
       <h2>تقرير زيارة مشرفة تحفيظ صغار</h2>
-      <label for="sgTPhone">جوال المعلمة <span style="font-weight:400;color:var(--muted);font-size:14px">(ليصلها التقرير في أيقونة «المعلمات» وتوقّع عليه)</span></label>
-      <input id="sgTPhone" inputmode="tel" dir="ltr" placeholder="05xxxxxxxx" style="text-align:right" autocomplete="off" onchange="sgLookupT()">
+      <label for="sgTSel">إرسال التقرير للمعلمة <span style="font-weight:400;color:var(--muted);font-size:14px">(ليصلها في أيقونة «المعلمات» وتوقّع عليه)</span></label>
+      <input id="sgTSel" list="tDirList" placeholder="اكتبي أو اختاري اسم المعلمة من القائمة" autocomplete="off" onchange="tdPicked('sg')">
       <div class="id-hint" id="sgTHint"></div>
+      <datalist id="tDirList"></datalist>
       <label for="sgTeacher">اسم المعلمة</label>
       <input id="sgTeacher" list="sgTeachers" autocomplete="off" oninput="sgUpdateNo()">
       <datalist id="sgTeachers"></datalist>
@@ -270,8 +271,8 @@
     <div class="edit-note hidden" data-edit>وضع التعديل: يُحفظ التعديل على نفس الاستمارة.</div>
     <div class="card">
       <h2 id="seTitle"></h2>
-      <label for="seTPhone">جوال المعلمة <span style="font-weight:400;color:var(--muted);font-size:14px">(لتصلها الاستمارة في أيقونة «المعلمات» وتوقّع عليها)</span></label>
-      <input id="seTPhone" inputmode="tel" dir="ltr" placeholder="05xxxxxxxx" style="text-align:right" autocomplete="off" onchange="seLookupT()">
+      <label for="seTSel">إرسال الاستمارة للمعلمة <span style="font-weight:400;color:var(--muted);font-size:14px">(لتصلها في أيقونة «المعلمات» وتوقّع عليها)</span></label>
+      <input id="seTSel" list="tDirList" placeholder="اكتبي أو اختاري اسم المعلمة من القائمة" autocomplete="off" onchange="tdPicked('se')">
       <div class="id-hint" id="seTHint"></div>
       <div id="seFields"></div>
       <div id="seDateBox"></div>
@@ -291,7 +292,7 @@
       <label>توقيع المشرفة</label>
       <div id="seSupW"></div>
       <label id="seTchLbl">توقيع المعلمة</label>
-      <p class="rp-hint" style="margin-top:0">بعد الحفظ تصل الاستمارة للمعلمة في أيقونة «المعلمات» (عند كتابة جوالها أعلى الاستمارة) فتطّلع عليها وتوقّع من حسابها، ويمكن بدلاً من ذلك التوقيع هنا على جهازكِ.</p>
+      <p class="rp-hint" style="margin-top:0">بعد الحفظ تصل الاستمارة للمعلمة في أيقونة «المعلمات» (عند اختيار اسمها أعلى الاستمارة) فتطّلع عليها وتوقّع من حسابها، ويمكن بدلاً من ذلك التوقيع هنا على جهازكِ.</p>
       <div id="seTchW"></div>
       <button id="seSaveBtn" class="btn block" onclick="seSave(this)">حفظ الاستمارة</button>
     </div>

@@ -1105,8 +1105,13 @@ function saveSgh_(r) {
   if (old) { try { oldData = JSON.parse(old[11] || '{}'); } catch (e) {} }
 
   // ربط التقرير بحساب المعلمة (رقم جوالها في شيت الشهادات) لتوقّع عليه من أيقونة «المعلمات»
+  const tPick = String(r.tid || '').trim();   // المعلمة المختارة من قائمة الأسماء
   const tPhone = pPhone_(r.tPhone);
-  if (tPhone) {
+  if (tPick) {
+    const t = certFind_(x => String(x.id) === tPick);
+    if (!t) throw new Error('المعلمة المختارة غير موجودة في سجل المعلمات');
+    data.tid = t.id; data.tName = t.name;
+  } else if (tPhone) {
     const t = teacherByPhone_(tPhone);
     if (!t) throw new Error('رقم جوال المعلمة غير موجود في سجل المعلمات');
     data.tPhone = tPhone; data.tid = t.id; data.tName = t.name;
@@ -1492,8 +1497,13 @@ function saveSge_(r) {
   if (old) { try { oldData = JSON.parse(old[12] || '{}'); } catch (e) {} }
 
   // ربط الاستمارة بحساب المعلمة لتوقّع عليها من أيقونة «المعلمات»
+  const tPick = String(r.tid || '').trim();   // المعلمة المختارة من قائمة الأسماء
   const tPhone = pPhone_(r.tPhone);
-  if (tPhone) {
+  if (tPick) {
+    const t = certFind_(x => String(x.id) === tPick);
+    if (!t) throw new Error('المعلمة المختارة غير موجودة في سجل المعلمات');
+    data.tid = t.id; data.tName = t.name;
+  } else if (tPhone) {
     const t = teacherByPhone_(tPhone);
     if (!t) throw new Error('رقم جوال المعلمة غير موجود في سجل المعلمات');
     data.tPhone = tPhone; data.tid = t.id; data.tName = t.name;
