@@ -321,6 +321,7 @@ function tdPicked(p) {
   hint.innerHTML = '✔ يصل إلى: <b>' + esc(t.name) + '</b>';
   const nameEl = p === 'sg' ? $('sgTeacher') : $('seF_teacher');
   if (nameEl && !nameEl.value.trim()) { nameEl.value = t.name; if (p === 'sg') sgUpdateNo(); }
+  tdAutoFill(p);
 }
 // تعبئة الخانة عند فتح تقرير/استمارة محفوظة
 function tdSet(p, d) {
@@ -396,6 +397,8 @@ function sgFill(r) {
   $('sgTeacher').value = r.teacher || '';
   tdSet('sg', r.data);
   loadTDir();
+  delete $('sgCenter').dataset.auto; delete $('sgPeriod').dataset.auto;
+  if (!SGE.length) loadSge(true);
   $('sgCenter').value = r.center || '';
   periodSet('sgPeriod', r.period);
   hdSet('sg', edit ? r : null);
@@ -413,7 +416,8 @@ function sgEditRec(id) { const r = recById(id); if (!r) return; sgEdit = r; sgFi
 function sgBack() { sgEdit = null; show('sgListView'); renderSgh(); }
 
 /* ---------- الحفظ ---------- */
-async function sgSave(btn) {
+async function sgSave(btn, notify) {
+  if (notify && !tdResolve('sg')) { $('sgTSel').focus(); $('sgTSel').scrollIntoView({ block: 'center' }); return toast('اختاري المعلمة من خانة «إرسال التقرير للمعلمة» أعلى النموذج', false); }
   const hd = hdGet('sg');
   if (!/^\d{4}$/.test(hd.hy)) return toast('اكتبي سنة التاريخ الهجري (مثال: 1448)', false);
   const req = {
@@ -717,6 +721,7 @@ function seFill(k, r) {
   hdSet('se', edit ? r : null);
   tdSet('se', d);
   loadTDir();
+  if (!SGH.length) loadSgh(true);
   $('seSupName').value = edit ? (d.supName || r.supName || '') : (d.supName || myName());
   const has = d.sigs || {};
   seSup.reset(); if (edit && has.sup) seSup.keepOld('الإبقاء على التوقيع السابق');
@@ -725,7 +730,8 @@ function seNew(k) { seEdit = null; seFill(k, null); show('seForm'); }
 function seEditRec(id) { const r = seById(id); if (!r) return; seEdit = r; seFill(r.data.form, r); show('seForm'); }
 function seBack() { seEdit = null; show('seListView'); renderSge(); }
 
-async function seSave(btn) {
+async function seSave(btn, notify) {
+  if (notify && !tdResolve('se')) { $('seTSel').focus(); $('seTSel').scrollIntoView({ block: 'center' }); return toast('اختاري المعلمة من خانة «إرسال الاستمارة للمعلمة» أعلى الاستمارة', false); }
   const form = SGE_FORMS[seType]; if (!form) return;
   const hd = hdGet('se');
   if (!/^\d{4}$/.test(hd.hy)) return toast('اكتبي سنة التاريخ الهجري (مثال: 1448)', false);
@@ -776,6 +782,55 @@ async function seSave(btn) {
   } catch (e) { toast(e.message, false); }
   finally { setBtnBusy(btn, false); }
 }
+
+/* ---------- تعبئة المركز والفترة تلقائياً من آخر تقرير/استمارة سُجّلت للمعلمة ----------
+   تُعبّأ الخانة فقط إن كانت فارغة أو عُبّئت تلقائياً من قبل (لا يُستبدل ما اختارته المشرفة بنفسها). */
+function tdLastFor(name, tid) {
+  const k = sgNorm(name);
+  if (!k && !tid) return null;
+  const all = (SGH.length ? SGH : (cacheGet('sgh') || [])).concat(SGE.length ? SGE : (cacheGet('sge') || []));
+  let best = null, bestKey = '';
+  all.forEach(r => {
+    const d = r.data || {};
+    if (!r.center) return;
+    if (!((tid && d.tid === tid) || (k && sgNorm(r.teacher) === k))) return;
+    const key = (sgHKey(r) || '0000') + ' ' + (r.at || '');
+    if (!best || key > bestKey) { best = r; bestKey = key; }
+  });
+  return best;
+}
+function tdAutoFill(p) {
+  const isSg = p === 'sg';
+  const nameEl = isSg ? $('sgTeacher') : $('seF_teacher');
+  const cEl = isSg ? $('sgCenter') : $('seF_center');
+  const perId = isSg ? 'sgPeriod' : 'seF_period';
+  if (!nameEl || !cEl) return;
+  const t = tdResolve(p);
+  const last = tdLastFor(nameEl.value, t ? t.id : '');
+  const hint = $(p + 'AutoHint');
+  if (!last) { if (hint) hint.textContent = ''; return; }
+  let filled = [];
+  if ((!cEl.value || cEl.dataset.auto === '1') && [...cEl.options].some(o => o.value === last.center)) {
+    if (cEl.value !== last.center) filled.push('المركز');
+    cEl.value = last.center; cEl.dataset.auto = '1';
+  }
+  const per = $(perId);
+  if (per && last.period && (!periodGet(perId) || per.dataset.auto === '1')) {
+    if (periodGet(perId) !== last.period) filled.push('الفترة');
+    periodSet(perId, last.period); per.dataset.auto = '1';
+  }
+  if (hint) hint.textContent = filled.length ? 'عُبّئ ' + filled.join(' و') + ' تلقائياً من آخر سجل لهذه المعلمة (يمكن التغيير).' : '';
+  if (isSg) sgUpdateNo();
+}
+// عند اختيار المشرفة المركز أو الفترة بنفسها لا تُستبدل تلقائياً بعد ذلك
+document.addEventListener('change', e => {
+  const el = e.target;
+  if (el.id === 'sgCenter' || el.id === 'seF_center') delete el.dataset.auto;
+  const per = el.closest && el.closest('#sgPeriod, #seF_period');
+  if (per) delete per.dataset.auto;
+  if (el.id === 'sgTeacher') tdAutoFill('sg');
+  if (el.id === 'seF_teacher') tdAutoFill('se');
+});
 
 /* ======================= تنبيه المعلمة بعد إرسال التقرير/الاستمارة (مثل تقرير الزيارة في نظام المقاصف) =======================
    بعد الحفظ تظهر رسالة: «أُرسل للمعلمة ...» مع زر يفتح محادثتها في واتساب برسالة تنبيه جاهزة فيها رابط أيقونة «المعلمات». */

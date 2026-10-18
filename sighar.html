@@ -161,6 +161,7 @@
       <datalist id="sgTeachers"></datalist>
       <label for="sgCenter">المركز</label>
       <select id="sgCenter" onchange="sgUpdateNo()"></select>
+      <div class="id-hint" id="sgAutoHint"></div>
       <label>الفترة</label>
       <div class="chips" id="sgPeriod"><label class="chip"><input type="checkbox" value="صباحي"><span>صباحي</span></label><label class="chip"><input type="checkbox" value="مسائي"><span>مسائي</span></label></div>
       <div id="sgDateBox"></div>
@@ -185,6 +186,7 @@
       <label>توقيع المشرفة</label>
       <div id="sgSupW"></div>
       <button id="sgSaveBtn" class="btn block" onclick="sgSave(this)">حفظ التقرير</button>
+      <button class="btn block id-wa" style="margin-top:10px" onclick="sgSave(this, true)">📲 حفظ وتنبيه المعلمة</button>
     </div>
   </div>
 
@@ -277,6 +279,7 @@
       <input id="seTSel" list="tDirList" placeholder="اكتبي أو اختاري اسم المعلمة من القائمة" autocomplete="off" onchange="tdPicked('se')">
       <div class="id-hint" id="seTHint"></div>
       <div id="seFields"></div>
+      <div class="id-hint" id="seAutoHint"></div>
       <div id="seDateBox"></div>
     </div>
     <div class="card">
@@ -295,6 +298,7 @@
       <div id="seSupW"></div>
       <p class="rp-hint" style="margin-top:0"><span id="seTchLbl">توقيع المعلمة</span>: تُرسَل الاستمارة للمعلمة المختارة أعلاها، فتطّلع عليها في أيقونة «المعلمات» وتوقّع من حسابها.</p>
       <button id="seSaveBtn" class="btn block" onclick="seSave(this)">حفظ الاستمارة</button>
+      <button class="btn block id-wa" style="margin-top:10px" onclick="seSave(this, true)">📲 حفظ وتنبيه المعلمة</button>
     </div>
     <div class="ev-bar" id="seBar"><span>المجموع: <b id="seSum">٠</b> من <b id="seMax">٠</b></span><span>التقدير: <b id="seGrade">—</b></span></div>
   </div>
