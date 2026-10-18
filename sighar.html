@@ -15,13 +15,14 @@
   .btn.id-wa{background:#1f8f4e;border-color:#1f8f4e;color:#fff;text-decoration:none;display:inline-block}
   .id-send{padding:14px 16px;border:1px solid #bfe3cd;background:#f1faf4;border-radius:12px;line-height:2}
   .id-send .btn{margin-top:8px}
-  #seFields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-flow:row dense;gap:0 14px}
-  #seFields .se-fld{min-width:0}
-  #seFields .se-fld input,#seFields .se-fld select{width:100%}
-  #seFields .chips{flex-wrap:nowrap}
+  #seFields,.fgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-flow:row dense;gap:0 14px}
+  #seFields .se-fld,.fgrid .se-fld{min-width:0}
+  #seFields .se-fld input,#seFields .se-fld select,.fgrid .se-fld input,.fgrid .se-fld select{width:100%}
+  #seFields .chips,.fgrid .chips{flex-wrap:nowrap}
+  .fgrid .sg-lesson{grid-column:span 2}
   @media (max-width:640px){
-    #seFields{grid-template-columns:repeat(2,minmax(0,1fr));gap:0 10px}
-    #seFields .se-fld.wide{grid-column:1 / -1}
+    #seFields,.fgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:0 10px}
+    #seFields .se-fld.wide,.fgrid .se-fld.wide{grid-column:1 / -1}
   }
   .id-hint{font-size:13px;color:var(--muted);margin-top:4px;min-height:1em}
   #sgListView .act,#ssListView .act,#seListView .act{flex-wrap:wrap;justify-content:center}
@@ -164,20 +165,23 @@
       <input id="sgTSel" list="tDirList" placeholder="اكتبي أو اختاري اسم المعلمة من القائمة" autocomplete="off" onchange="tdPicked('sg')">
       <div class="id-hint" id="sgTHint"></div>
       <datalist id="tDirList"></datalist>
-      <label for="sgTeacher">اسم المعلمة</label>
-      <input id="sgTeacher" list="sgTeachers" autocomplete="off" oninput="sgUpdateNo()">
       <datalist id="sgTeachers"></datalist>
-      <label for="sgCenter">المركز</label>
-      <select id="sgCenter" onchange="sgUpdateNo()"></select>
+      <!-- شبكة مضغوطة مثل استمارات التقييم -->
+      <div class="fgrid" id="sgFields">
+        <div class="se-fld wide"><label for="sgTeacher">اسم المعلمة</label>
+          <input id="sgTeacher" list="sgTeachers" autocomplete="off" oninput="sgUpdateNo()"></div>
+        <div class="se-fld wide"><label for="sgCenter">المركز</label>
+          <select id="sgCenter" onchange="sgUpdateNo()"></select></div>
+        <div class="se-fld wide"><label>الفترة</label>
+          <div class="chips" id="sgPeriod"><label class="chip"><input type="checkbox" value="صباحي"><span>صباحي</span></label><label class="chip"><input type="checkbox" value="مسائي"><span>مسائي</span></label></div></div>
+        <div class="se-fld"><label for="sgVisitNo">رقم الزيارة</label>
+          <input id="sgVisitNo" inputmode="numeric"></div>
+        <div class="se-fld wide sg-lesson"><label for="sgLesson">موضوع الدرس</label>
+          <input id="sgLesson" autocomplete="off"></div>
+      </div>
       <div class="id-hint" id="sgAutoHint"></div>
-      <label>الفترة</label>
-      <div class="chips" id="sgPeriod"><label class="chip"><input type="checkbox" value="صباحي"><span>صباحي</span></label><label class="chip"><input type="checkbox" value="مسائي"><span>مسائي</span></label></div>
-      <div id="sgDateBox"></div>
-      <label for="sgVisitNo">رقم الزيارة</label>
-      <input id="sgVisitNo" inputmode="numeric">
       <div class="id-hint" id="sgVisitNoHint"></div>
-      <label for="sgLesson">موضوع الدرس</label>
-      <input id="sgLesson" autocomplete="off">
+      <div id="sgDateBox"></div>
     </div>
 
     <div class="card">
