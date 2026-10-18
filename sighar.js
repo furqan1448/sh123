@@ -246,7 +246,6 @@ async function delVisit(id) {
 
 /* ======================= تقرير زيارة مشرفة تحفيظ صغار ======================= */
 const SGW = {
-  tch: makeSigWidget('sgTchW', { none: true }),              // توقيع المعلمة بالاطلاع
   sup: makeSigWidget('sgSupW', { saved: true, none: true })  // توقيع المشرفة (يمكن حفظه للتقارير القادمة)
 };
 
@@ -436,6 +435,7 @@ async function sgSave(btn) {
   const oldHas = (sgEdit && sgEdit.data && sgEdit.data.sigs) || {};
   req.sigs = {};
   Object.keys(SGW).forEach(k => { const v = SGW[k].get(); req.sigs[k] = v || (sgEdit && oldHas[k] ? 'keep' : ''); });
+  req.sigs.tch = sgEdit && oldHas.tch ? 'keep' : '';   // توقيع المعلمة من حسابها فقط (يبقى السابق كما هو)
 
   setBtnBusy(btn, true);
   try {
@@ -610,7 +610,6 @@ async function ssSave(btn) {
 }
 
 /* ======================= استمارات تقييم الأداء الوظيفي (7 استمارات) ======================= */
-const seTch = makeSigWidget('seTchW', { none: true });
 const seSup = makeSigWidget('seSupW', { saved: true });   // توقيع المشرفة (يمكن حفظه للاستمارات القادمة)
 hdBuild('se');
 // أزرار اختيار الاستمارة + قائمة التصفية
@@ -719,7 +718,6 @@ function seFill(k, r) {
   loadTDir();
   $('seSupName').value = edit ? (d.supName || r.supName || '') : (d.supName || myName());
   const has = d.sigs || {};
-  seTch.reset(); if (edit && has.tch) seTch.keepOld('الإبقاء على التوقيع السابق'); else seTch.setMode('none');
   seSup.reset(); if (edit && has.sup) seSup.keepOld('الإبقاء على التوقيع السابق');
 }
 function seNew(k) { seEdit = null; seFill(k, null); show('seForm'); }
@@ -757,7 +755,8 @@ async function seSave(btn) {
   req.tid = seT ? seT.id : '';
   const oldHas = (seEdit && seEdit.data && seEdit.data.sigs) || {};
   req.sigs = {};
-  [['tch', seTch], ['sup', seSup]].forEach(([key, w]) => { const v = w.get(); req.sigs[key] = v || (seEdit && oldHas[key] ? 'keep' : ''); });
+  { const v = seSup.get(); req.sigs.sup = v || (seEdit && oldHas.sup ? 'keep' : ''); }
+  req.sigs.tch = seEdit && oldHas.tch ? 'keep' : '';   // توقيع المعلمة من حسابها فقط (يبقى السابق كما هو)
   if (!req.sigs.sup) return toast('وقّعي توقيع المشرفة', false);
   setBtnBusy(btn, true);
   try {
