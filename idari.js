@@ -5,9 +5,9 @@ const VIEW_KEY = 'idari_view', NAME_KEY = 'idari_name', KIND_KEY = 'idari_kind';
 let LISTS = { centers: [], types: [], typesIdari: [] };
 let VISITS = [], IDR = [], idKind = 'visit', idEdit = null;
 
-const ALL_VIEWS = ['loginView', 'homeView', 'visitsView', 'idListView', 'idVisitForm', 'idProgramForm', 'idSuggestForm', 'idMonthlyForm', 'atView'];
-const FORM_OF = { visit: 'idVisitForm', program: 'idProgramForm', suggest: 'idSuggestForm', monthly: 'idMonthlyForm' };
-const ID_PFX = { visit: 'iv', program: 'ip', suggest: 'is', monthly: 'im' };
+const ALL_VIEWS = ['loginView', 'homeView', 'visitsView', 'idListView', 'idVisitForm', 'idProgramForm', 'idSuggestForm', 'idMonthlyForm', 'idMgrEvalForm', 'idHallsForm', 'atView'];
+const FORM_OF = { visit: 'idVisitForm', program: 'idProgramForm', suggest: 'idSuggestForm', monthly: 'idMonthlyForm', mgreval: 'idMgrEvalForm', halls: 'idHallsForm' };
+const ID_PFX = { visit: 'iv', program: 'ip', suggest: 'is', monthly: 'im', mgreval: 'me', halls: 'hl' };
 
 function show(id) {
   ALL_VIEWS.forEach(v => { const el = $(v); if (el) el.classList.add('hidden'); });
@@ -69,7 +69,7 @@ function fillSelect(id, arr, ph) {
   if (cur && arr.indexOf(cur) > -1) el.value = cur;
 }
 function fillLists() {
-  ['vCenter', 'ivCenter', 'ipCenter', 'imCenter'].forEach(id => fillSelect(id, LISTS.centers || [], 'اختاري المركز'));
+  ['vCenter', 'ivCenter', 'ipCenter', 'imCenter', 'meCenter', 'hlCenter'].forEach(id => fillSelect(id, LISTS.centers || [], 'اختاري المركز'));
   fillSelect('fCenter', LISTS.centers || [], 'كل المراكز');
   fillTypes();
   fillVStatus();
@@ -140,7 +140,7 @@ function hdGet(p) {
   const hd = $(p + 'HD').value, hm = $(p + 'HM').value, hy = $(p + 'HY').value.trim().replace(/[٠-٩]/g, x => '٠١٢٣٤٥٦٧٨٩'.indexOf(x));
   return { hd, hm, hy, dayName: $(p + 'DayN').value, greg: idHToG(hy, hm, hd) };
 }
-['iv', 'ip', 'is', 'im'].forEach(hdBuild);
+['iv', 'ip', 'is', 'im', 'me', 'hl'].forEach(hdBuild);
 
 /* ======================= كشف الخروج (نفس فكرة الإشراف التربوي) ======================= */
 const V_STATUS = ['تمت الزيارة', 'تمت الزيارة والمديرة متغيبة', 'تمت الزيارة وتعذر التوثيق لتعليق الموقع أو الشبكة', 'تمت الزيارة قبل توفر موقع النظام', 'لم تتم الزيارة'];
@@ -252,13 +252,17 @@ const SIGW = {
   ivSup: makeSigWidget('ivSupW', { saved: true, none: true }),
   ipSup: makeSigWidget('ipSupW', { saved: true, none: true }),
   isSup: makeSigWidget('isSupW', { saved: true, none: true }),
-  imSup: makeSigWidget('imSupW', { saved: true })
+  imSup: makeSigWidget('imSupW', { saved: true }),
+  meSup: makeSigWidget('meSupW', { saved: true }),
+  hlSup: makeSigWidget('hlSupW', { saved: true })
 };
-const SIGS_OF = { visit: { sup: 'ivSup' }, program: { sup: 'ipSup' }, suggest: { sup: 'isSup' }, monthly: { sup: 'imSup' } };
+const SIGS_OF = { visit: { sup: 'ivSup' }, program: { sup: 'ipSup' }, suggest: { sup: 'isSup' }, monthly: { sup: 'imSup' }, mgreval: { sup: 'meSup' }, halls: { sup: 'hlSup' } };
 const ID_HINT = {
   visit: 'تقرير الزيارة الإدارية للمركز بالملاحظات والتوصيات، ويُطبع أو يُحمَّل PDF بالكليشة أو يُرسَل للمديرة للتوقيع عليه.',
   program: 'تخطيط وتنفيذ ونتائج برنامج المشرفة المقيمة، ويُطبع أو يُحمَّل PDF بالكليشة.',
   suggest: 'الاقتراحات والمرئيات والصعوبات التي تواجه المشرفة، وتُسلَّم آخر الفصل الدراسي.',
+  mgreval: 'تقييم مديرة المركز من ١٠٠ ببنود الاستمارة، مع توصيات المشرفة، ويُطبع أو يُحمَّل PDF بالكليشة.',
+  halls: 'حصر قاعات المركز لكل دور (نوعها، حالتها، عدد الكراسي، الطاقة الاستيعابية)، ويُطبع أو يُحمَّل PDF بالكليشة.',
   monthly: 'متابعة إدارية شهرية للمركز (الهيئة الإدارية، المبنى، السجلات والملفات): استمارة لكل زيارة، وتُطبع أو تُحمَّل PDF بالكليشة.'
 };
 
@@ -287,7 +291,9 @@ function renderIdari() {
     visit: ['م', 'المركز', 'التاريخ', 'رقم الزيارة', 'البنود', ''],
     program: ['م', 'المركز', 'التاريخ', 'المحتوى', ''],
     suggest: ['م', 'الفصل الدراسي', 'العام', 'التاريخ', 'البنود', ''],
-    monthly: ['م', 'المركز', 'التاريخ', 'رقم الزيارة', 'نوعها', 'تحتاج متابعة', '']
+    monthly: ['م', 'المركز', 'التاريخ', 'رقم الزيارة', 'نوعها', 'تحتاج متابعة', ''],
+    mgreval: ['م', 'المركز', 'المديرة', 'التاريخ', 'الدرجة', ''],
+    halls: ['م', 'المركز', 'الفصل / العام', 'القاعات', 'الطاقة الاستيعابية', '']
   }[idKind];
   $('idHead').innerHTML = '<tr>' + heads.map(h => '<th>' + h + '</th>').join('') + '</tr>';
   if (!L.length) { $('idBody').innerHTML = '<tr><td colspan="' + heads.length + '" class="empty">لا توجد نماذج محفوظة</td></tr>'; return; }
@@ -301,6 +307,8 @@ function renderIdari() {
       sBtn('تعديل', 'idEditRec(\'' + id + '\')') + sBtn('حذف', 'idDel(\'' + id + '\')', 'danger') + '</div></td>';
     const date = (esc(idDayName(r)) + ' ' + idHDate(r)).trim();
     if (idKind === 'visit') return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.center) + '</td><td>' + date + '</td><td>' + (esc(r.visitNo) || '—') + '</td><td>' + cnt(r) + '</td>' + acts + '</tr>';
+    if (idKind === 'mgreval') { const sc = (r.data && r.data.sc) || []; return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.center) + '</td><td>' + (esc(r.mgrName) || '—') + '</td><td>' + date + '</td><td>' + (sc.some(x => meNum(x) != null) ? '<b>' + arD(meTotal(sc)) + '</b> / ١٠٠' : '—') + '</td>' + acts + '</tr>'; }
+    if (idKind === 'halls') { const t = hlTotals(r.data); return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.center) + '</td><td>' + esc([r.sem, r.year].filter(Boolean).join(' / ') || '—') + '</td><td>' + arD(t.halls) + '</td><td>' + arD(t.cap) + '</td>' + acts + '</tr>'; }
     if (idKind === 'monthly') { const neg = imNegCount(r.data); return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.center) + (r.period ? '<br><small>' + esc(r.period) + '</small>' : '') + '</td><td>' + date + '</td><td>' + (esc(r.visitNo) || '—') + '</td><td>' + (esc(r.data && r.data.vtype) || '—') + '</td><td>' + (neg ? '<b style="color:#b03a2e">' + arD(neg) + '</b>' : '٠') + '</td>' + acts + '</tr>'; }
     if (idKind === 'program') return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.center) + '</td><td>' + date + '</td><td>' + esc(short(r.data && r.data.content)) + '</td>' + acts + '</tr>';
     return '<tr><td>' + (i + 1) + '</td><td>' + (esc(r.sem) || '—') + '</td><td>' + (esc(r.year) || '—') + '</td><td>' + (date || '—') + '</td><td>' + cnt(r) + '</td>' + acts + '</tr>';
@@ -479,6 +487,10 @@ function idFill(kind, r) {
     if (!edit) { loadDirs().then(() => { if (!idEdit) ivCenterChanged(); }); }
   } else if (kind === 'monthly') {
     imFill(r, edit);
+  } else if (kind === 'mgreval') {
+    meFill(r, edit);
+  } else if (kind === 'halls') {
+    hlFill(r, edit);
   } else if (kind === 'program') {
     hdSet('ip', edit ? r : null); $('ipCenter').value = r.center || '';
     ['content', 'plan', 'method', 'tools', 'results', 'ratio'].forEach(k => { $('ip' + k[0].toUpperCase() + k.slice(1)).value = d[k] || ''; });
@@ -520,6 +532,21 @@ async function idSave(kind, btn, sendAfter) {
     if (!req.period) return toast('اختاري الفترة (صباحي أو مسائي)', false);
     if (!req.data.notes.length) return toast('اكتبي ملاحظة واحدة على الأقل', false);
     if (sendAfter && !idWaPhone(req.data.mgrPhone)) return toast('اكتبي جوال المديرة بصيغة صحيحة (05xxxxxxxx) للإرسال', false);
+  } else if (kind === 'mgreval') {
+    Object.assign(req, meCollect(true));
+    req.data = Object.assign(req.data, dateData);
+    if (!req.center) return toast('اختاري اسم المركز', false);
+    if (!req.mgrName) return toast('اكتبي اسم المديرة', false);
+    const bad = ME_ITEMS.findIndex((it, i) => { const v = meNum(req.data.sc[i]); return req.data.sc[i] !== '' && (v == null || v < 0 || v > it[2]); });
+    if (bad > -1) { toast('درجة «' + ME_ITEMS[bad][1] + '» يجب أن تكون بين ٠ و' + arD(ME_ITEMS[bad][2]), false); document.querySelectorAll('#meItems .me-it')[bad].scrollIntoView({ block: 'center' }); return; }
+    const empty = req.data.sc.filter(x => x === '').length;
+    if (empty === ME_ITEMS.length) return toast('اكتبي درجات البنود', false);
+    if (empty && !confirm('توجد ' + arD(empty) + ' بنود بدون درجة (تُحسب صفراً). هل تريدين الحفظ؟')) return;
+  } else if (kind === 'halls') {
+    Object.assign(req, hlCollect(true));
+    req.data = Object.assign(req.data, dateData);
+    if (!req.center) return toast('اختاري اسم المركز', false);
+    if (!req.data.floors.some(f => f.halls.length)) return toast('أضيفي قاعة واحدة على الأقل', false);
   } else if (kind === 'monthly') {
     Object.assign(req, imCollect(true), {});
     req.data = Object.assign(req.data, dateData);
@@ -776,11 +803,189 @@ function imCollect(trim) {
       staff: imStaffGet(), ev: imEvGet(), devices: dev ? (trim ? dev.value.trim() : dev.value) : '', other: v('imOther') } };
 }
 
+/* ======================= استمارة تقييم المديرة ======================= */
+function meBuild(sc, nt) {
+  sc = sc || []; nt = nt || [];
+  let h = '', g = null;
+  ME_ITEMS.forEach((it, i) => {
+    if (it[0] !== g) { g = it[0]; h += '<div class="me-g">' + esc(g) + '</div>'; }
+    h += '<div class="me-it"><div class="q">' + esc(it[1]) + '</div><div class="sc"><input inputmode="decimal" class="me-sc" value="' + esc(sc[i] == null ? '' : sc[i]) + '"><small>من ' + arD(it[2]) + '</small>' +
+      '<button type="button" class="im-nt-btn"' + (nt[i] ? ' hidden' : '') + '>＋ ملاحظة</button></div>' +
+      '<input class="im-note"' + (nt[i] ? '' : ' hidden') + ' placeholder="ملاحظة" value="' + esc(nt[i] || '') + '"></div>';
+  });
+  $('meItems').innerHTML = h;
+  meCalc();
+}
+function meCalc() {
+  const its = [...document.querySelectorAll('#meItems .me-it')];
+  const sc = its.map(x => x.querySelector('.me-sc').value.trim());
+  its.forEach((el, i) => { const v = meNum(sc[i]); el.classList.toggle('bad', sc[i] !== '' && (v == null || v < 0 || v > ME_ITEMS[i][2])); });
+  $('meSum').textContent = arD(meTotal(sc));
+  $('meDone').textContent = arD(sc.filter(x => x !== '').length);
+  $('meCnt').textContent = arD(ME_ITEMS.length);
+}
+$('meItems').addEventListener('input', e => { if (e.target.classList.contains('me-sc')) meCalc(); });
+$('meItems').addEventListener('click', e => {
+  const nb = e.target.closest('.im-nt-btn');
+  if (nb) { const inp = nb.closest('.me-it').querySelector('.im-note'); inp.hidden = false; nb.hidden = true; inp.focus(); }
+});
+$('mePeriod').addEventListener('change', e => {
+  if (e.target.checked) document.querySelectorAll('#mePeriod input').forEach(i => { if (i !== e.target) i.checked = false; });
+  meCenterChanged();
+});
+['meMgrName', 'mePhone'].forEach(id => $(id).addEventListener('input', () => { delete $(id).dataset.auto; }));
+// اسم المديرة وجوالها من ورقة «أرقام المديرات» (مثل تقرير الزيارة)
+function meCenterChanged() {
+  const st = $('meMgrStatus'), center = $('meCenter').value;
+  if (!center) { st.textContent = ''; return; }
+  const L = ivDirsFor(center);
+  if (!L.length) { st.textContent = ''; return; }
+  let per = periodGet('mePeriod');
+  if (!per) {
+    const hasM = L.some(d => !d.evening), hasE = L.some(d => d.evening);
+    if (hasM && hasE) { st.textContent = 'لهذا المركز فترتان: اختاري الفترة لتظهر بيانات المديرة.'; return; }
+    per = hasE ? 'مسائية' : 'صباحية';
+    periodSet('mePeriod', per);
+  }
+  const d = L.find(x => x.evening === (per.indexOf('مسائ') > -1));
+  if (!d) { st.textContent = ''; return; }
+  const set = (id, v) => { if (v && (!$(id).value.trim() || $(id).dataset.auto === '1')) { $(id).value = v; $(id).dataset.auto = '1'; } };
+  set('meMgrName', d.name);
+  set('mePhone', d.phone ? '0' + d.phone.slice(3) : '');
+  // بيانات المديرة الشخصية من آخر استمارة تقييم لها (إن وُجدت)
+  const last = IDR.filter(r => r.kind === 'mgreval' && r.mgrName && r.mgrName === $('meMgrName').value.trim() && (!idEdit || r.id !== idEdit.id))
+    .sort((x, y) => (ivHKey(y) + (y.at || '')).localeCompare(ivHKey(x) + (x.at || '')))[0];
+  if (last && !idEdit) {
+    const ld = last.data || {};
+    [['meJuz', 'juz'], ['meBirth', 'birth'], ['meBirthplace', 'birthplace'], ['meExp', 'exp'], ['meEdu', 'edu']].forEach(([id, k]) => { if (!$(id).value && ld[k]) $(id).value = ld[k]; });
+    if (!$('meQuran').value && ld.quran) meQuranSet(ld.quran);
+  }
+  st.textContent = '✔️ المديرة: ' + (d.name || '—') + (last && !idEdit ? ' — عُبّئت بياناتها من آخر تقييم لها' : '');
+}
+function meQuranSet(q) {
+  const known = ME_QURAN.indexOf(q) > -1;
+  $('meQuran').value = q ? (known ? q : 'أخرى') : '';
+  $('meQuranOther').value = known ? '' : (q || '');
+  $('meQuranOther').classList.toggle('hidden', !(q && !known));
+}
+function meFill(r, edit) {
+  const d = r.data || {};
+  $('meCenter').value = r.center || '';
+  periodSet('mePeriod', r.period);
+  $('meSem').value = r.sem || ''; $('meYear').value = r.year || hijriYear();
+  $('meMgrName').value = r.mgrName || ''; $('mePhone').value = d.phone || '';
+  delete $('meMgrName').dataset.auto; delete $('mePhone').dataset.auto;
+  $('meJuz').value = d.juz || ''; $('meBirth').value = d.birth || ''; $('meBirthplace').value = d.birthplace || '';
+  $('meExp').value = d.exp || ''; $('meEdu').value = d.edu || '';
+  $('meQuran').innerHTML = '<option value="">اختاري</option>' + ME_QURAN.concat(['أخرى']).map(x => '<option>' + esc(x) + '</option>').join('');
+  meQuranSet(d.quran || '');
+  hdSet('me', edit ? r : null);
+  meBuild(d.sc, d.nt);
+  $('meRecs').value = d.recs || '';
+  $('meSupName').value = r.supName || myName();
+  $('meMgrStatus').textContent = '';
+  if (!edit) loadDirs();
+}
+function meCollect(trim) {
+  const v = id => trim ? $(id).value.trim() : $(id).value;
+  const its = [...document.querySelectorAll('#meItems .me-it')];
+  const q = $('meQuran').value === 'أخرى' ? v('meQuranOther') : $('meQuran').value;
+  return { center: $('meCenter').value, sem: $('meSem').value, year: v('meYear'), period: periodGet('mePeriod'),
+    mgrName: v('meMgrName'), supName: v('meSupName'),
+    data: { phone: v('mePhone'), juz: v('meJuz'), birth: v('meBirth'), birthplace: v('meBirthplace'), exp: v('meExp'), quran: q, edu: v('meEdu'),
+      sc: its.map(x => x.querySelector('.me-sc').value.trim().replace(/[٠-٩]/g, c => '٠١٢٣٤٥٦٧٨٩'.indexOf(c))),
+      nt: its.map(x => x.querySelector('.im-note').value.trim()), recs: v('meRecs') } };
+}
+
+/* ======================= حصر القاعات في المراكز ======================= */
+function hlBuild(floors) {
+  const byName = {};
+  (floors || []).forEach(f => { byName[f.name] = f.halls || []; });
+  $('hlFloors').innerHTML = HL_FLOORS.map(name => '<details class="card ev-sec hl-floor" data-f="' + esc(name) + '"' + ((byName[name] || []).length || name === 'الأرضي' ? ' open' : '') + '>' +
+    '<summary><span>الدور ' + esc(name) + '</span><span class="ev-prog"></span></summary><div style="padding:4px 14px 14px">' +
+    '<div class="hl-hd"><span>م</span><span>النوع (ك/ص)</span><span>الحالة</span><span>الكراسي</span><span>الطاقة</span><span></span></div>' +
+    '<div class="hl-list"></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn light" data-add="1">＋ إضافة قاعة</button>' +
+    '<button type="button" class="btn light" data-addn="1">＋ إضافة عدة قاعات</button></div></div></details>').join('');
+  document.querySelectorAll('#hlFloors .hl-floor').forEach(el => (byName[el.dataset.f] || []).forEach(h => hlAddRow(el, h)));
+  hlCalc();
+}
+function hlAddRow(floorEl, h) {
+  h = h || {};
+  const row = document.createElement('div');
+  row.className = 'hl-row';
+  row.innerHTML = '<span class="num"></span><select class="type"><option value="">—</option>' + HL_TYPES.map(t => '<option value="' + t[0] + '"' + (h.type === t[0] ? ' selected' : '') + ' title="' + t[1] + '">' + t[0] + '</option>').join('') + '</select>' +
+    '<input class="status" list="hlStatusDl" placeholder="الحالة" value="' + esc(h.status || '') + '">' +
+    '<input class="chairs" inputmode="numeric" placeholder="الكراسي" value="' + esc(h.chairs || '') + '">' +
+    '<input class="cap" inputmode="numeric" placeholder="الطاقة" value="' + esc(h.cap || '') + '">' +
+    '<button type="button" class="x" title="حذف">✕</button>';
+  floorEl.querySelector('.hl-list').appendChild(row);
+}
+function hlCalc() {
+  let n = 0, cap = 0, over = 0;
+  document.querySelectorAll('#hlFloors .hl-floor').forEach(f => {
+    const rows = [...f.querySelectorAll('.hl-row')];
+    let fc = 0;
+    rows.forEach((r, i) => {
+      r.querySelector('.num').textContent = arD(i + 1);
+      const c = hlNum(r.querySelector('.cap').value);
+      const o = c > HL_MAX_CAP; r.classList.toggle('over', o); if (o) over++;
+      fc += c;
+    });
+    n += rows.length; cap += fc;
+    f.querySelector('.ev-prog').innerHTML = rows.length ? '<b>' + arD(rows.length) + '</b> قاعة — الطاقة ' + arD(fc) : 'لا توجد قاعات';
+  });
+  $('hlCnt').textContent = arD(n);
+  $('hlCap').textContent = arD(cap);
+  $('hlOver').textContent = over ? '⚠ ' + arD(over) + ' فوق ٢٥' : '';
+}
+$('hlFloors').addEventListener('click', e => {
+  const f = e.target.closest('.hl-floor'); if (!f) return;
+  if (e.target.closest('[data-add]')) { hlAddRow(f); hlCalc(); f.querySelector('.hl-row:last-child select').focus(); }
+  else if (e.target.closest('[data-addn]')) {
+    const k = parseInt(String(prompt('كم قاعة تريدين إضافتها في الدور ' + f.dataset.f + '؟', '4') || '').replace(/[٠-٩]/g, c => '٠١٢٣٤٥٦٧٨٩'.indexOf(c)), 10);
+    if (k > 0 && k <= 40) { for (let i = 0; i < k; i++) hlAddRow(f); hlCalc(); }
+  } else if (e.target.closest('.x')) { e.target.closest('.hl-row').remove(); hlCalc(); }
+});
+$('hlFloors').addEventListener('input', hlCalc);
+function hlFloorsGet() {
+  return [...document.querySelectorAll('#hlFloors .hl-floor')].map(f => ({ name: f.dataset.f,
+    halls: [...f.querySelectorAll('.hl-row')].map(r => ({ type: r.querySelector('.type').value, status: r.querySelector('.status').value.trim(),
+      chairs: r.querySelector('.chairs').value.trim().replace(/[٠-٩]/g, c => '٠١٢٣٤٥٦٧٨٩'.indexOf(c)),
+      cap: r.querySelector('.cap').value.trim().replace(/[٠-٩]/g, c => '٠١٢٣٤٥٦٧٨٩'.indexOf(c)) })) }));
+}
+// حصر جديد: تُنسخ القاعات وبيانات المركز من آخر حصر لنفس المركز (ثم تُعدَّل الحالة أو الأعداد فقط)
+function hlCenterChanged() {
+  if (idEdit) return;
+  const center = $('hlCenter').value;
+  if (!center || hlFloorsGet().some(f => f.halls.length)) return;
+  const last = IDR.filter(r => r.kind === 'halls' && r.center === center).sort((x, y) => (ivHKey(y) + (y.at || '')).localeCompare(ivHKey(x) + (x.at || '')))[0];
+  if (!last || !last.data) { $('hlCopyHint').textContent = ''; return; }
+  hlBuild(last.data.floors);
+  [['hlNo', 'no'], ['hlFac', 'facilities'], ['hlFloorsN', 'floorsCount']].forEach(([id, k]) => { if (!$(id).value) $(id).value = last.data[k] || ''; });
+  $('hlCopyHint').textContent = '✔ نُسخت القاعات من آخر حصر لهذا المركز، ويمكن تعديلها.';
+}
+function hlFill(r, edit) {
+  const d = r.data || {};
+  $('hlCenter').value = r.center || '';
+  $('hlSem').value = r.sem || ''; $('hlYear').value = r.year || hijriYear();
+  $('hlNo').value = d.no || ''; $('hlFac').value = d.facilities || ''; $('hlFloorsN').value = d.floorsCount || '';
+  $('hlNotes').value = d.notes || '';
+  $('hlCopyHint').textContent = '';
+  hdSet('hl', edit ? r : null);
+  hlBuild(d.floors);
+  $('hlSupName').value = r.supName || myName();
+}
+function hlCollect(trim) {
+  const v = id => trim ? $(id).value.trim() : $(id).value;
+  return { center: $('hlCenter').value, sem: $('hlSem').value, year: v('hlYear'), supName: v('hlSupName'),
+    data: { no: v('hlNo'), facilities: v('hlFac'), floorsCount: v('hlFloorsN'), notes: v('hlNotes'), floors: hlFloorsGet() } };
+}
+
 /* ---------- الحفظ التلقائي (autosave.js): نماذج الإشراف الإداري الثلاثة ---------- */
 function idCollect(kind) {
   const p = ID_PFX[kind];
   const h = hdGet(p), dateData = { hd: h.hd, hm: h.hm, hy: h.hy, dayName: h.dayName };
-  if (kind === 'monthly') { const o = imCollect(false); o.data = Object.assign(o.data, dateData); return o; }
+  if (kind === 'monthly' || kind === 'mgreval' || kind === 'halls') { const o = (kind === 'monthly' ? imCollect : kind === 'mgreval' ? meCollect : hlCollect)(false); o.data = Object.assign(o.data, dateData); return o; }
   if (kind === 'visit') return { center: $('ivCenter').value, sem: $('ivSem').value, year: $('ivYear').value, period: periodGet('ivPeriod'), visitNo: $('ivVisitNo').value,
     mgrName: $('ivMgrName').value, supName: $('ivSupName').value,
     data: Object.assign({ vtype: $('ivType').value, ackCol: $('ivAckCol').checked ? '1' : '', about: $('ivAbout').value, notes: ivNotesGet(), recText: $('ivRec').value, mgrPhone: $('ivMgrPhone').value }, dateData) };
@@ -791,7 +996,7 @@ function idCollect(kind) {
   }
   return { sem: $('isSem').value, year: $('isYear').value, period: periodGet('isPeriod'), supName: $('isSupName').value, data: Object.assign({ rows: idRowsGet('isRows') }, dateData) };
 }
-['visit', 'program', 'suggest', 'monthly'].forEach(kind => {
+['visit', 'program', 'suggest', 'monthly', 'mgreval', 'halls'].forEach(kind => {
   const p = ID_PFX[kind];
   AD.register(FORM_OF[kind], {
     key: () => idEdit ? idEdit.id : 'new',

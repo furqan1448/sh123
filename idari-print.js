@@ -116,6 +116,7 @@ const ID_CSS = `
 function idDocHtml(rec, sigs, lhUrl) {
   sigs = sigs || {};
   if (rec.kind === 'monthly') return imDocHtml(rec, sigs, lhUrl);   // استمارة المتابعة الإدارية الشهرية (عدة صفحات)
+  if (ID_PORTRAIT[rec.kind]) return ptDocHtml(rec, sigs, lhUrl);     // النماذج الطولية (تقييم المديرة، حصر القاعات)
   const d = rec.data || {};
   const per = String(rec.period || '');
   // أبعاد الكليشة مكتوبة صراحةً حتى يُحجز مكانها قبل تحميلها (وإلا يُقصّ أسفل ملف PDF)
@@ -232,7 +233,7 @@ async function idPrint(rec, btn, sigs) {
     w.document.open();
     w.document.write('<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>' + esc(idFileName(rec)) + '</title>' +
       '<link rel="stylesheet" href="' + ID_FONT_CSS + '">' +
-      '<style>@page{size:A4 landscape;margin:7mm}html,body{margin:0;background:#fff}' + ID_CSS +
+      '<style>@page{size:A4 ' + (ID_PORTRAIT[rec.kind] ? 'portrait' : 'landscape') + ';margin:7mm}html,body{margin:0;background:#fff}' + ID_CSS +
       '.idoc{width:100%}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body>' +
       idDocHtml(rec, sigs, lh) + '</body></html>');
     w.document.close();
@@ -311,6 +312,7 @@ function idFixBidi(doc) {
 // يبني ملف PDF ويعيده كـ Blob (بنفس طريقة تقرير الزيارة في نظام المقاصف: صفحة A4 عرضية، والكليشة ملتصقة بأعلى الصفحة)
 async function idPdfBlob(rec, sigs) {
   if (rec.kind === 'monthly') return imPdfBlob(rec, sigs);
+  if (ID_PORTRAIT[rec.kind]) return ptPdfBlob(rec, sigs);
   if (!sigs) sigs = await idLoadSigs(rec);
   await idLoadPdfLib();
   const box = document.createElement('div');
@@ -732,4 +734,200 @@ async function imPdfBlob(rec, sigs) {
     }
     return pdf.output('blob');
   } finally { box.remove(); }
+}
+
+/* ======================= صفحات A4 (عرضية أو طولية) → ملف PDF، كل صفحة تُرسم وحدها وتُصغَّر لتكفيها ======================= */
+async function idPagesPdf(pages, css, portrait) {
+  await idLoadPdfLib();
+  await idLoadImgLib().catch(() => {});
+  const fontCss = await idFontEmbedCss();
+  const W = portrait ? 794 : 1123, pw = portrait ? 210 : 297, ph = portrait ? 297 : 210;
+  const box = document.createElement('div');
+  box.style.cssText = 'position:absolute;top:0;left:0;width:' + W + 'px;z-index:-1;background:#fff;direction:rtl';
+  document.body.appendChild(box);
+  let pdf = null;
+  try {
+    for (let i = 0; i < pages.length; i++) {
+      box.innerHTML = '<style>' + ID_CSS + css + '.idoc{width:' + W + 'px;padding:0}.idoc .im-page + .im-page{margin:0;border:0}</style><div class="idoc ' + (portrait ? 'ptdoc' : 'imdoc') + '">' + pages[i] + '</div>';
+      await Promise.all([...box.querySelectorAll('img')].map(x => x.complete ? 0 : new Promise(r => { x.onload = x.onerror = r; })));
+      const el = box.querySelector('.im-page');
+      let cv;
+      if (window.htmlToImage) {
+        const io = { pixelRatio: 2, backgroundColor: '#ffffff', width: W, style: { margin: '0' } };
+        if (fontCss) io.fontEmbedCSS = fontCss; else io.skipFonts = true;
+        cv = await window.htmlToImage.toCanvas(el, io);
+      } else {
+        cv = await window.html2pdf().set({ html2canvas: { scale: 2, backgroundColor: '#ffffff', windowWidth: W, onclone: idFixBidi } }).from(el).toCanvas().get('canvas');
+      }
+      const maxH = cv.width * ph / pw;
+      if (cv.height > maxH) {   // صفحة أطول من A4: تُصغَّر لتكفي صفحة واحدة
+        const out = document.createElement('canvas');
+        out.width = Math.round(cv.height * pw / ph); out.height = cv.height;
+        const g = out.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, out.width, out.height);
+        g.drawImage(cv, Math.round((out.width - cv.width) / 2), 0);
+        cv = out;
+      }
+      const img = cv.toDataURL('image/jpeg', 0.95), h = Math.min(ph, pw * cv.height / cv.width);
+      if (!pdf) pdf = await window.html2pdf().set({ margin: 0, jsPDF: { unit: 'mm', format: [pw, ph], orientation: portrait ? 'portrait' : 'landscape' } }).from(document.createElement('div')).toPdf().get('pdf');
+      else pdf.addPage([pw, ph], portrait ? 'portrait' : 'landscape');
+      pdf.addImage(img, 'JPEG', 0, 0, pw, h);
+    }
+    return pdf.output('blob');
+  } finally { box.remove(); }
+}
+
+/* ======================= النماذج الطولية: استمارة تقييم المديرة، وحصر القاعات في المراكز ======================= */
+ID_KINDS.mgreval = 'استمارة تقييم المديرة';
+ID_KINDS.halls = 'حصر القاعات في المراكز';
+const ID_PORTRAIT = { mgreval: 1, halls: 1 };
+// بنود استمارة تقييم المديرة كما في ملف الإكسل: [المحور، البند، الدرجة المستحقة] — المجموع ١٠٠
+const ME_ITEMS = [
+  ['السمات الشخصية', 'ملاءمة الشخصية للعمل الإداري', 4],
+  ['السمات الشخصية', 'قدوتها في المظهر والسلوك', 2],
+  ['السمات الشخصية', 'حسن تعاملها مع (المشرفات، الموظفات، الدارسات) ومكتب الإشراف', 3],
+  ['المهارات الإدارية', 'وضع الخطط والجداول التنفيذية للعمل بداية كل فصل دراسي', 5],
+  ['المهارات الإدارية', 'التناسق والتكامل في إنجاز العمل', 3],
+  ['المهارات الإدارية', 'السرعة والدقة في الإنجاز', 3],
+  ['المهارات الإدارية', 'إرسال المباشرات والإحصائيات إلى مكتب الإشراف في موعدها', 3],
+  ['المهارات الإدارية', 'المهارات القيادية والإبداعية في حل المشكلات', 3],
+  ['المهارات الإدارية', 'استخدام التقنية في إنجاز العمل', 5],
+  ['المهارات الإدارية', 'التواصل الفعّال مع مكتب الإشراف', 3],
+  ['النواحي الإدارية', 'التزامها باللوائح وأنظمة العمل وتنفيذها', 5],
+  ['النواحي الإدارية', 'الاهتمام بالنمو المعرفي والمهني وحضور الاجتماعات والورش', 4],
+  ['النواحي الإدارية', 'متابعة تنفيذ الملفات والسجلات واكتمالها في حينه', 4],
+  ['النواحي الإدارية', 'تنظيم وترتيب السجلات والملفات الإدارية', 4],
+  ['النواحي الإدارية', 'عقد الاجتماعات الدورية وتوثيقها', 3],
+  ['متابعة الموظفات والمعلمات', 'توزيع الأعمال على الموظفات بشكل متساوٍ', 5],
+  ['متابعة الموظفات والمعلمات', 'متابعة أداء الموظفات', 4],
+  ['متابعة الموظفات والمعلمات', 'متابعة التزام المنسوبات بالحجاب والزي الشرعي', 3],
+  ['متابعة الموظفات والمعلمات', 'متابعة التزام المنسوبات في الحضور والانصراف', 4],
+  ['متابعة الموظفات والمعلمات', 'زيارة المعلمات وتقييمهن باستمرار', 5],
+  ['متابعة الموظفات والمعلمات', 'متابعة المعلمات في التحضير', 3],
+  ['متابعة الموظفات والمعلمات', 'متابعة المعلمات في السير وفق خطة المنهج', 3],
+  ['متابعة الموظفات والمعلمات', 'حث المعلمات على التوجيه والإرشاد', 3],
+  ['متابعة الدارسات', 'متابعة الدارسات في أدائهن والرفع من مستوى الضعيفات', 4],
+  ['متابعة الدارسات', 'متابعة نتائج التقييم والمتابعة والاختبارات النهائية', 5],
+  ['الاهتمام بالمنشأة', 'متابعة نظافة المنشأة', 3],
+  ['الاهتمام بالمنشأة', 'المحافظة على ممتلكات المنشأة', 4]
+];
+const ME_MAX = ME_ITEMS.reduce((s, x) => s + x[2], 0);
+const ME_QURAN = ['مجازة', 'خاتمة', 'حافظة', 'دورات حفظ', 'خريجة دبلوم عالي إعداد المعلمات', 'خريجة دبلوم متوسط لتأهيل المعلمات', 'خريجة تأهيل معلمات', 'خريجة دورة تأهيل منتهي بالتوظيف'];
+const meNum = v => { const n = parseFloat(String(v == null ? '' : v).replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace('٫', '.')); return isNaN(n) ? null : n; };
+const meTotal = sc => Math.round((sc || []).reduce((s, v) => s + (meNum(v) || 0), 0) * 100) / 100;
+// حصر القاعات: الأدوار ونوع القاعة (ك تحفيظ كبار، ص تحفيظ صغار) — الطاقة الاستيعابية للقاعة لا تزيد عن ٢٥
+const HL_FLOORS = ['الأرضي', 'الأول', 'الثاني', 'الثالث'];
+const HL_TYPES = [['ك', 'تحفيظ كبار'], ['ص', 'تحفيظ صغار']];
+const HL_MAX_CAP = 25;
+const hlNum = v => meNum(v) || 0;
+function hlTotals(d) {
+  const floors = (d && d.floors) || [];
+  let halls = 0, cap = 0;
+  floors.forEach(f => (f.halls || []).forEach(h => { halls++; cap += hlNum(h.cap); }));
+  return { halls, cap, floors: floors.filter(f => (f.halls || []).length).length };
+}
+
+const PT_CSS = `
+.idoc.ptdoc{font-size:14px}
+.ptdoc .im-page{position:relative;background:#fff}
+.ptdoc .im-page + .im-page{margin-top:24px;border-top:2px dashed #ccc}
+@media print{.ptdoc .im-page{break-after:page;page-break-after:always}.ptdoc .im-page:last-child{break-after:auto;page-break-after:auto}.ptdoc .im-page + .im-page{margin-top:0;border:0}}
+.ptdoc .pt-in{padding:0 24px 12px}
+.ptdoc table.me td{padding:2px 6px;font-size:12.8px;line-height:1.3}
+.ptdoc table.me td.g{width:auto;font-size:12.5px}
+.ptdoc .idc-title{margin:8px 0 8px;font-size:22px}
+.ptdoc table{font-size:13.5px}
+.ptdoc th,.ptdoc td{padding:3px 7px;line-height:1.35}
+.ptdoc th{background:#fbf3f4}
+.ptdoc td.k{background:#f6f0f0 !important;font-weight:800;white-space:nowrap}
+.ptdoc td.v{color:#7a1f2b;font-weight:700;text-align:right}
+.ptdoc td.g{background:#f6f0f0 !important;font-weight:800;color:#7a1f2b;width:92px}
+.ptdoc td.t{text-align:right}
+.ptdoc td.s{color:#7a1f2b;font-weight:800;font-size:14.5px}
+.ptdoc td.n{text-align:right;width:24%}
+.ptdoc tr.sum td{background:#7a1f2b !important;color:#fff;font-weight:800;font-size:15px}
+.ptdoc .pt-box{border:1px solid #444;margin-top:10px}
+.ptdoc .pt-box b{display:block;background:#f6f0f0;padding:4px 12px;border-bottom:1px solid #444;color:#7a1f2b}
+.ptdoc .pt-box div{padding:5px 12px;min-height:34px;white-space:pre-wrap;line-height:1.6;font-weight:600}
+.ptdoc .pt-foot{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;font-weight:800;font-size:15px;margin:12px 6px 0}
+.ptdoc .pt-foot img{max-height:56px;max-width:170px;vertical-align:middle}
+.ptdoc .hl td,.ptdoc .hl th{padding:4px 3px;font-size:12.5px;text-align:center}
+.ptdoc .hl td.fl{background:#f6f0f0 !important;font-weight:800;color:#7a1f2b;width:34px;writing-mode:vertical-rl;transform:rotate(180deg)}
+.ptdoc .hl td.lb{background:#f6f0f0 !important;font-weight:800;width:92px;white-space:nowrap}
+.ptdoc .hl td.v{text-align:center}
+.ptdoc .hl td.over{color:#c0392b;font-weight:800}
+.ptdoc .pt-note{color:#7a1f2b;font-weight:800;font-size:13.5px;line-height:1.9;margin-top:14px}
+`;
+
+function ptHead(lhUrl) { return '<img class="idc-lh" src="' + esc(lhUrl || ID_LETTERHEAD) + '" width="2000" height="351" alt="">'; }
+function ptFoot(rec, sigs, lbl) {
+  const m = x => '<span class="idc-m">' + x + '</span>';
+  return '<div class="pt-foot idc-avoid"><span>' + (lbl || 'اسم المشرفة') + ': ' + m(esc(rec.supName || '')) + '</span><span>التاريخ: ' + m(esc(idDayName(rec))) + ' ' + m(idHDate(rec)) + '</span>' +
+    '<span>التوقيع: ' + (sigs && sigs.sup ? '<img src="' + sigs.sup + '" alt="">' : '') + '</span></div>';
+}
+function mePages(rec, sigs, lhUrl) {
+  const d = rec.data || {}, sc = d.sc || [], nt = d.nt || [];
+  const kv = (k, v) => '<td class="k">' + k + '</td><td class="v">' + esc(v || '') + '</td>';
+  const per = String(rec.period || '');
+  let h = '<div class="idc-title">استمارة تقييم المديرة</div>' +
+    '<table><tr>' + kv('اسم المركز', rec.center) + kv('الفترة', per) + '</tr><tr>' + kv('الفصل الدراسي', rec.sem) + kv('العام', rec.year ? idDigits(rec.year) + 'هـ' : '') + '</tr></table>' +
+    '<table style="margin-top:8px"><tr><th colspan="6">المعلومات الشخصية</th></tr>' +
+    '<tr>' + kv('اسم المديرة', rec.mgrName) + kv('رقم الجوال', idDigits(d.phone || '')) + kv('الأجزاء المحفوظة', idDigits(d.juz || '')) + '</tr>' +
+    '<tr>' + kv('تاريخ الميلاد', idDigits(d.birth || '')) + kv('محل الميلاد', d.birthplace) + kv('سنوات الخبرة كمديرة', idDigits(d.exp || '')) + '</tr>' +
+    '<tr>' + kv('المؤهل في القرآن', d.quran) + kv('المؤهل العلمي', d.edu) + '<td class="k">تاريخ التقييم</td><td class="v">' + esc(idDayName(rec)) + ' ' + idHDate(rec) + '</td></tr></table>';
+  let body = '';
+  ME_ITEMS.forEach((it, i) => {
+    let g = '';
+    if (i === 0 || ME_ITEMS[i - 1][0] !== it[0]) { let n = 1; while (ME_ITEMS[i + n] && ME_ITEMS[i + n][0] === it[0]) n++; g = '<td class="g" rowspan="' + n + '">' + esc(it[0]) + '</td>'; }
+    const v = meNum(sc[i]);
+    body += '<tr>' + g + '<td class="t">' + esc(it[1]) + '</td><td>' + idDigits(it[2]) + '</td><td class="s">' + (v == null ? '' : idDigits(v)) + '</td><td class="n">' + idNl(nt[i] || '') + '</td></tr>';
+  });
+  h += '<table class="me" style="margin-top:8px;table-layout:fixed"><colgroup><col style="width:86px"><col><col style="width:58px"><col style="width:58px"><col style="width:150px"></colgroup>' +
+    '<tr><th colspan="2">البيان</th><th>الدرجة<br>المستحقة</th><th>الدرجة<br>المكتسبة</th><th>ملاحظات</th></tr>' + body +
+    '<tr class="sum"><td colspan="2">المجموع</td><td>' + idDigits(ME_MAX) + '</td><td>' + (sc.some(x => meNum(x) != null) ? idDigits(meTotal(sc)) : '') + '</td><td></td></tr></table>' +
+    '<div class="pt-box idc-avoid"><b>توصيات المشرفة</b><div>' + esc(d.recs || '') + '</div></div>' + ptFoot(rec, sigs);
+  return ['<div class="im-page">' + ptHead(lhUrl) + '<div class="pt-in">' + h + '</div></div>'];
+}
+function hlPages(rec, sigs, lhUrl) {
+  const d = rec.data || {}, tot = hlTotals(d), sem = String(rec.sem || '');
+  const m = x => '<span class="idc-m">' + x + '</span>';
+  const head = '<div class="idc-title">حصر القاعات في المراكز</div>' +
+    '<div class="idc-meta" style="justify-content:center;gap:30px"><span>اسم المركز: ' + m(esc(rec.center || '')) + '</span><span>للفصل الدراسي: ' + idBox(sem === 'الأول') + 'الأول &nbsp; ' + idBox(sem === 'الثاني') + 'الثاني &nbsp; ' + idBox(sem === 'الثالث') + 'الثالث</span><span>لعام: ' + m(rec.year ? idDigits(rec.year) + 'هـ' : '') + '</span></div>' +
+    '<table><tr><td class="k">اسم المركز</td><td class="v">' + esc(rec.center || '') + '</td><td class="k">رقم المركز وفق تاريخ الافتتاح</td><td class="v">' + esc(idDigits(d.no || '')) + '</td></tr>' +
+    '<tr><td class="k">عدد الأدوار</td><td class="v">' + idDigits(d.floorsCount || tot.floors || '') + '</td><td class="k">عدد القاعات الدراسية</td><td class="v">' + idDigits(tot.halls) + '</td></tr>' +
+    '<tr><td class="k">عدد المرافق العامة</td><td class="v">' + esc(idDigits(d.facilities || '')) + '</td><td class="k">إجمالي الطاقة الاستيعابية</td><td class="v">' + idDigits(tot.cap) + '</td></tr></table>';
+  // كل دور: صفوف (نوعها، الحالة، عدد الكراسي، الطاقة الاستيعابية) وأعمدة القاعات (١٢ قاعة في الجدول الواحد)
+  const blocks = [];
+  (d.floors || []).forEach(f => {
+    const H = f.halls || [];
+    if (!H.length) return;
+    for (let i = 0; i < H.length; i += 12) blocks.push({ name: f.name, start: i, halls: H.slice(i, i + 12) });
+  });
+  const tbl = b => {
+    const cols = Array.from({ length: 12 }, (_, i) => b.halls[i] || null);
+    const row = (lbl, fn) => '<tr><td class="lb">' + lbl + '</td>' + cols.map(fn).join('') + '</tr>';
+    return '<table class="hl" style="margin-top:8px;table-layout:fixed"><colgroup><col style="width:34px"><col style="width:104px">' + '<col>'.repeat(12) + '</colgroup><tr><td class="fl" rowspan="5">' + esc(b.name) + '</td><td class="lb">رقم القاعة</td>' +
+      cols.map((h, i) => '<th>' + idDigits(h && h.no ? h.no : b.start + i + 1) + '</th>').join('') + '</tr>' +
+      row('نوعها', h => '<td class="v">' + (h ? esc(h.type || '') : '') + '</td>') +
+      row('الحالة', h => '<td class="v">' + (h ? esc(h.status || '') : '') + '</td>') +
+      row('عدد الكراسي', h => '<td class="v">' + (h ? idDigits(h.chairs || '') : '') + '</td>') +
+      row('الطاقة الاستيعابية', h => '<td class="v' + (h && hlNum(h.cap) > HL_MAX_CAP ? ' over' : '') + '">' + (h ? idDigits(h.cap || '') : '') + '</td>') + '</table>';
+  };
+  const foot = (d.notes ? '<div class="pt-box"><b>ملاحظات</b><div>' + esc(d.notes) + '</div></div>' : '') + ptFoot(rec, sigs, 'اسم المشرفة الإدارية') +
+    '<div class="pt-note">( ك ) تحفيظ كبار، ( ص ) تحفيظ صغار<br>ملاحظة: الطاقة الاستيعابية في القاعات الدراسية لا تزيد عن (' + idDigits(HL_MAX_CAP) + ')</div>';
+  const pages = [];
+  let cur = head, n = 0;
+  if (!blocks.length) cur += '<p style="text-align:center;margin:30px 0;color:#888">لم تُسجَّل قاعات</p>';
+  blocks.forEach(b => {
+    if (n >= 4) { pages.push(cur); cur = ''; n = 0; }
+    cur += tbl(b); n++;
+  });
+  if (n >= 4) { pages.push(cur); cur = ''; }
+  pages.push(cur + foot);
+  return pages.map(p => '<div class="im-page">' + ptHead(lhUrl) + '<div class="pt-in">' + p + '</div></div>');
+}
+const ptPages = (rec, sigs, lhUrl) => rec.kind === 'halls' ? hlPages(rec, sigs, lhUrl) : mePages(rec, sigs, lhUrl);
+function ptDocHtml(rec, sigs, lhUrl) { return '<style>' + PT_CSS + '</style><div class="idoc ptdoc" style="width:794px">' + ptPages(rec, sigs, lhUrl).join('') + '</div>'; }
+async function ptPdfBlob(rec, sigs) {
+  if (!sigs) sigs = await idLoadSigs(rec);
+  return idPagesPdf(ptPages(rec, sigs), PT_CSS, true);
 }
