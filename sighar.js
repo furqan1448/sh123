@@ -270,7 +270,7 @@ function renderSgh() {
     return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.teacher) + '</td><td>' + esc(r.center) + '</td><td>' + esc(r.period) + '</td><td>' +
       (esc((r.data && r.data.dayName) || r.day) + ' ' + idHDate(r)).trim() + '</td><td>' + (esc(arD(r.visitNo)) || '—') + '</td><td>' + sgTStatus(r) + '</td>' +
       '<td><div class="act">' + sBtn('عرض', 'sgOpen(\'' + id + '\')') + sBtn('طباعة', 'sgDo(\'' + id + '\', this, \'print\')') +
-      sBtn('PDF', 'sgDo(\'' + id + '\', this, \'pdf\')') + sBtn('مشاركة', 'sgDo(\'' + id + '\', this, \'share\')') +
+      sBtn('PDF', 'sgDo(\'' + id + '\', this, \'pdf\')') + sBtn('مشاركة', 'sgDo(\'' + id + '\', this, \'share\')') + sgNotifyBtn(r) +
       sBtn('تعديل', 'sgEditRec(\'' + id + '\')') + sBtn('حذف', 'sgDel(\'' + id + '\')', 'danger') + '</div></td></tr>';
   }).join('');
 }
@@ -450,6 +450,7 @@ async function sgSave(btn) {
     cacheSet('sgh', SGH);
     sgEdit = null;
     show('sgListView'); renderSgh(); fillTeachers();
+    if (res.tid) sgNotifyShow(rec, res.tWa, true);
     loadSgh(true);
   } catch (e) { toast(e.message, false); }
   finally { setBtnBusy(btn, false); }
@@ -636,7 +637,7 @@ function renderSge() {
     const gr = r.grade || (r.data && r.data.overall) || '';
     return '<tr><td>' + (i + 1) + '</td><td>' + esc(form.name || r.formName || '') + '</td><td>' + esc(r.teacher) + '</td><td>' + esc(r.center) + '</td><td>' +
       ((esc((r.data && r.data.dayName) || '') + ' ' + (r.data && r.data.hy ? idHDate(r) : '')).trim() || '—') + '</td><td>' + sc + '</td><td>' + (gr ? gradeTag(gr) : '—') + '</td><td>' + sgTStatus(r) + '</td>' +
-      '<td><div class="act">' + sBtn('عرض', 'seOpen(\'' + id + '\')') + sBtn('PDF', 'seDo(\'' + id + '\', this, \'pdf\')') + sBtn('مشاركة', 'seDo(\'' + id + '\', this, \'share\')') +
+      '<td><div class="act">' + sBtn('عرض', 'seOpen(\'' + id + '\')') + sBtn('PDF', 'seDo(\'' + id + '\', this, \'pdf\')') + sBtn('مشاركة', 'seDo(\'' + id + '\', this, \'share\')') + sgNotifyBtn(r) +
       sBtn('تعديل', 'seEditRec(\'' + id + '\')') + sBtn('حذف', 'seDel(\'' + id + '\')', 'danger') + '</div></td></tr>';
   }).join('');
 }
@@ -771,9 +772,59 @@ async function seSave(btn) {
     cacheSet('sge', SGE);
     seEdit = null;
     show('seListView'); renderSge(); loadSge(true);
+    if (res.tid) sgNotifyShow(rec, res.tWa, true);
   } catch (e) { toast(e.message, false); }
   finally { setBtnBusy(btn, false); }
 }
+
+/* ======================= تنبيه المعلمة بعد إرسال التقرير/الاستمارة (مثل تقرير الزيارة في نظام المقاصف) =======================
+   بعد الحفظ تظهر رسالة: «أُرسل للمعلمة ...» مع زر يفتح محادثتها في واتساب برسالة تنبيه جاهزة فيها رابط أيقونة «المعلمات». */
+function sgTWaPhone(v) {
+  let d = String(v || '').replace(/[٠-٩]/g, c => '٠١٢٣٤٥٦٧٨٩'.indexOf(c)).replace(/\D/g, '');
+  if (d.indexOf('00966') === 0) d = d.slice(5); else if (d.indexOf('966') === 0) d = d.slice(3);
+  if (d.indexOf('0') === 0) d = d.slice(1);
+  return /^5\d{8}$/.test(d) ? '966' + d : '';
+}
+function sgNotifyMsg(rec) {
+  const d = rec.data || {};
+  const title = sgTitleOf(rec);
+  const date = d.hy ? idDigits(d.hd) + ' / ' + idDigits(d.hm) + ' / ' + idDigits(d.hy) + 'هـ' : '';
+  const no = rec.visitNo || (d.f && d.f.visitNo) || '';
+  const sup = rec.supName || d.supName || '';
+  return 'السلام عليكم ورحمة الله وبركاته\n' +
+    'الأستاذة/ ' + (d.tName || rec.teacher || '') + ' المحترمة\n' +
+    'نفيدكِ بأنه أُرسل إليكِ «' + title + '»' + (no ? ' (رقم الزيارة ' + idDigits(no) + ')' : '') + (date ? ' بتاريخ ' + date : '') +
+    '، وهو بانتظار اطّلاعكِ وتوقيعكِ.\n' +
+    'يُرجى الدخول إلى منظومة مشرفات ← أيقونة «المعلمات» برقم جوالكِ وكلمة المرور:\n' +
+    new URL('teachers.html', location.href).href + '\n' +
+    (sup ? 'المشرفة: ' + sup + '\n' : '') +
+    'وحدة تحفيظ الصغار — جمعية فرقان';
+}
+function sgNotifyShow(rec, phone, justSaved) {
+  const d = rec.data || {}, name = d.tName || rec.teacher || '';
+  const wa = sgTWaPhone(phone);
+  const kind = rec.kind === 'eval' ? 'الاستمارة' : 'التقرير';
+  const m = $('sgModal'), b = $('sgModalBody');
+  b.innerHTML = '<div class="id-send">' +
+    (justSaved ? '<div>✅ تم حفظ ' + kind + (rec.kind === 'eval' ? ' وإرسالها' : ' وإرساله') + ' للمعلمة <b>' + esc(name) + '</b>.</div>' : '') +
+    '<div>' + (rec.kind === 'eval' ? 'تظهر' : 'يظهر') + ' لها الآن في أيقونة «المعلمات» بانتظار اطّلاعها وتوقيعها.</div>' +
+    (wa ? '<div>لتنبيهها: اضغطي الزر لفتح محادثتها في واتساب برسالة تنبيه جاهزة، ثم اضغطي إرسال.</div>' +
+          '<a class="btn id-wa" target="_blank" rel="noopener" href="https://wa.me/' + wa + '?text=' + encodeURIComponent(sgNotifyMsg(rec)) + '">💬 تنبيه المعلمة في واتساب</a>'
+        : '<div style="color:#a12a2a">لا يوجد رقم جوال صحيح للمعلمة في سجل المعلمات، فلا يمكن تنبيهها في واتساب.</div>') +
+    '</div>';
+  m.classList.remove('hidden');
+}
+// زر «تنبيه المعلمة» من القائمة (للتقارير المرسلة التي لم توقّع عليها بعد)
+async function sgNotifyRec(id, btn) {
+  const r = SGH.find(x => x.id === id) || SGE.find(x => x.id === id);
+  if (!r || !r.data || !r.data.tid) return toast('هذا السجل غير مرسل لمعلمة، اختاري اسمها من «إرسال للمعلمة» ثم احفظي', false);
+  setBtnBusy(btn, true, '...');
+  try { const out = await api('teacherPhone', { tid: r.data.tid }); sgNotifyShow(r, out.phone, false); }
+  catch (e) { toast(e.message, false); }
+  finally { setBtnBusy(btn, false); }
+}
+// يُضاف لأزرار القائمة
+const sgNotifyBtn = r => (r.data && r.data.tid && !(r.data.sigs && r.data.sigs.tch)) ? sBtn('📲 تنبيه المعلمة', 'sgNotifyRec(\'' + esc(r.id) + '\', this)', 'id-wa') : '';
 
 /* ======================= الحفظ التلقائي (autosave.js) ======================= */
 const adHd = p => { const h = hdGet(p); return { hd: h.hd, hm: h.hm, hy: h.hy, dayName: h.dayName }; };

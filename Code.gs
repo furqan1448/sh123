@@ -219,6 +219,7 @@ function route_(r) {
     case 'getMinutes': return { ok: true, data: getMinutesFor_(r.username) };
     case 'saveMinute': return withLock_(() => saveMinute_(r));
     case 'deleteMinute': return withLock_(() => deleteMinute_(r));
+    case 'teacherPhone': return { ok: true, phone: teacherPhoneById_(r.tid) };   // جوال المعلمة لتنبيهها في واتساب بعد إرسال التقرير
     case 'teacherDir': return { ok: true, data: certRows_(false).map(t => ({ id: t.id, name: t.name })) };
     case 'getReports': return { ok: true, data: getReportsFor_(r.username) };
     case 'getReport': return { ok: true, data: getReport_(r) };
@@ -1135,7 +1136,7 @@ function saveSgh_(r) {
   const vals = [[id, teacher, center, period, s(r.visitNo, 10), data.dayName, hijri, date, s(r.lesson, 500), recs,
     s(r.supName), JSON.stringify(data), old ? String(old[12] || nowStr_()) : nowStr_(), me.username, me.unit]];
   sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
-  return { ok: true, id: id, sigs: has, tid: data.tid || '', tName: data.tName || '', tchAt: data.tchAt || '' };
+  return { ok: true, id: id, sigs: has, tid: data.tid || '', tName: data.tName || '', tchAt: data.tchAt || '', tWa: teacherPhoneById_(data.tid) };
 }
 
 function deleteSgh_(r) {
@@ -1335,6 +1336,11 @@ function teacherByName_(name) {
     return L.length === 1 ? L[0] : null;
   } catch (e) { return null; }
 }
+function teacherPhoneById_(tid) {
+  const id = String(tid || '').trim();
+  if (!id) return '';
+  try { const t = certFind_(x => String(x.id) === id); return t ? String(t.phone || '') : ''; } catch (e) { return ''; }
+}
 function teacherByPhone_(phone) { const p = pPhone_(phone); return p ? certFind_(t => t.phone === p) : null; }
 
 // تحقق دخول المعلمة (مع إيقاف مؤقت بعد 5 محاولات خاطئة)
@@ -1531,7 +1537,7 @@ function saveSge_(r) {
     s(r.score, 10), s(r.max, 10), s(r.grade, 20), data.supName, json,
     old ? String(old[13] || nowStr_()) : nowStr_(), me.username, me.unit]];
   sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
-  return { ok: true, id: id, sigs: has, tid: data.tid || '', tName: data.tName || '', tchAt: data.tchAt || '' };
+  return { ok: true, id: id, sigs: has, tid: data.tid || '', tName: data.tName || '', tchAt: data.tchAt || '', tWa: teacherPhoneById_(data.tid) };
 }
 
 function deleteSge_(r) {
