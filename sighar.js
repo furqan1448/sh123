@@ -408,7 +408,6 @@ function sgFill(r) {
   sgNoTouched = false;
   const has = (r.data && r.data.sigs) || {};
   Object.keys(SGW).forEach(k => { SGW[k].reset(); if (edit && has[k]) SGW[k].keepOld('الإبقاء على التوقيع السابق'); });
-  if (!edit) SGW.tch.setMode('none');   // المعلمة: الافتراضي بدون توقيع (يُوقَّع ورقياً) ويمكن اختيار الرسم
 }
 function sgNew() { sgEdit = null; sgFill(null); show('sgForm'); }
 function sgEditRec(id) { const r = recById(id); if (!r) return; sgEdit = r; sgFill(r); show('sgForm'); }

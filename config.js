@@ -109,7 +109,8 @@ function sigFromFile(file) {
   });
 }
 
-/* o = { saved: يسمح بالتوقيع المحفوظ تلقائياً, none: يسمح بـ «بدون توقيع» } */
+/* o = { saved: يسمح بالتوقيع المحفوظ تلقائياً } — خيار «بدون توقيع» أُلغي من كل الوحدات (يُكتفى بالرسم أو إرفاق صورة).
+   ترك التوقيع فارغاً في الخانات الاختيارية يعني عدم إرفاق توقيع. */
 function makeSigWidget(rootId, o) {
   o = o || {};
   const root = document.getElementById(rootId);
@@ -135,7 +136,7 @@ function makeSigWidget(rootId, o) {
   let keepTab = false, mode = '', drawing = false, has = false, imgData = '', lastW = 0, noneText = 'بدون توقيع', noneHint = 'لن يُرفق توقيع مع هذه الاستمارة.';
 
   const defMode = () => (o.saved && mySig) ? 'saved' : 'draw';
-  const avail = () => (o.saved && mySig ? [['saved', 'توقيعي المحفوظ']] : []).concat([['draw', 'رسم'], ['image', 'إرفاق صورة']], (o.none || keepTab) ? [[ 'none', noneText ]] : []);
+  const avail = () => (o.saved && mySig ? [['saved', 'توقيعي المحفوظ']] : []).concat([['draw', 'رسم'], ['image', 'إرفاق صورة']], keepTab ? [[ 'none', noneText ]] : []);
 
   function resize() {
     const r = cv.getBoundingClientRect(), ratio = window.devicePixelRatio || 1;
@@ -167,6 +168,7 @@ function makeSigWidget(rootId, o) {
     keep.classList.toggle('hidden', !show);
   }
   function setMode(m) {
+    if (m === 'none' && !keepTab) m = defMode();   // لا يوجد «بدون توقيع»: نرجع للرسم أو التوقيع المحفوظ
     mode = m;
     qa('.sigw-pane').forEach(p => p.classList.toggle('hidden', p.dataset.p !== m));
     [...tabs.children].forEach(b => b.classList.toggle('on', b.dataset.m === m));
