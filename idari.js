@@ -288,7 +288,7 @@ const sBtn = (txt, fn, cls) => '<button class="btn ' + (cls || 'light') + '" sty
 function renderIdari() {
   const L = IDR.filter(r => r.kind === idKind);
   const heads = {
-    visit: ['م', 'المركز', 'التاريخ', 'رقم الزيارة', 'البنود', ''],
+    visit: ['م', 'المركز', 'التاريخ', 'رقم الزيارة', 'البنود', 'توقيع المديرة', ''],
     program: ['م', 'المركز', 'التاريخ', 'المحتوى', ''],
     suggest: ['م', 'الفصل الدراسي', 'العام', 'التاريخ', 'البنود', ''],
     monthly: ['م', 'المركز', 'التاريخ', 'رقم الزيارة', 'نوعها', 'تحتاج متابعة', ''],
@@ -306,7 +306,7 @@ function renderIdari() {
       (idKind === 'visit' ? sBtn('📲 إرسال للمديرة', 'idDo(\'' + id + '\', this, \'send\')', 'id-wa') : '') +
       sBtn('تعديل', 'idEditRec(\'' + id + '\')') + sBtn('حذف', 'idDel(\'' + id + '\')', 'danger') + '</div></td>';
     const date = (esc(idDayName(r)) + ' ' + idHDate(r)).trim();
-    if (idKind === 'visit') return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.center) + '</td><td>' + date + '</td><td>' + (esc(r.visitNo) || '—') + '</td><td>' + cnt(r) + '</td>' + acts + '</tr>';
+    if (idKind === 'visit') { const d = r.data || {}, sg = d.sigs && d.sigs.mgr; return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.center) + '</td><td>' + date + '</td><td>' + (esc(r.visitNo) || '—') + '</td><td>' + cnt(r) + '</td><td>' + (sg ? '<span class="tag ok">✔ وقّعت' + (d.mgrAt ? ' <small>' + esc(d.mgrAt) + '</small>' : '') + '</span>' : '<span class="tag warn">⏳ بانتظار توقيعها</span>') + '</td>' + acts + '</tr>'; }
     if (idKind === 'mgreval') { const sc = (r.data && r.data.sc) || []; return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.center) + '</td><td>' + (esc(r.mgrName) || '—') + '</td><td>' + date + '</td><td>' + (sc.some(x => meNum(x) != null) ? '<b>' + arD(meTotal(sc)) + '</b> / ١٠٠' : '—') + '</td>' + acts + '</tr>'; }
     if (idKind === 'halls') { const t = hlTotals(r.data); return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.center) + '</td><td>' + esc([r.sem, r.year].filter(Boolean).join(' / ') || '—') + '</td><td>' + arD(t.halls) + '</td><td>' + arD(t.cap) + '</td>' + acts + '</tr>'; }
     if (idKind === 'monthly') { const neg = imNegCount(r.data); return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.center) + (r.period ? '<br><small>' + esc(r.period) + '</small>' : '') + '</td><td>' + date + '</td><td>' + (esc(r.visitNo) || '—') + '</td><td>' + (esc(r.data && r.data.vtype) || '—') + '</td><td>' + (neg ? '<b style="color:#b03a2e">' + arD(neg) + '</b>' : '٠') + '</td>' + acts + '</tr>'; }

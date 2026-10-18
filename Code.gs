@@ -168,6 +168,8 @@ function doPost(e) {
       if (!mgr) out = { ok: false, error: 'الاسم أو كلمة المرور غير صحيحة' };
       else if (req.action === 'getSigs') out = { ok: true, data: getSigs_(req.items) };   // توقيعات الاستمارات لملف الإكسل
       else out = getManage_(mgr);
+    } else if (String(req.action || '').indexOf('c_') === 0) {   // أيقونة «المراكز»: دخول باسم المركز وكلمة مروره
+      out = centerRoute_(req);
     } else if (String(req.action || '').indexOf('t_') === 0) {   // أيقونة «المعلمات»: دخول برقم الجوال وكلمة مرور بوابة المعلمات
       out = teacherRoute_(req);
     } else if (!checkAuth_(req.username, req.password)) {
@@ -949,6 +951,7 @@ function saveIdari_(r) {
   const has = {};
   IDARI_SIGS.forEach(k => {
     const v = String(sigs[k] || '');
+    if (k === 'mgr' && oldData.mgrAt && v.indexOf('data:image/') !== 0) { has.mgr = '1'; data.mgrAt = oldData.mgrAt; return; }   // وقّعت المديرة من حساب المركز: يبقى توقيعها
     if (v === 'keep') { if (oldData.sigs && oldData.sigs[k]) has[k] = '1'; return; }
     if (v.indexOf('data:image/') === 0) { sigPut_(id + '|' + k, v); has[k] = '1'; }
     else if (old) sigDel_(id + '|' + k);
@@ -1784,4 +1787,100 @@ function deleteReport_(r) {
   if (String(sh.getRange(row, 9).getValue()) !== norm_(r.username).toLowerCase()) throw new Error('لا يمكن حذف خلاصة مشرفة أخرى');
   sh.deleteRow(row);
   return { ok: true };
+}
+
+
+/* ============ أيقونة «المراكز»: دخول المركز باسم المركز وكلمة مروره (مثل نظام المقاصف) ============
+   ورقة «حسابات المراكز» تُنشأ تلقائياً: اسم المركز | كلمة المرور | الاسم المعروض.
+   الحساب للمركز لا لشخص المديرة (لا جوال ولا إيميل). يرى المركز تقارير زيارة الإشراف الإداري الخاصة به،
+   فتطّلع المديرة عليها وتوقّع من حساب المركز (مثل تقارير الزيارة في نظام المقاصف). */
+const CENTER_ACC_SHEET = 'حسابات المراكز';
+const C_MAX_FAILS = 5, C_LOCK_MIN = 15;
+
+function centerAccSheet_() {
+  const ss = ss_();
+  let sh = ss.getSheetByName(CENTER_ACC_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(CENTER_ACC_SHEET);
+    sh.getRange(1, 1, 1, 3).setValues([['اسم المركز', 'كلمة المرور', 'الاسم المعروض']]);
+    styleHeader_(sh, 3);
+    sh.setRightToLeft(true);
+    sh.setColumnWidth(1, 320);
+  }
+  return sh;
+}
+function centerAccounts_() {
+  const c = CacheService.getScriptCache(), hit = c.get('cacc_v1');
+  if (hit) { try { return JSON.parse(hit); } catch (e) {} }
+  const sh = centerAccSheet_();
+  const v = sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, 3).getDisplayValues() : [];
+  const out = v.filter(r => String(r[0]).trim()).map(r => ({ name: String(r[0]).trim(), pass: String(r[1]).trim().replace(/\.0+$/, ''), display: String(r[2]).trim() || String(r[0]).trim() }));
+  try { c.put('cacc_v1', JSON.stringify(out), 300); } catch (e) {}
+  return out;
+}
+// مطابقة اسم المركز بين الحساب وقائمة مراكز المنظومة: نحذف «الفترة …» و«مركز/معهد» والتشكيل والهمزات والمسافات
+function cKey_(t) {
+  return String(t || '').replace(/[-–—]\s*الفتر[ةه].*$/, '').replace(/[ً-ْـ]/g, '').replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
+    .replace(/(^|\s)(مركز|معهد)(\s|$)/g, ' ').replace(/[^ء-يa-z0-9]/gi, '');
+}
+// فترات الحساب من اسمه: «الفترة الصباحية» أو «المسائية» أو كلتاهما (وإن لم تُذكر فكلتاهما)
+function cPeriods_(name) {
+  const m = /صباح/.test(name), e = /مسائ/.test(name);
+  return { m: m || !e, e: e || !m };
+}
+function centerAuth_(r) {
+  const name = String(r.center || '').trim(), pass = String(r.cpass || '').trim();
+  if (!name || !pass) throw new Error('اختاري المركز واكتبي كلمة المرور');
+  const c = CacheService.getScriptCache(), key = 'cfail_' + cKey_(name).slice(0, 80);
+  const fails = Number(c.get(key) || 0);
+  if (fails >= C_MAX_FAILS) throw new Error('تم إيقاف المحاولات مؤقتاً، حاولي بعد ' + C_LOCK_MIN + ' دقيقة');
+  const acc = centerAccounts_().find(a => a.name === name && a.pass === pass);
+  if (!acc) { c.put(key, String(fails + 1), C_LOCK_MIN * 60); throw new Error('اسم المركز أو كلمة المرور غير صحيحة'); }
+  if (fails) c.remove(key);
+  return acc;
+}
+// تقارير زيارة الإشراف الإداري الخاصة بهذا المركز (وفترته)
+function centerReports_(acc) {
+  const k = cKey_(acc.name), per = cPeriods_(acc.name);
+  return getIdari_().filter(x => x.kind === 'visit' && cKey_(x.center) === k && (() => {
+    const p = String(x.period || '');
+    if (!p) return true;
+    return (p.indexOf('صباح') > -1 && per.m) || (p.indexOf('مسائ') > -1 && per.e);
+  })()).map(x => { const o = Object.assign({}, x); delete o.owner; o.signed = !!(x.data && x.data.sigs && x.data.sigs.mgr); return o; });
+}
+function centerRoute_(r) {
+  try {
+    if (r.action === 'c_names') return { ok: true, data: centerAccounts_().map(a => ({ name: a.name, display: a.display })) };
+    const acc = centerAuth_(r);
+    if (r.action === 'c_login' || r.action === 'c_list') return { ok: true, center: { name: acc.name, display: acc.display }, data: centerReports_(acc) };
+    if (r.action === 'c_sigs') {
+      const rec = centerReports_(acc).find(x => x.id === String(r.id || ''));
+      if (!rec) throw new Error('التقرير غير موجود');
+      return { ok: true, data: getSigs_(['sup', 'mgr', 'ack'].map(k => ({ id: rec.id + '|' + k }))) };
+    }
+    if (r.action === 'c_sign') return withLock_(() => centerSign_(acc, r));
+    throw new Error('إجراء غير معروف');
+  } catch (e) {
+    return { ok: false, error: String(e && e.message ? e.message : e) };
+  }
+}
+function centerSign_(acc, r) {
+  const id = String(r.id || ''), sig = String(r.signature || ''), signer = String(r.signer || '').trim().slice(0, 80);
+  if (sig.indexOf('data:image/') !== 0 || sig.length > 49000) throw new Error('التوقيع غير صالح، أعيدي التوقيع');
+  if (!centerReports_(acc).some(x => x.id === id)) throw new Error('هذا التقرير لا يخص مركزكم');
+  const sh = ss_().getSheetByName(SHEET.IDARI);
+  const ids = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues();
+  for (let i = 0; i < ids.length; i++) {
+    if (String(ids[i][0]) !== id) continue;
+    const row = i + 2;
+    let data = {};
+    try { data = JSON.parse(sh.getRange(row, 12).getValue() || '{}'); } catch (e) {}
+    sigPut_(id + '|mgr', sig);
+    data.sigs = data.sigs || {}; data.sigs.mgr = '1';
+    data.mgrAt = nowStr_();
+    sh.getRange(row, 12).setNumberFormat('@').setValue(JSON.stringify(data));
+    if (signer) sh.getRange(row, 11).setNumberFormat('@').setValue(signer);   // اسم المديرة التي وقّعت
+    return { ok: true, at: data.mgrAt };
+  }
+  throw new Error('التقرير غير موجود');
 }
