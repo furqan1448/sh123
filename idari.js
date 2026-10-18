@@ -5,8 +5,9 @@ const VIEW_KEY = 'idari_view', NAME_KEY = 'idari_name', KIND_KEY = 'idari_kind';
 let LISTS = { centers: [], types: [], typesIdari: [] };
 let VISITS = [], IDR = [], idKind = 'visit', idEdit = null;
 
-const ALL_VIEWS = ['loginView', 'homeView', 'visitsView', 'idListView', 'idVisitForm', 'idProgramForm', 'idSuggestForm', 'atView'];
-const FORM_OF = { visit: 'idVisitForm', program: 'idProgramForm', suggest: 'idSuggestForm' };
+const ALL_VIEWS = ['loginView', 'homeView', 'visitsView', 'idListView', 'idVisitForm', 'idProgramForm', 'idSuggestForm', 'idMonthlyForm', 'atView'];
+const FORM_OF = { visit: 'idVisitForm', program: 'idProgramForm', suggest: 'idSuggestForm', monthly: 'idMonthlyForm' };
+const ID_PFX = { visit: 'iv', program: 'ip', suggest: 'is', monthly: 'im' };
 
 function show(id) {
   ALL_VIEWS.forEach(v => { const el = $(v); if (el) el.classList.add('hidden'); });
@@ -68,7 +69,7 @@ function fillSelect(id, arr, ph) {
   if (cur && arr.indexOf(cur) > -1) el.value = cur;
 }
 function fillLists() {
-  ['vCenter', 'ivCenter', 'ipCenter'].forEach(id => fillSelect(id, LISTS.centers || [], 'اختاري المركز'));
+  ['vCenter', 'ivCenter', 'ipCenter', 'imCenter'].forEach(id => fillSelect(id, LISTS.centers || [], 'اختاري المركز'));
   fillSelect('fCenter', LISTS.centers || [], 'كل المراكز');
   fillTypes();
   fillVStatus();
@@ -119,6 +120,7 @@ function hdChanged(p) {
   if (g) $(p + 'DayN').value = dayOf(g);
   hdPrev(p);
   if (p === 'iv') ivUpdateNo();
+  if (p === 'im') imUpdateNo();
 }
 function hdPrev(p) {
   const y = $(p + 'HY').value.trim();
@@ -138,7 +140,7 @@ function hdGet(p) {
   const hd = $(p + 'HD').value, hm = $(p + 'HM').value, hy = $(p + 'HY').value.trim().replace(/[٠-٩]/g, x => '٠١٢٣٤٥٦٧٨٩'.indexOf(x));
   return { hd, hm, hy, dayName: $(p + 'DayN').value, greg: idHToG(hy, hm, hd) };
 }
-['iv', 'ip', 'is'].forEach(hdBuild);
+['iv', 'ip', 'is', 'im'].forEach(hdBuild);
 
 /* ======================= كشف الخروج (نفس فكرة الإشراف التربوي) ======================= */
 const V_STATUS = ['تمت الزيارة', 'تمت الزيارة والمديرة متغيبة', 'تمت الزيارة وتعذر التوثيق لتعليق الموقع أو الشبكة', 'تمت الزيارة قبل توفر موقع النظام', 'لم تتم الزيارة'];
@@ -249,13 +251,15 @@ async function delVisit(id) {
 const SIGW = {
   ivSup: makeSigWidget('ivSupW', { saved: true, none: true }),
   ipSup: makeSigWidget('ipSupW', { saved: true, none: true }),
-  isSup: makeSigWidget('isSupW', { saved: true, none: true })
+  isSup: makeSigWidget('isSupW', { saved: true, none: true }),
+  imSup: makeSigWidget('imSupW', { saved: true })
 };
-const SIGS_OF = { visit: { sup: 'ivSup' }, program: { sup: 'ipSup' }, suggest: { sup: 'isSup' } };
+const SIGS_OF = { visit: { sup: 'ivSup' }, program: { sup: 'ipSup' }, suggest: { sup: 'isSup' }, monthly: { sup: 'imSup' } };
 const ID_HINT = {
   visit: 'تقرير الزيارة الإدارية للمركز بالملاحظات والتوصيات، ويُطبع أو يُحمَّل PDF بالكليشة أو يُرسَل للمديرة للتوقيع عليه.',
   program: 'تخطيط وتنفيذ ونتائج برنامج المشرفة المقيمة، ويُطبع أو يُحمَّل PDF بالكليشة.',
-  suggest: 'الاقتراحات والمرئيات والصعوبات التي تواجه المشرفة، وتُسلَّم آخر الفصل الدراسي.'
+  suggest: 'الاقتراحات والمرئيات والصعوبات التي تواجه المشرفة، وتُسلَّم آخر الفصل الدراسي.',
+  monthly: 'متابعة إدارية شهرية للمركز (الهيئة الإدارية، المبنى، السجلات والملفات): استمارة لكل زيارة، وتُطبع أو تُحمَّل PDF بالكليشة.'
 };
 
 async function loadIdari(silent) {
@@ -282,7 +286,8 @@ function renderIdari() {
   const heads = {
     visit: ['م', 'المركز', 'التاريخ', 'رقم الزيارة', 'البنود', ''],
     program: ['م', 'المركز', 'التاريخ', 'المحتوى', ''],
-    suggest: ['م', 'الفصل الدراسي', 'العام', 'التاريخ', 'البنود', '']
+    suggest: ['م', 'الفصل الدراسي', 'العام', 'التاريخ', 'البنود', ''],
+    monthly: ['م', 'المركز', 'التاريخ', 'رقم الزيارة', 'نوعها', 'تحتاج متابعة', '']
   }[idKind];
   $('idHead').innerHTML = '<tr>' + heads.map(h => '<th>' + h + '</th>').join('') + '</tr>';
   if (!L.length) { $('idBody').innerHTML = '<tr><td colspan="' + heads.length + '" class="empty">لا توجد نماذج محفوظة</td></tr>'; return; }
@@ -296,6 +301,7 @@ function renderIdari() {
       sBtn('تعديل', 'idEditRec(\'' + id + '\')') + sBtn('حذف', 'idDel(\'' + id + '\')', 'danger') + '</div></td>';
     const date = (esc(idDayName(r)) + ' ' + idHDate(r)).trim();
     if (idKind === 'visit') return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.center) + '</td><td>' + date + '</td><td>' + (esc(r.visitNo) || '—') + '</td><td>' + cnt(r) + '</td>' + acts + '</tr>';
+    if (idKind === 'monthly') { const neg = imNegCount(r.data); return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.center) + (r.period ? '<br><small>' + esc(r.period) + '</small>' : '') + '</td><td>' + date + '</td><td>' + (esc(r.visitNo) || '—') + '</td><td>' + (esc(r.data && r.data.vtype) || '—') + '</td><td>' + (neg ? '<b style="color:#b03a2e">' + arD(neg) + '</b>' : '٠') + '</td>' + acts + '</tr>'; }
     if (idKind === 'program') return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.center) + '</td><td>' + date + '</td><td>' + esc(short(r.data && r.data.content)) + '</td>' + acts + '</tr>';
     return '<tr><td>' + (i + 1) + '</td><td>' + (esc(r.sem) || '—') + '</td><td>' + (esc(r.year) || '—') + '</td><td>' + (date || '—') + '</td><td>' + cnt(r) + '</td>' + acts + '</tr>';
   }).join('');
@@ -471,6 +477,8 @@ function idFill(kind, r) {
       $('ivAbout').value = ''; ivNotesSet([]); $('ivRec').value = IV_REC_DEFAULT;
     }
     if (!edit) { loadDirs().then(() => { if (!idEdit) ivCenterChanged(); }); }
+  } else if (kind === 'monthly') {
+    imFill(r, edit);
   } else if (kind === 'program') {
     hdSet('ip', edit ? r : null); $('ipCenter').value = r.center || '';
     ['content', 'plan', 'method', 'tools', 'results', 'ratio'].forEach(k => { $('ip' + k[0].toUpperCase() + k.slice(1)).value = d[k] || ''; });
@@ -498,7 +506,7 @@ function idBack() { idEdit = null; show('idListView'); renderIdari(); }
 /* ---------- الحفظ ---------- */
 async function idSave(kind, btn, sendAfter) {
   const req = { kind, id: idEdit ? idEdit.id : '' };
-  const p = { visit: 'iv', program: 'ip', suggest: 'is' }[kind];
+  const p = ID_PFX[kind];
   const hd = hdGet(p);
   if (!/^\d{4}$/.test(hd.hy)) return toast('اكتبي سنة التاريخ الهجري (مثال: 1448)', false);
   const dateData = { hd: hd.hd, hm: hd.hm, hy: hd.hy, dayName: hd.dayName };
@@ -512,6 +520,12 @@ async function idSave(kind, btn, sendAfter) {
     if (!req.period) return toast('اختاري الفترة (صباحي أو مسائي)', false);
     if (!req.data.notes.length) return toast('اكتبي ملاحظة واحدة على الأقل', false);
     if (sendAfter && !idWaPhone(req.data.mgrPhone)) return toast('اكتبي جوال المديرة بصيغة صحيحة (05xxxxxxxx) للإرسال', false);
+  } else if (kind === 'monthly') {
+    Object.assign(req, imCollect(true), {});
+    req.data = Object.assign(req.data, dateData);
+    if (!req.center) return toast('اختاري اسم المركز', false);
+    if (!req.period) return toast('اختاري الفترة (صباحي أو مسائي)', false);
+    if (!req.data.ev.some(e => (e.a || []).some(Boolean))) return toast('قيّمي بنداً واحداً على الأقل', false);
   } else if (kind === 'program') {
     const data = Object.assign({}, dateData);
     ['content', 'plan', 'method', 'tools', 'results', 'ratio'].forEach(k => { data[k] = $('ip' + k[0].toUpperCase() + k.slice(1)).value.trim(); });
@@ -547,10 +561,226 @@ async function idSave(kind, btn, sendAfter) {
   finally { setBtnBusy(btn, false); }
 }
 
+/* ======================= استمارة المتابعة الإدارية الشهرية ======================= */
+// عدد البنود التي اختير فيها التقييم السلبي (تحتاج متابعة)
+function imNegCount(d) { return ((d && d.ev) || []).reduce((s, e) => s + (e.a || []).filter(v => v === '2').length, 0); }
+
+/* ---------- أسماء المنسوبات ---------- */
+function imAddRow(box, withTitle, v) {
+  const row = document.createElement('div');
+  row.className = 'im-list-row';
+  v = v || (withTitle ? {} : '');
+  row.innerHTML = '<span class="num"></span>' + (withTitle ? '<input class="t" placeholder="المسمى" value="' + esc(v.t || 'الإدارية') + '">' : '') +
+    '<input class="n" placeholder="الاسم" autocomplete="off" value="' + esc(withTitle ? (v.n || '') : (v || '')) + '"><button type="button" class="x" title="حذف">✕</button>';
+  row.querySelector('.x').onclick = () => { row.remove(); imNum(box); imStaffCount(); imNamesList(); };
+  row.querySelector('.n').addEventListener('change', () => { imNamesList(); imStaffCount(); });
+  $(box).appendChild(row);
+  imNum(box);
+}
+function imNum(box) { [...$(box).children].forEach((el, i) => { el.querySelector('.num').textContent = arD(i + 1); }); }
+function imRowsSet(box, list, withTitle, min) {
+  $(box).innerHTML = '';
+  const L = (list || []).slice();
+  // قائمة فارغة: صفوف افتراضية كالاستمارة الورقية؛ وإن نُسخت أسماء فلا تُضاف صفوف فارغة
+  if (!L.length) while (L.length < (min || 0)) L.push(withTitle ? { t: IM_ADMIN_TITLES[L.length] || 'الإدارية', n: '' } : '');
+  L.forEach(v => imAddRow(box, withTitle, v));
+}
+function imRowsGet(box, withTitle) {
+  return [...$(box).children].map(el => withTitle ? { t: el.querySelector('.t').value.trim(), n: el.querySelector('.n').value.trim() } : el.querySelector('.n').value.trim())
+    .filter(x => withTitle ? x.n : x);
+}
+function imStaffGet() { return { guard: $('imGuard').value.trim(), adm: imRowsGet('imAdm', true), work: imRowsGet('imWork'), tch: imRowsGet('imTch') }; }
+function imStaffSet(st) {
+  st = st || {};
+  $('imGuard').value = st.guard || '';
+  imRowsSet('imAdm', st.adm, true, 5);
+  imRowsSet('imWork', st.work, false, 3);
+  imRowsSet('imTch', st.tch, false, 3);
+  imNamesList(); imStaffCount();
+}
+function imStaffCount() {
+  const st = imStaffGet();
+  const n = (st.guard ? 1 : 0) + st.adm.length + st.work.length + st.tch.length;
+  $('imStaffCnt').innerHTML = n ? '<b>' + arD(n) + '</b> اسماً' : 'لم تُكتب أسماء';
+}
+// قائمة الأسماء المقترحة لخانة اسم الموظفة في كل قسم
+function imNamesList() {
+  const st = imStaffGet();
+  const names = [st.guard].concat(st.adm.map(x => x.n), st.work).filter(Boolean);
+  $('imNames').innerHTML = [...new Set(names)].map(n => '<option value="' + esc(n) + '">').join('');
+}
+
+/* ---------- أقسام التقييم ---------- */
+let imSeq = 0;
+function imSecHtml(e) {
+  const sec = IM_SEC(e.k); if (!sec) return '';
+  const uid = 'ims' + (++imSeq), a = e.a || [], n = e.n || [];
+  let body = '', g = null;
+  sec.items.forEach((it, i) => {
+    if (it.g && it.g !== g) { g = it.g; body += '<div class="im-g">' + esc(it.g) + '</div>'; }
+    body += '<div class="im-it" data-i="' + i + '"><div class="q">' + esc(it.t) + '</div><div class="im-opts">' +
+      it.o.map((o, j) => '<label' + (j === 1 ? ' class="neg"' : '') + '><input type="radio" name="' + uid + '_' + i + '" value="' + (j + 1) + '"' + (String(a[i]) === String(j + 1) ? ' checked' : '') + '>' + esc(o) + '</label>').join('') +
+      '<button type="button" class="im-nt-btn"' + (n[i] ? ' hidden' : '') + '>＋ ملاحظة</button></div>' +
+      '<input class="im-note"' + (n[i] ? '' : ' hidden') + ' placeholder="ملاحظة أو توجيه" value="' + esc(n[i] || '') + '"></div>';
+  });
+  if (e.k === 'building') body += '<div style="padding:8px 14px 12px"><label style="margin-top:0">الأجهزة غير الصالحة</label><textarea class="im-dev" rows="2"></textarea></div>';
+  return '<details class="card ev-sec im-sec" data-k="' + e.k + '"><summary><span>' + esc(sec.title) + '<small class="im-who" style="color:var(--muted);font-weight:600"></small></span><span class="ev-prog"></span></summary>' +
+    (sec.person ? '<input class="im-name" list="imNames" autocomplete="off" placeholder="اسم ' + esc(sec.person) + '" value="' + esc(e.name || '') + '">' : '') +
+    '<div class="im-tools"><span>تحديد سريع:</span><button type="button" class="btn light" data-all="1">الكل إيجابي</button><button type="button" class="btn light" data-all="0">مسح الاختيارات</button></div>' +
+    body + (sec.multi ? '<div class="im-sec-x"><button type="button" class="btn danger" data-del="1">حذف هذا التقييم</button></div>' : '') + '</details>';
+}
+function imBuildSecs(ev) {
+  const byK = {};
+  (ev || []).forEach(e => { (byK[e.k] = byK[e.k] || []).push(e); });
+  let h = '';
+  IM_SECTIONS.forEach(sec => {
+    const L = byK[sec.k] && byK[sec.k].length ? byK[sec.k] : [{ k: sec.k }];
+    L.forEach(e => { h += imSecHtml(e); });
+    if (sec.multi) h += '<button type="button" class="btn light block" style="margin:-6px 0 14px" data-add="' + sec.k + '">＋ إضافة تقييم ' + esc(sec.person) + ' أخرى</button>';
+  });
+  $('imSecs').innerHTML = h;
+  imSecs$().forEach(imSecProgress);
+  imTotals();
+  return $('imSecs').querySelector('.im-dev');
+}
+const imSecs$ = () => [...$('imSecs').querySelectorAll('.im-sec')];
+function imSecProgress(el) {
+  const its = [...el.querySelectorAll('.im-it')];
+  const done = its.filter(x => x.querySelector('input:checked')).length;
+  const neg = its.filter(x => { const c = x.querySelector('input:checked'); return c && c.value === '2'; }).length;
+  el.querySelector('.ev-prog').innerHTML = '<b>' + arD(done) + '</b> / ' + arD(its.length) + (neg ? ' — <b style="color:#b03a2e">' + arD(neg) + '</b> تحتاج متابعة' : '');
+  const nm = el.querySelector('.im-name');
+  el.querySelector('.im-who').textContent = nm && nm.value.trim() ? ' — ' + nm.value.trim() : '';
+}
+function imTotals() {
+  const its = [...$('imSecs').querySelectorAll('.im-it')];
+  $('imDone').textContent = arD(its.filter(x => x.querySelector('input:checked')).length);
+  $('imTotal').textContent = arD(its.length);
+  $('imNeg').textContent = arD(its.filter(x => { const c = x.querySelector('input:checked'); return c && c.value === '2'; }).length);
+}
+// الضغط على اختيار محدد مسبقاً يلغي تحديده
+let imDownChecked = null;
+$('imSecs').addEventListener('pointerdown', e => { const lb = e.target.closest('.im-opts label'); imDownChecked = lb && lb.querySelector('input').checked ? lb.querySelector('input') : null; });
+$('imSecs').addEventListener('click', e => {
+  const sec = e.target.closest('.im-sec');
+  if (e.target.matches('input[type=radio]') && imDownChecked === e.target) { e.target.checked = false; imDownChecked = null; }
+  const all = e.target.closest('[data-all]');
+  if (all && sec) sec.querySelectorAll('.im-it').forEach(it => { if (all.dataset.all === '1') it.querySelector('input[value="1"]').checked = true; else it.querySelectorAll('input[type=radio]').forEach(x => { x.checked = false; }); });
+  const nb = e.target.closest('.im-nt-btn');
+  if (nb) { const inp = nb.closest('.im-it').querySelector('.im-note'); inp.hidden = false; nb.hidden = true; inp.focus(); return; }
+  const del = e.target.closest('[data-del]');
+  if (del && sec) {
+    const k = sec.dataset.k;
+    if (imSecs$().filter(x => x.dataset.k === k).length < 2) { toast('يبقى تقييم واحد على الأقل، ويمكن تركه فارغاً', false); return; }
+    if (!confirm('حذف هذا التقييم؟')) return;
+    sec.remove(); imTotals(); return;
+  }
+  const add = e.target.closest('[data-add]');
+  if (add) {
+    add.insertAdjacentHTML('beforebegin', imSecHtml({ k: add.dataset.add }));
+    const n = add.previousElementSibling; n.open = true; imSecProgress(n); imTotals(); n.scrollIntoView({ block: 'start', behavior: 'smooth' }); return;
+  }
+  if (sec) { imSecProgress(sec); imTotals(); }
+});
+$('imSecs').addEventListener('input', e => { const sec = e.target.closest('.im-sec'); if (sec && e.target.classList.contains('im-name')) imSecProgress(sec); });
+$('imPeriod').addEventListener('change', e => {
+  if (e.target.checked) document.querySelectorAll('#imPeriod input').forEach(i => { if (i !== e.target) i.checked = false; });
+  imCenterChanged();
+});
+$('imMgrName').addEventListener('input', () => { delete $('imMgrName').dataset.auto; });
+function imEvGet() {
+  return imSecs$().map(el => {
+    const its = [...el.querySelectorAll('.im-it')];
+    const nm = el.querySelector('.im-name');
+    return { k: el.dataset.k, name: nm ? nm.value.trim() : '',
+      a: its.map(x => { const c = x.querySelector('input:checked'); return c ? c.value : ''; }),
+      n: its.map(x => x.querySelector('.im-note').value.trim()) };
+  });
+}
+
+/* ---------- المديرة ورقم الزيارة ونسخ الأسماء من آخر استمارة للمركز ---------- */
+function imFillMgr() {
+  const st = $('imMgrStatus'), center = $('imCenter').value;
+  if (!center) { st.textContent = ''; return; }
+  const L = ivDirsFor(center);
+  if (!L.length) { st.textContent = ''; return; }
+  let per = periodGet('imPeriod');
+  if (!per) {
+    const hasM = L.some(d => !d.evening), hasE = L.some(d => d.evening);
+    if (hasM && hasE) { st.textContent = 'لهذا المركز فترتان: اختاري الفترة لتظهر بيانات المديرة.'; return; }
+    per = hasE ? 'مسائي' : 'صباحي';
+    periodSet('imPeriod', per);
+  }
+  const d = L.find(x => x.evening === (per === 'مسائي'));
+  if (d && d.name && (!$('imMgrName').value.trim() || $('imMgrName').dataset.auto === '1')) { $('imMgrName').value = d.name; $('imMgrName').dataset.auto = '1'; }
+  st.textContent = d && d.name ? '✔️ المديرة: ' + d.name : '';
+}
+function imUpdateNo() {
+  const hint = $('imVisitNoHint'), center = $('imCenter').value, per = periodGet('imPeriod');
+  if (!center || !per) { hint.textContent = ''; return; }
+  const hd = hdGet('im');
+  const cur = /^\d{4}$/.test(hd.hy) ? hd.hy + '-' + pad2(hd.hm) + '-' + pad2(hd.hd) : '9999';
+  const selfId = idEdit ? idEdit.id : '';
+  const L = IDR.filter(r => r.kind === 'monthly' && r.id !== selfId && r.center === center && String(r.period || '').indexOf(per) > -1);
+  const before = L.filter(r => ivHKey(r) < cur).length;
+  if (!idEdit) $('imVisitNo').value = before + 1;
+  hint.textContent = L.length ? 'استماراتكِ السابقة لهذا المركز في هذه الفترة: ' + arD(before) + '، فهذه الزيارة رقم ' + arD(before + 1) + '.' : 'لا توجد استمارات سابقة لهذا المركز في هذه الفترة، فهذه الزيارة الأولى.';
+}
+// استمارة جديدة: تُنسخ أسماء المنسوبات وأسماء من قُيِّمن من آخر استمارة لنفس المركز (والفترة إن وُجدت)
+function imCopyFromLast() {
+  if (idEdit) return;
+  const center = $('imCenter').value, per = periodGet('imPeriod');
+  const st = imStaffGet();
+  if (!center || st.guard || st.adm.length || st.work.length || st.tch.length) return;
+  const L = IDR.filter(r => r.kind === 'monthly' && r.center === center && (!per || String(r.period || '').indexOf(per) > -1))
+    .sort((x, y) => (ivHKey(y) + (y.at || '')).localeCompare(ivHKey(x) + (x.at || '')));
+  const last = L[0];
+  if (!last || !last.data) return;
+  imStaffSet(last.data.staff);
+  if (last.data.gen) ['halls', 'used', 'cap'].forEach(k => { const el = $('im' + k[0].toUpperCase() + k.slice(1)); if (!el.value) el.value = last.data.gen[k] || ''; });
+  // أسماء من قُيِّمن فقط (بدون الاختيارات والملاحظات)
+  const cur = imEvGet();
+  if (!cur.some(e => e.name || e.a.some(Boolean))) imBuildSecs((last.data.ev || []).map(e => ({ k: e.k, name: e.name })));
+  $('imStaffHint').textContent = '✔ نُسخت الأسماء من آخر استمارة لهذا المركز، ويمكن تعديلها.';
+}
+function imCenterChanged() { imFillMgr(); imUpdateNo(); imCopyFromLast(); }
+
+/* ---------- تعبئة الاستمارة وجمع بياناتها ---------- */
+function imFill(r, edit) {
+  const d = r.data || {}, gen = d.gen || {};
+  $('imCenter').value = r.center || '';
+  periodSet('imPeriod', r.period);
+  $('imSem').value = r.sem || ''; $('imYear').value = r.year || hijriYear();
+  hdSet('im', edit ? r : null);
+  $('imVisitNo').value = r.visitNo || '';
+  document.querySelectorAll('#imVType input').forEach(i => { i.checked = i.value === (d.vtype || ''); });
+  $('imMgrName').value = r.mgrName || ''; delete $('imMgrName').dataset.auto;
+  $('imMgrStatus').textContent = ''; $('imVisitNoHint').textContent = '';
+  $('imStaffHint').textContent = 'تُنسخ الأسماء تلقائياً من آخر استمارة لهذا المركز، ويمكن تعديلها.';
+  $('imHalls').value = gen.halls || ''; $('imUsed').value = gen.used || ''; $('imCap').value = gen.cap || ''; $('imGenNotes').value = gen.notes || '';
+  imStaffSet(d.staff);
+  $('imStaffSec').open = false;
+  const dev = imBuildSecs(d.ev);
+  if (dev) dev.value = d.devices || '';
+  $('imOther').value = d.other || '';
+  $('imSupName').value = r.supName || myName();
+  if (!edit) loadDirs().then(() => { if (!idEdit && $('imCenter').value) imCenterChanged(); });
+}
+function imCollect(trim) {
+  const v = id => trim ? $(id).value.trim() : $(id).value;
+  const vt = document.querySelector('#imVType input:checked');
+  const dev = $('imSecs').querySelector('.im-dev');
+  return { center: $('imCenter').value, sem: $('imSem').value, year: v('imYear'), period: periodGet('imPeriod'), visitNo: v('imVisitNo'),
+    mgrName: v('imMgrName'), supName: v('imSupName'),
+    data: { vtype: vt ? vt.value : '', gen: { halls: v('imHalls'), used: v('imUsed'), cap: v('imCap'), notes: v('imGenNotes') },
+      staff: imStaffGet(), ev: imEvGet(), devices: dev ? (trim ? dev.value.trim() : dev.value) : '', other: v('imOther') } };
+}
+
 /* ---------- الحفظ التلقائي (autosave.js): نماذج الإشراف الإداري الثلاثة ---------- */
 function idCollect(kind) {
-  const p = { visit: 'iv', program: 'ip', suggest: 'is' }[kind];
+  const p = ID_PFX[kind];
   const h = hdGet(p), dateData = { hd: h.hd, hm: h.hm, hy: h.hy, dayName: h.dayName };
+  if (kind === 'monthly') { const o = imCollect(false); o.data = Object.assign(o.data, dateData); return o; }
   if (kind === 'visit') return { center: $('ivCenter').value, sem: $('ivSem').value, year: $('ivYear').value, period: periodGet('ivPeriod'), visitNo: $('ivVisitNo').value,
     mgrName: $('ivMgrName').value, supName: $('ivSupName').value,
     data: Object.assign({ vtype: $('ivType').value, ackCol: $('ivAckCol').checked ? '1' : '', about: $('ivAbout').value, notes: ivNotesGet(), recText: $('ivRec').value, mgrPhone: $('ivMgrPhone').value }, dateData) };
@@ -561,8 +791,8 @@ function idCollect(kind) {
   }
   return { sem: $('isSem').value, year: $('isYear').value, period: periodGet('isPeriod'), supName: $('isSupName').value, data: Object.assign({ rows: idRowsGet('isRows') }, dateData) };
 }
-['visit', 'program', 'suggest'].forEach(kind => {
-  const p = { visit: 'iv', program: 'ip', suggest: 'is' }[kind];
+['visit', 'program', 'suggest', 'monthly'].forEach(kind => {
+  const p = ID_PFX[kind];
   AD.register(FORM_OF[kind], {
     key: () => idEdit ? idEdit.id : 'new',
     collect: () => idCollect(kind),

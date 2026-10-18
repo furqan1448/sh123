@@ -115,6 +115,7 @@ const ID_CSS = `
 /* ---------- محتوى النموذج (نفس الشكل للعرض والطباعة والـ PDF) ---------- */
 function idDocHtml(rec, sigs, lhUrl) {
   sigs = sigs || {};
+  if (rec.kind === 'monthly') return imDocHtml(rec, sigs, lhUrl);   // استمارة المتابعة الإدارية الشهرية (عدة صفحات)
   const d = rec.data || {};
   const per = String(rec.period || '');
   // أبعاد الكليشة مكتوبة صراحةً حتى يُحجز مكانها قبل تحميلها (وإلا يُقصّ أسفل ملف PDF)
@@ -309,6 +310,7 @@ function idFixBidi(doc) {
 }
 // يبني ملف PDF ويعيده كـ Blob (بنفس طريقة تقرير الزيارة في نظام المقاصف: صفحة A4 عرضية، والكليشة ملتصقة بأعلى الصفحة)
 async function idPdfBlob(rec, sigs) {
+  if (rec.kind === 'monthly') return imPdfBlob(rec, sigs);
   if (!sigs) sigs = await idLoadSigs(rec);
   await idLoadPdfLib();
   const box = document.createElement('div');
@@ -443,3 +445,291 @@ async function idView(rec) {
   if (sb) sb.onclick = e => idSendMgr(rec, e.currentTarget, sigs);
 }
 function idCloseModal() { const m = document.getElementById('idModal'); if (m) m.classList.add('hidden'); }
+
+/* ======================= استمارة المتابعة الإدارية الشهرية (kind = monthly) =======================
+   البنود منقولة من الاستمارة الورقية. كل سجل = زيارة واحدة (رقمها وتاريخها ونوعها توجيهية/تقييمية).
+   لكل بند ثلاثة اختيارات (الإيجابي / السلبي / إلى حد ما) وخانة ملاحظات وتوجيهات.
+   القيم المحفوظة في data.ev: [{ k: مفتاح القسم, name: اسم الموظفة, a: ['1'|'2'|'3'|''...], n: [ملاحظات...] }] */
+ID_KINDS.monthly = 'استمارة المتابعة الإدارية الشهرية';
+const IM_MID = 'إلى حد ما';
+const im = (t, pos, neg, mid, g) => ({ t, o: [pos, neg, mid || IM_MID], g: g || '' });
+const IM_LOOK = () => im('ملاءمة الشخصية ومظهرها العام', 'ملائمة', 'غير ملائمة');
+const IM_DEAL = () => im('حسن التعامل مع الغير', 'حسنة التعامل', 'غير حسنة');
+const IM_TIME = () => im('المحافظة على المواعيد وقلة الغياب', 'محافظة', 'غير محافظة');
+const IM_FOLLOW = t => im(t, 'تتابع', 'غير متابعة');
+const IM_MGR_F = t => im(t, 'متابعة', 'غير متابعة');
+const IM_FOLDER = g => [im('التنظيم', 'منظم', 'غير منظم', '', g), im('الاكتمال', 'مكتمل', 'غير مكتمل', '', g)];
+const IM_SECTIONS = [
+  { k: 'guard', title: 'الحارس', grp: 'متابعة الهيئة الإدارية', person: 'الحارس', items: [
+    im('التواجد عند الباب', 'متواجد', 'غير متواجد', 'أحياناً'),
+    im('التعاون مع الإدارة', 'متعاون', 'غير متعاون')] },
+  { k: 'worker', title: 'العاملة', grp: 'متابعة الهيئة الإدارية', person: 'العاملة', multi: true, items: [
+    IM_LOOK(), IM_DEAL(), IM_TIME(),
+    im('المحافظة على العهدة المسلمة لها', 'محافظة', 'غير محافظة'),
+    im('التعاون مع الإدارة وتنفيذ ما يُسند إليها', 'متعاونة', 'غير متعاونة'),
+    im('سرعة تنفيذ ما يُسند إليها', 'سريعة', 'غير سريعة'),
+    im('الاهتمام بنظافة القسم المسؤولة عنه', 'مهتمة', 'غير مهتمة'),
+    im('إطفاء الأنوار والمكيفات في نهاية الدوام', 'يتم', 'لا يتم'),
+    im('ترتيب القاعات بعد نهاية الدوام كل يوم', 'ترتب', 'لا ترتب')] },
+  { k: 'assist', title: 'المساعدة', grp: 'متابعة الهيئة الإدارية', person: 'المساعدة', items: [
+    IM_LOOK(), IM_DEAL(), IM_TIME(),
+    IM_FOLLOW('متابعة سجل حضور المعلمات'), IM_FOLLOW('متابعة سجل أحوال المعلمات'), IM_FOLLOW('متابعة دفاتر تحضير المعلمات'),
+    IM_FOLLOW('متابعة جدول المناوبة'), IM_FOLLOW('تسليم الكتب وتأمين الناقص منها'),
+    im('التسجيل للمستجدات', 'تسجل', 'لا تسجل'),
+    im('تصوير أسئلة الاختبار وكشوف الدرجات', 'تصور', 'لا تصور'),
+    im('قدوتها في المظهر والسلوك', 'مناسبة', 'غير مناسبة')] },
+  { k: 'admin', title: 'الإدارية', grp: 'متابعة الهيئة الإدارية', person: 'الإدارية', multi: true, items: [
+    IM_LOOK(), IM_DEAL(), IM_TIME(),
+    im('التعاون مع المديرة والمشرفات', 'متعاونة', 'غير متعاونة'),
+    IM_FOLLOW('متابعة سجل قيد الدارسات'), IM_FOLLOW('متابعة السجلات والملفات'), IM_FOLLOW('متابعة ملف العهد'),
+    IM_FOLLOW('متابعة العاملات والإشراف على أعمالهن'), IM_FOLLOW('تبليغ النشرات والتعاميم'),
+    im('التسجيل للمستجدات', 'تسجل', 'لا تسجل'), IM_FOLLOW('تصوير الأوراق عامة'),
+    im('قدوتها في المظهر والسلوك', 'مناسبة', 'غير مناسبة'),
+    im('سرعة تنفيذ ما يُسند إليها', 'سريعة', 'غير سريعة')] },
+  { k: 'order', title: 'مسؤولة النظام', grp: 'متابعة الهيئة الإدارية', person: 'مسؤولة النظام', multi: true, items: [
+    IM_LOOK(), IM_DEAL(), IM_TIME(),
+    IM_FOLLOW('أخذ الغياب اليومي ومتابعة حضور وغياب الدارسات'), IM_FOLLOW('متابعة ومعرفة أسباب غياب الدارسات'),
+    IM_FOLLOW('متابعة التزام الدارسات بالزي'), IM_FOLLOW('متابعة المعلمات في الحصص'),
+    IM_FOLLOW('متابعة دخول الدارسات في الحصص وضبط الجولات'), IM_FOLLOW('مراقبة الدارسات في الأدوار أثناء الحصص والفسحة'),
+    im('قدوتها في المظهر والسلوك', 'مناسبة', 'غير مناسبة')] },
+  { k: 'security', title: 'ضابطة الأمن', grp: 'متابعة الهيئة الإدارية', person: 'ضابطة الأمن', items: [
+    IM_LOOK(), IM_DEAL(), IM_TIME(),
+    im('التعاون مع الإدارة', 'متعاونة', 'غير متعاونة'),
+    IM_FOLLOW('متابعة الدارسات في الدخول والخروج'), IM_FOLLOW('ضبط دخول وخروج الزائرات والمراجعات'),
+    im('عدم مغادرة البوابة لأي ظرف', 'متواجدة دائماً', 'غير متواجدة'),
+    im('التواجد عند الباب', 'متواجدة', 'غير متواجدة', 'أحياناً'),
+    IM_FOLLOW('التفتيش على الجوالات'),
+    im('الاطلاع على إذن الخروج قبل السماح بخروج أي شخص', 'تطلع', 'لا تطلع')] },
+  { k: 'manager', title: 'المديرة', grp: 'متابعة الهيئة الإدارية', person: 'المديرة', items: [
+    IM_LOOK(), im('حسن التعامل مع الغير (موظفات، دارسات)', 'حسنة التعامل', 'غير حسنة'),
+    im('التعاون مع المشرفات (الإداري، التعليمي، تحفيظ الصغار، مراقبة الدوام، مشرفة المقاصف)', 'متعاونة', 'غير متعاونة'),
+    im('سرعة تنفيذ ما يُسند إليها', 'سريعة', 'غير سريعة'),
+    im('الالتزام بالجدول الزمني للفصل الدراسي', 'ملتزمة', 'غير ملتزمة'),
+    im('التقيد بالجدول الزمني لليوم الدراسي', 'متقيدة', 'غير متقيدة'),
+    im('رفع البيانات في حينها أو حسب ما يُطلب منها', 'ملتزمة', 'غير ملتزمة'),
+    im('الدقة في كتابة البيانات المطلوبة', 'دقيقة', 'غير دقيقة'),
+    IM_MGR_F('متابعة الإداريات في القيام بمهامهن'), IM_MGR_F('متابعة العاملات في القيام بمهامهن'),
+    IM_MGR_F('متابعة تنفيذ الملفات والسجلات واكتمالها في حينه'),
+    im('عقد الاجتماعات الدورية بالمعلمات لمتابعة العمل', 'تعقد', 'لا تعقد'),
+    im('تصنيف الدارسات في القاعات', 'مناسب', 'غير مناسب'),
+    im('متابعة زي الدارسات ومظهرهن العام', 'نظامي', 'غير نظامي'),
+    im('ضبط الدارسات في الحضور والانصراف', 'منضبط', 'غير منضبط'),
+    IM_MGR_F('متابعة دخول الدارسات للحصص'), IM_MGR_F('متابعة غياب الدارسات'),
+    IM_MGR_F('متابعة المستوى التعليمي للدارسات والحرص على رفع مستواهن'), IM_MGR_F('متابعة توزيع المناهج'),
+    IM_MGR_F('متابعة التحضير الكتابي'),
+    im('الحضور للمعلمات', 'منتظم', 'غير منتظم'),
+    IM_MGR_F('متابعة المناوبة'),
+    im('العدالة في توزيع الأعمال على الموظفات', 'عادلة التوزيع', 'لا توجد عدالة'),
+    im('متابعة زي المعلمات ومظهرهن العام', 'نظامي', 'غير نظامي'),
+    im('استلام أسئلة الاختبار التحريري نموذج (١، ٢)', 'استلمت', 'لم تستلم'),
+    im('استلام المسودات من المعلمات بعد الاختبار', 'استلمت', 'لم تستلم'),
+    im('استلام الكشوفات النهائية من المعلمات بعد رصد الدرجات', 'استلمت', 'لم تستلم'),
+    IM_MGR_F('متابعة نتائج التقييم والاختبارات النهائية'),
+    IM_MGR_F('متابعة التزام المنسوبات في الحضور والانصراف'),
+    im('توقيع جميع الموظفات على التعهد', 'تم', 'لم يتم'),
+    im('الحرص على المال العام وعدم إهداره', 'حريصة', 'غير حريصة'),
+    IM_MGR_F('متابعة نظافة المركز'),
+    im('المحافظة على ممتلكات المركز', 'محافظة', 'غير محافظة')] },
+  { k: 'building', title: 'المبنى والتجهيزات', grp: 'متابعة المبنى والتجهيزات', items: [
+    im('نظافة المبنى', 'نظيف', 'غير نظيف'),
+    im('الأجهزة والآلات', 'صالحة', 'غير صالحة')] },
+  { k: 'records', title: 'السجلات', grp: 'متابعة السجلات والملفات', items: [
+    im('تسجيل الزمن الفعلي للحضور والانصراف', 'مسجل', 'غير مسجل', '', 'سجل الحضور والانصراف'),
+    im('اكتمال التواقيع للحضور والانصراف', 'مكتمل', 'غير مكتمل', '', 'سجل الحضور والانصراف'),
+    im('وضع الخط الأحمر في موعده', 'موضوع', 'غير موضوع', '', 'سجل الحضور والانصراف'),
+    im('خلوه من المسح والكشط', 'خالٍ', 'غير خالٍ', '', 'سجل الحضور والانصراف'),
+    ...['الصادر', 'الوارد'].flatMap(x => [
+      im('التسلسل العام', 'متسلسل', 'غير متسلسل', '', 'سجل ' + x),
+      im('تسلسل التواريخ', 'متسلسل', 'غير متسلسل', '', 'سجل ' + x),
+      im('تسجيل الموضوع', 'مسجل', 'غير مسجل', '', 'سجل ' + x),
+      im('تعبئة الحقول', 'معبأ', 'غير معبأ', '', 'سجل ' + x),
+      im('مطابقته على ملفات الإدارة (' + x + ')', 'مطابق', 'غير مطابق', '', 'سجل ' + x),
+      im('جودة الخط ووضوحه وخلوه من المسح والكشط', 'واضح', 'غير واضح', '', 'سجل ' + x)]),
+    im('حصر الغياب ومتابعته من أول اليوم الدراسي', 'متابعة', 'غير متابعة', '', 'سجل غياب الدارسات'),
+    im('حصر الغياب بعذر وبدون عذر نهاية كل يوم', 'يتم', 'لا يتم', '', 'سجل غياب الدارسات'),
+    im('متابعة أعذار الدارسات الغائبات', 'متابعة', 'غير متابعة', '', 'سجل غياب الدارسات'),
+    im('تنظيم السجل وخلوه من المسح والكشط', 'منتظم', 'غير منتظم', '', 'سجل غياب الدارسات'),
+    im('حذف الطالبات المنقطعات', 'متابعة', 'غير متابعة', '', 'سجل غياب الدارسات'),
+    im('اكتمال البيانات والتواقيع', 'مكتمل', 'غير مكتمل', '', 'سجل الخروج أثناء الدوام الرسمي'),
+    im('تعبئة جميع الحقول من واقع الهوية', 'معبأ', 'غير معبأ', '', 'سجل الخروج أثناء الدوام الرسمي'),
+    im('تنظيم السجل وخلوه من المسح والكشط', 'منتظم', 'غير منتظم', '', 'سجل الخروج أثناء الدوام الرسمي'),
+    im('جودة الخط ووضوحه', 'واضح', 'غير واضح', '', 'سجل الخروج أثناء الدوام الرسمي'),
+    im('تنظيم الكشف وخلوه من المسح والكشط', 'منتظم', 'غير منتظم', '', 'سجل قيد الدارسات'),
+    im('جودة الخط ووضوحه', 'واضح', 'غير واضح', '', 'سجل قيد الدارسات'),
+    im('تعبئة الحقول', 'معبأ', 'غير معبأ', '', 'سجل قيد الدارسات'),
+    im('حذف الطالبات المنقطعات', 'تم', 'لم يتم', '', 'سجل قيد الدارسات'),
+    im('الاستخدام', 'مستخدم', 'غير مستخدم', '', 'سجل النشرات الداخلية')] },
+  { k: 'folders', title: 'المجلدات والملفات', grp: 'متابعة السجلات والملفات', items: [
+    im('خطابات المباشرة', 'موجودة', 'غير موجودة', '', 'مجلد وملف شؤون الموظفات'),
+    im('خطابات التكليف ونماذج الطلبات (الوجود)', 'موجودة', 'غير موجودة', '', 'مجلد وملف شؤون الموظفات'),
+    im('خطابات التكليف ونماذج الطلبات (الصحة)', 'صحيحة', 'غير صحيحة', '', 'مجلد وملف شؤون الموظفات'),
+    im('الملف', 'مكتمل', 'غير مكتمل', '', 'مجلد وملف شؤون الموظفات'),
+    im('الاكتمال والدقة', 'مكتمل', 'غير مكتمل', '', 'مجلد الإحصائيات'),
+    ...IM_FOLDER('مجلد الوارد'), ...IM_FOLDER('مجلد الصادر'), ...IM_FOLDER('مجلد الزيارات'), ...IM_FOLDER('مجلد النتائج'),
+    ...IM_FOLDER('ملف الاختبارات'), ...IM_FOLDER('ملف شؤون الدارسات'),
+    im('الوجود', 'موجود', 'غير موجود', '', 'دليل الهاتف'), ...IM_FOLDER('دليل الهاتف')] }
+];
+const IM_SEC = k => IM_SECTIONS.find(s => s.k === k);
+const IM_ADMIN_TITLES = ['الإدارية (المساعدة)', 'الإدارية', 'الإدارية', 'الإدارية', 'الإدارية (ضابطة أمن)'];
+
+const IM_CSS = `
+.idoc.imdoc{font-size:13.5px}
+.imdoc .im-page{position:relative;background:#fff}
+.imdoc .im-page + .im-page{margin-top:24px;border-top:2px dashed #ccc}
+@media print{.imdoc .im-page{break-after:page;page-break-after:always}.imdoc .im-page:last-child{break-after:auto;page-break-after:auto}.imdoc .im-page + .im-page{margin-top:0;border:0}}
+.imdoc .im-in{padding:0 26px 14px}
+.imdoc .idc-title{margin:12px 0 10px}
+.imdoc .im-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 18px;font-weight:700;font-size:14.5px;margin:0 0 10px}
+.imdoc .im-band{display:flex;flex-wrap:wrap;gap:6px 22px;justify-content:center;font-weight:700;font-size:13.5px;background:#fbf3f4;border:1px solid #444;border-bottom:0;padding:6px 10px}
+.imdoc .im-h{font-weight:800;color:#7a1f2b;font-size:15.5px;margin:10px 0 6px;text-decoration:underline}
+.imdoc table{font-size:13px}
+.imdoc th,.imdoc td{padding:3px 6px;line-height:1.35}
+.imdoc th{background:#fbf3f4}
+.imdoc td.im-g{background:#f6f0f0 !important;font-weight:800;width:110px;color:#7a1f2b}
+.imdoc td.im-t{text-align:right;background:#fdf8f6 !important}
+.imdoc td.im-o{white-space:nowrap;font-weight:700;width:96px}
+.imdoc td.im-o.on{color:#7a1f2b}
+.imdoc td.im-n{text-align:right;width:27%}
+.imdoc td.im-k{background:#f6f0f0 !important;font-weight:800;width:150px}
+.imdoc td.im-v{text-align:right;color:#7a1f2b;font-weight:700}
+.imdoc .im-txt{text-align:right;white-space:pre-wrap;min-height:40px;padding:6px 10px}
+.imdoc .im-foot{display:flex;justify-content:space-between;align-items:flex-end;font-weight:800;font-size:15px;margin:22px 10px 0}
+.imdoc .im-foot img{max-height:58px;max-width:180px;vertical-align:middle}
+`;
+
+// تقسيم البنود على صفحات A4 عرضية (كل صفحة بالكليشة ورأس الزيارة) مثل الاستمارة الورقية
+const IM_ROWS_PER_PAGE = 19;
+function imOptCells(it, v) {
+  return it.o.map((o, j) => '<td class="im-o' + (v === String(j + 1) ? ' on' : '') + '">' + idBox(v === String(j + 1)) + esc(o) + '</td>').join('');
+}
+function imDocPages(rec, sigs, lhUrl) {
+  const d = rec.data || {}, st = d.staff || {}, gen = d.gen || {};
+  const head = '<img class="idc-lh" src="' + esc(lhUrl || ID_LETTERHEAD) + '" width="2000" height="351" alt="">';
+  const m = x => '<span class="idc-m">' + x + '</span>';
+  const vt = String(d.vtype || '');
+  const band = '<div class="im-band"><span>المركز: ' + m(esc(rec.center)) + '</span><span>الزيارة رقم: ' + m(esc(idDigits(rec.visitNo || '—'))) + '</span>' +
+    '<span>تاريخ الزيارة: ' + m(esc(idDayName(rec))) + ' ' + m(idHDate(rec)) + '</span>' +
+    '<span>نوعها: ' + idBox(vt === 'توجيهية') + 'توجيهية &nbsp; ' + idBox(vt === 'تقييمية') + 'تقييمية</span></div>';
+  const pages = [];
+  // الصفحة الأولى: الرأس والبيانات العامة والهيئة الإدارية والعاملات
+  const per = String(rec.period || '');
+  let p1 = '<div class="idc-title">استمارة المتابعة الإدارية الشهرية</div>' +
+    '<div class="im-meta"><span>اسم المشرفة: ' + m(esc(rec.supName || '')) + '</span><span>اسم المديرة: ' + m(esc(rec.mgrName || '')) + '</span><span>اسم المركز: ' + m(esc(rec.center || '')) + '</span>' +
+    '<span>الفصل الدراسي: ' + m(esc(rec.sem || '')) + '</span><span>العام: ' + m(rec.year ? idDigits(rec.year) + 'هـ' : '') + '</span>' +
+    '<span>الفترة: ' + idBox(per.indexOf('صباحي') > -1) + 'صباحي &nbsp; ' + idBox(per.indexOf('مسائي') > -1) + 'مسائي</span></div>' +
+    '<div class="im-h">البيانات العامة:</div>' + band +
+    '<table><tr><td class="im-k">العدد الكلي للقاعات الدراسية</td><td class="im-v">' + esc(idDigits(gen.halls || '')) + '</td><td class="im-k">عدد القاعات الدراسية المستخدمة</td><td class="im-v">' + esc(idDigits(gen.used || '')) + '</td>' +
+    '<td class="im-k">الطاقة الاستيعابية للمركز</td><td class="im-v">' + esc(idDigits(gen.cap || '')) + '</td></tr>' +
+    (gen.notes ? '<tr><td class="im-k">ملاحظات</td><td class="im-v" colspan="5">' + idNl(gen.notes) + '</td></tr>' : '') + '</table>';
+  const adm = (st.adm || []).filter(x => x && (x.t || x.n)), work = (st.work || []).filter(Boolean), tch = (st.tch || []).filter(Boolean);
+  let rows = '<tr><th style="width:150px"></th><th style="width:220px">مسمى الوظيفة</th><th>الاسم</th></tr>';
+  rows += '<tr><td class="im-g">الحراس</td><td class="im-t">الحارس</td><td class="im-v">' + esc(st.guard || '') + '</td></tr>';
+  adm.forEach((x, i) => { rows += '<tr>' + (i === 0 ? '<td class="im-g" rowspan="' + adm.length + '">الهيئة الإدارية</td>' : '') + '<td class="im-t">' + esc(x.t || 'الإدارية') + '</td><td class="im-v">' + esc(x.n || '') + '</td></tr>'; });
+  work.forEach((x, i) => { rows += '<tr>' + (i === 0 ? '<td class="im-g" rowspan="' + work.length + '">العاملات</td>' : '') + '<td class="im-t">العاملة رقم (' + idDigits(i + 1) + ')</td><td class="im-v">' + esc(x) + '</td></tr>'; });
+  p1 += '<table style="margin-top:10px">' + rows + '</table>';
+  pages.push(p1);
+  // المعلمات في صفحة مستقلة: عمودان من الأسماء
+  if (tch.length) {
+    const half = Math.ceil(tch.length / 2);
+    let t = '<tr><th style="width:60px">م</th><th>اسم المعلمة</th><th style="width:60px">م</th><th>اسم المعلمة</th></tr>';
+    for (let i = 0; i < half; i++) {
+      const j = i + half;
+      t += '<tr><td class="idc-n">' + idDigits(i + 1) + '</td><td class="im-v">' + esc(tch[i]) + '</td><td class="idc-n">' + (tch[j] ? idDigits(j + 1) : '') + '</td><td class="im-v">' + esc(tch[j] || '') + '</td></tr>';
+    }
+    pages.push('<div class="im-h">الهيئة التعليمية:</div>' + band + '<table>' + t + '</table>');
+  }
+  // أقسام التقييم: كل قسم جدول (يُقسَّم على أكثر من صفحة إن طال)
+  const blocks = [];
+  (d.ev || []).forEach(e => {
+    const sec = IM_SEC(e.k); if (!sec) return;
+    const a = e.a || [], n = e.n || [];
+    if (!a.some(Boolean) && !n.some(Boolean) && !(e.k === 'building' && d.devices)) return;   // قسم لم يُقيَّم: لا يُطبع
+    const label = sec.person ? esc(sec.person) + (e.name ? '<br><span style="font-weight:700;color:#222">(' + esc(e.name) + ')</span>' : '') : '';
+    const rowsOf = sec.items.map((it, i) => ({ it, v: String(a[i] || ''), note: n[i] || '' }));
+    blocks.push({ sec, label, rows: rowsOf, extra: e.k === 'building' && d.devices ? d.devices : '' });
+  });
+  const thead = '<tr><th colspan="2">عناصر التقييم</th><th colspan="3">التقييم</th><th>الملاحظات المرصودة والتوجيهات</th></tr>';
+  let cur = [], used = 0, lastGrp = '';
+  const flush = () => { if (cur.length) { pages.push(cur.join('')); cur = []; used = 0; } };
+  blocks.forEach(b => {
+    let i = 0;
+    // القسم الذي يكفي صفحة كاملة لا يُقسَم: يبدأ في صفحة جديدة إن لم يتسع له باقي الصفحة
+    if (used && used + b.rows.length + 2 > IM_ROWS_PER_PAGE && b.rows.length + 3 <= IM_ROWS_PER_PAGE) flush();
+    while (i < b.rows.length) {
+      if (used && used + 4 > IM_ROWS_PER_PAGE) flush();
+      const room = Math.max(4, IM_ROWS_PER_PAGE - used - (used ? 2 : 1));
+      const part = b.rows.slice(i, i + room);
+      const showH = !used && (b.sec.grp !== lastGrp || i === 0);
+      let body = '';
+      // خلية القسم: للموظفة اسمها، وللسجلات اسم السجل (تُدمج الصفوف المتتالية لنفس السجل)
+      part.forEach((r, j) => {
+        let g = '';
+        if (b.label) { if (j === 0) g = '<td class="im-g" rowspan="' + part.length + '">' + b.label + '</td>'; }
+        else if (j === 0 || part[j - 1].it.g !== r.it.g) { let k = 1; while (part[j + k] && part[j + k].it.g === r.it.g) k++; g = '<td class="im-g" rowspan="' + k + '">' + esc(r.it.g || b.sec.title) + '</td>'; }
+        body += '<tr>' + g + '<td class="im-t">' + esc(r.it.t) + '</td>' + imOptCells(r.it, r.v) + '<td class="im-n">' + idNl(r.note) + '</td></tr>';
+      });
+      if (b.extra && i + part.length >= b.rows.length) body += '<tr><td class="im-g">الأجهزة غير الصالحة</td><td class="im-txt" colspan="5">' + idNl(b.extra) + '</td></tr>';
+      cur.push((showH || !used ? '<div class="im-h">' + esc(b.sec.grp) + ':</div>' + (used ? '' : band) : '') +
+        '<table style="margin-bottom:8px"><colgroup><col style="width:110px"><col style="width:30%"><col><col><col><col style="width:27%"></colgroup>' + thead + body + '</table>');
+      used += part.length + 2; lastGrp = b.sec.grp; i += part.length;
+    }
+  });
+  // الصفحة الأخيرة: ملاحظات أخرى والتوقيع (تُضاف لآخر صفحة إن اتسعت لها)
+  const last = (d.other ? '<div class="im-h">ملاحظات أخرى:</div><table><tr><td class="im-txt">' + idNl(d.other) + '</td></tr></table>' : '') +
+    '<div class="im-foot idc-avoid"><span>اسم المشرفة: ' + m(esc(rec.supName || '')) + '</span><span>التاريخ: ' + m(esc(idDayName(rec))) + ' ' + m(idHDate(rec)) + '</span>' +
+    '<span>التوقيع: ' + (sigs && sigs.sup ? '<img src="' + sigs.sup + '" alt="">' : '') + '</span></div>';
+  const lastRows = (d.other ? 3 + Math.min(4, String(d.other).split('\n').length) : 0) + 3;
+  if (cur.length && used + lastRows <= IM_ROWS_PER_PAGE) { cur.push(last); flush(); }
+  else { flush(); pages.push(last); }
+  return pages.map(p => '<div class="im-page">' + head + '<div class="im-in">' + p + '</div></div>');
+}
+function imDocHtml(rec, sigs, lhUrl) {
+  return '<style>' + IM_CSS + '</style><div class="idoc imdoc">' + imDocPages(rec, sigs, lhUrl).join('') + '</div>';
+}
+// ملف PDF متعدد الصفحات: كل صفحة تُرسم وحدها (بالكليشة) وتُصغَّر لتكفي صفحة A4 عرضية
+async function imPdfBlob(rec, sigs) {
+  if (!sigs) sigs = await idLoadSigs(rec);
+  await idLoadPdfLib();
+  await idLoadImgLib().catch(() => {});
+  const fontCss = await idFontEmbedCss();
+  const pages = imDocPages(rec, sigs);
+  const box = document.createElement('div');
+  box.style.cssText = 'position:absolute;top:0;left:0;width:1123px;z-index:-1;background:#fff;direction:rtl';
+  document.body.appendChild(box);
+  let worker = null, pdf = null;
+  try {
+    for (let i = 0; i < pages.length; i++) {
+      box.innerHTML = '<style>' + ID_CSS + IM_CSS + '.idoc{width:1123px;padding:0}.imdoc .im-page + .im-page{margin:0;border:0}</style><div class="idoc imdoc">' + pages[i] + '</div>';
+      await Promise.all([...box.querySelectorAll('img')].map(im2 => im2.complete ? 0 : new Promise(r => { im2.onload = im2.onerror = r; })));
+      const el = box.querySelector('.im-page');
+      let cv;
+      if (window.htmlToImage) {
+        const io = { pixelRatio: 2, backgroundColor: '#ffffff', width: 1123, style: { margin: '0' } };
+        if (fontCss) io.fontEmbedCSS = fontCss; else io.skipFonts = true;
+        cv = await window.htmlToImage.toCanvas(el, io);
+      } else {
+        cv = await window.html2pdf().set({ html2canvas: { scale: 2, backgroundColor: '#ffffff', windowWidth: 1123, onclone: idFixBidi } }).from(el).toCanvas().get('canvas');
+      }
+      // صفحة أطول من A4 عرضية: نوسّع اللوحة (تصغير) لتكفي صفحة واحدة
+      const maxH = cv.width * 210 / 297;
+      if (cv.height > maxH) {
+        const out = document.createElement('canvas');
+        out.width = Math.round(cv.height * 297 / 210); out.height = cv.height;
+        const g = out.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, out.width, out.height);
+        g.drawImage(cv, Math.round((out.width - cv.width) / 2), 0);
+        cv = out;
+      }
+      const img = cv.toDataURL('image/jpeg', 0.95);
+      const w = 297, h = Math.min(210, 297 * cv.height / cv.width);
+      if (!worker) {
+        worker = window.html2pdf().set({ margin: 0, jsPDF: { unit: 'mm', format: [297, 210], orientation: 'landscape' } }).from(document.createElement('div')).toPdf();
+        pdf = await worker.get('pdf');
+        pdf.addImage(img, 'JPEG', 0, 0, w, h);
+      } else {
+        pdf.addPage([297, 210], 'landscape');
+        pdf.addImage(img, 'JPEG', 0, 0, w, h);
+      }
+    }
+    return pdf.output('blob');
+  } finally { box.remove(); }
+}
