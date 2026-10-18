@@ -664,13 +664,16 @@ function seBuild(k, r) {
   $('seTitle').textContent = form.title;
   $('seTchLbl').textContent = 'توقيع ' + form.who;
   // خانات الرأس
-  $('seFields').innerHTML = form.fields.map(([key, lbl]) => {
+  // شبكة مضغوطة: ثلاث خانات في الصف على الشاشة الكبيرة، وخانتان على الجوال (الخانات الطويلة بعرض الصف)
+  const SE_WIDE = ['center', 'teacher', 'period', 'lesson', 'subject'];
+  $('seFields').innerHTML = form.fields.map(([key, lbl]) => '<div class="se-fld' + (SE_WIDE.indexOf(key) > -1 ? ' wide' : '') + '">' + seFieldHtml(key, lbl) + '</div>').join('');
+  function seFieldHtml(key, lbl) {
     if (key === 'center') return '<label for="seF_center">' + lbl + '</label><select id="seF_center"><option value="">اختاري المركز</option>' + (LISTS.centers || []).map(x => '<option>' + esc(x) + '</option>').join('') + '</select>';
     if (key === 'period') return '<label>' + lbl + '</label><div class="chips" id="seF_period"><label class="chip"><input type="checkbox" value="صباحي"><span>صباحي</span></label><label class="chip"><input type="checkbox" value="مسائي"><span>مسائي</span></label></div>';
     if (key === 'teacher') return '<label for="seF_teacher">' + lbl + '</label><input id="seF_teacher" list="sgTeachers" autocomplete="off">';
     if (key === 'sem') return '<label for="seF_sem">' + lbl + '</label><select id="seF_sem"><option value="">اختاري</option><option>الأول</option><option>الثاني</option><option>الثالث</option></select>';
     return '<label for="seF_' + key + '">' + lbl + '</label><input id="seF_' + key + '" autocomplete="off"' + (SE_NUMERIC.indexOf(key) > -1 ? ' inputmode="numeric"' : '') + '>';
-  }).join('');
+  }
   const per = $('seF_period');
   if (per) per.addEventListener('change', e => { if (e.target.checked) per.querySelectorAll('input').forEach(i => { if (i !== e.target) i.checked = false; }); });
   // البنود

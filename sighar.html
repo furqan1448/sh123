@@ -15,6 +15,14 @@
   .btn.id-wa{background:#1f8f4e;border-color:#1f8f4e;color:#fff;text-decoration:none;display:inline-block}
   .id-send{padding:14px 16px;border:1px solid #bfe3cd;background:#f1faf4;border-radius:12px;line-height:2}
   .id-send .btn{margin-top:8px}
+  #seFields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-flow:row dense;gap:0 14px}
+  #seFields .se-fld{min-width:0}
+  #seFields .se-fld input,#seFields .se-fld select{width:100%}
+  #seFields .chips{flex-wrap:nowrap}
+  @media (max-width:640px){
+    #seFields{grid-template-columns:repeat(2,minmax(0,1fr));gap:0 10px}
+    #seFields .se-fld.wide{grid-column:1 / -1}
+  }
   .id-hint{font-size:13px;color:var(--muted);margin-top:4px;min-height:1em}
   #sgListView .act,#ssListView .act,#seListView .act{flex-wrap:wrap;justify-content:center}
   .se-types .tile{padding:16px 8px}
