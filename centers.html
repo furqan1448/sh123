@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>المراكز — منظومة مشرفات مكتب إشراف الداخل</title>
+<title>إدارة المراكز — منظومة مشرفات مكتب إشراف الداخل</title>
 <link rel="preconnect" href="https://script.google.com">
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -26,13 +26,26 @@
   .in-prev{border:1.5px solid var(--line);border-radius:12px;overflow:hidden;margin-top:10px;background:#f7f7f7}
   .in-prev img{display:block;width:100%;height:auto;background:#fff;border-bottom:1px solid var(--line)}
   .t-mode{display:inline-block;border-radius:20px;padding:1px 10px;font-size:12px;font-weight:700;background:#fbf3e0;color:#8a6a1f;margin-right:4px}
+  .hs-emp{border:1.5px solid var(--line);border-radius:14px;padding:12px;margin-bottom:12px;background:#fff}
+  .hs-emp-h{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+  .hs-emp-h b{flex:none;min-width:28px;height:28px;border-radius:50%;background:#f6f0f2;color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:13px}
+  .hs-emp-h input{margin:0}
+  .hs-emp-h .btn{flex:none;padding:8px 12px}
+  .hs-grid{display:grid;grid-template-columns:minmax(70px,1.3fr) repeat(5,minmax(0,1fr));gap:4px;align-items:center;margin-top:8px;font-size:13px}
+  .hs-grid .h{font-weight:800;color:var(--primary);text-align:center;font-size:12px;line-height:1.3}
+  .hs-grid .m{font-weight:700;font-size:13px}
+  .hs-grid input{margin:0;padding:8px 2px;text-align:center;font-size:15px;min-width:0}
+  .hs-grid .tot{text-align:center;font-weight:800;color:var(--primary);background:#fbf3e0;border-radius:8px;padding:7px 0}
+  .hs-leg{font-size:13px;color:var(--muted);line-height:1.8;background:#f6f0f2;border-radius:10px;padding:8px 12px;margin-top:8px}
+  .hs-months{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .hs-months input{margin:0}
   .c-banner{background:#fffbf2;border:1.5px solid var(--gold);border-radius:14px;padding:12px 14px;margin-bottom:14px;font-weight:700;color:var(--primary);cursor:pointer}
 </style>
 </head>
 <body>
 <div class="topbar">
   <img class="logo" alt="شعار فرقان">
-  <h1>المراكز</h1>
+  <h1>إدارة المراكز</h1>
   <p>خدمات مديرات المراكز</p>
 </div>
 
@@ -59,6 +72,7 @@
     <div id="cBanner" class="c-banner hidden" onclick="cShow('reportsView')"></div>
     <div class="grid">
       <button class="tile" onclick="cShow('reportsView')"><span class="t-tbadge hidden" id="tileBadge">0</span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M4 9h16"/><path d="M9.5 9v11.5"/><path d="M12.5 13h5"/><path d="M12.5 16.5h3.5"/></svg><b>الوارد من المشرفات</b></button>
+      <button class="tile" onclick="hsOpenList()"><span class="t-tbadge hidden" id="hsBadge">0</span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="16" rx="2"/><path d="M3.5 9h17"/><path d="M8 3v3"/><path d="M16 3v3"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 16.5h2"/><path d="M14 16.5h2"/></svg><b>حصر الغياب والتأخير والاستئذان</b></button>
     </div>
     <p style="text-align:center;margin-top:22px"><button class="btn light" onclick="cLogout()">تسجيل الخروج</button></p>
   </div>
@@ -99,6 +113,65 @@
     </div>
   </div>
 
+  <!-- حصر الغياب والتأخير والاستئذان: القائمة -->
+  <div id="hsListView" class="hidden">
+    <button class="back" onclick="cShow('homeView')">← رجوع</button>
+    <div class="card">
+      <h2>حصر الغياب والتأخير والاستئذان</h2>
+      <p class="rp-hint">يُعبّأ لكل فصل دراسي، وتوقّع عليه مديرة المركز، ثم يُرسل لمشرفة الإشراف الإداري التي تختارونها.</p>
+      <button class="btn block" onclick="hsNew()">＋ حصر جديد</button>
+    </div>
+    <div class="card">
+      <h2>الحصر المرسل</h2>
+      <div id="hsList" class="rc-list"><p class="rc-empty">جارِ التحميل...</p></div>
+    </div>
+  </div>
+
+  <!-- حصر الغياب والتأخير والاستئذان: النموذج -->
+  <div id="hsForm" class="hidden">
+    <button class="back" onclick="hsOpenList()">← رجوع</button>
+    <div class="edit-note hidden" id="hsEditNote">وضع التعديل: يُحفظ التعديل على نفس الحصر ويُرسل للمشرفة من جديد.</div>
+    <div class="card">
+      <h2>حصر الغياب والتأخير والاستئذان</h2>
+      <div class="row2">
+        <div><label for="hsPeriod">الفترة</label><select id="hsPeriod"><option value="">اختاري</option><option>صباحية</option><option>مسائية</option></select></div>
+        <div><label for="hsSem">الفصل الدراسي</label><select id="hsSem"><option value="">اختاري</option><option>الأول</option><option>الثاني</option><option>الثالث</option></select></div>
+      </div>
+      <div class="row2">
+        <div><label for="hsYear">العام (هجري)</label><input id="hsYear" inputmode="numeric" maxlength="4" placeholder="1448"></div>
+        <div></div>
+      </div>
+      <label>أسماء الأشهر <span style="font-weight:400;color:var(--muted);font-size:14px">(اختياري — تظهر بدل «الشهر الأول»...)</span></label>
+      <div class="hs-months"><input id="hsM0" placeholder="الشهر الأول"><input id="hsM1" placeholder="الشهر الثاني"><input id="hsM2" placeholder="الشهر الثالث"></div>
+      <div class="hs-leg">ض: غياب اضطراري — غ: بعد الاضطراري — ج: إجازة تم رفعها لشؤون الموظفات<br>التأخير والاستئذان: عدد الدقائق وليس عدد المرات.</div>
+    </div>
+    <div class="card">
+      <h2>الموظفات</h2>
+      <div id="hsEmps"></div>
+      <button type="button" class="btn light block" onclick="hsAddEmp()">＋ إضافة موظفة</button>
+    </div>
+    <div class="card">
+      <h2>الإرسال والتوقيع</h2>
+      <label for="hsSup" style="margin-top:0">إرسال إلى مشرفة الإشراف الإداري</label>
+      <select id="hsSup"><option value="">جارِ تحميل الأسماء...</option></select>
+      <label for="hsMgr">اسم مديرة المركز</label><input id="hsMgr" autocomplete="name">
+      <label>التاريخ</label>
+      <div class="hs-months"><select id="hsHD"></select><select id="hsHM"></select><input id="hsHY" inputmode="numeric" maxlength="4" placeholder="السنة"></div>
+      <label>توقيع مديرة المركز</label>
+      <div id="hsSigW"></div>
+      <button id="hsSaveBtn" class="btn block" onclick="hsSave(this)">حفظ وإرسال للمشرفة</button>
+    </div>
+  </div>
+
+  <!-- عرض الحصر -->
+  <div id="hsDocView" class="hidden">
+    <button class="back" onclick="hsOpenList()">← رجوع</button>
+    <div class="card">
+      <div class="ex-bar" id="hsBar"></div>
+      <div id="hsDoc"></div>
+    </div>
+  </div>
+
   <!-- نموذج وارد من «📤 إرسال للمركز» -->
   <div id="inView" class="hidden">
     <button class="back" onclick="cShow('reportsView')">← رجوع</button>
@@ -125,6 +198,9 @@
 <script src="logo-config.js"></script>
 <script src="config.js"></script>
 <script src="idari-print.js"></script>
+<script src="list-ui.js"></script>
+<script src="hasr.js"></script>
 <script src="centers.js"></script>
+<script src="centers-hasr.js"></script>
 </body>
 </html>

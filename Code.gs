@@ -237,7 +237,10 @@ function route_(r) {
     case 'getStf': return { ok: true, data: getStfFor_(r.username) };   // إجراءات الموظفات (تحفيظ الصغار)
     case 'saveStf': return withLock_(() => saveStf_(r));
     case 'deleteStf': return withLock_(() => deleteStf_(r));
-    case 'scCenters': return { ok: true, data: outCenters_() };   // «📤 إرسال للمركز»
+    case 'scCenters': return { ok: true, data: outCenters_() };
+    case 'getHasr': { const u = norm_(r.username).toLowerCase(); return { ok: true, data: hasrFor_(x => x.sup === u) }; }   // حصر الغياب الوارد من المراكز
+    case 'hasrSeen': return withLock_(() => hasrSeen_(r));
+    case 'hasrSig': { const u = norm_(r.username).toLowerCase(), x = hasrFor_(y => y.id === String(r.id || '') && y.sup === u)[0]; if (!x) throw new Error('غير موجود'); return { ok: true, data: sigGet_(x.id + '|mgr') }; }   // «📤 إرسال للمركز»
     case 'sendCenter': return withLock_(() => sendCenter_(r));
     case 'getSent': return { ok: true, data: getSent_(r) };
     case 'sentFile': return outFile_(sentOwn_(r));
@@ -1867,6 +1870,11 @@ function centerRoute_(r) {
     if (r.action === 'c_login' || r.action === 'c_list') return { ok: true, center: { name: acc.name, display: acc.display }, data: centerReports_(acc), inbox: centerInbox_(acc) };
     if (r.action === 'c_file') { const x = outRows_().find(y => y.id === String(r.id || '') && y.to === 'c' && y.center === acc.name); if (!x) throw new Error('هذا النموذج لا يخص مركزكم'); return outFile_(x); }
     if (r.action === 'c_done') return withLock_(() => centerDone_(acc, r));
+    if (r.action === 'c_sups') return { ok: true, data: listNames_('users', IDARI_UNIT).map(x => ({ u: x.u, n: x.n })) };   // مشرفات الإشراف الإداري
+    if (r.action === 'c_hasr') return { ok: true, data: hasrFor_(x => x.center === acc.name) };
+    if (r.action === 'c_hasr_save') return withLock_(() => hasrSave_(acc, r));
+    if (r.action === 'c_hasr_del') return withLock_(() => hasrDel_(acc, r));
+    if (r.action === 'c_hasr_sig') { const x = hasrFor_(y => y.id === String(r.id || '') && y.center === acc.name)[0]; if (!x) throw new Error('غير موجود'); return { ok: true, data: sigGet_(x.id + '|mgr') }; }
     if (r.action === 'c_sigs') {
       const rec = centerReports_(acc).find(x => x.id === String(r.id || ''));
       if (!rec) throw new Error('التقرير غير موجود');
@@ -2159,4 +2167,84 @@ function stfCenterSign_(id, sig, signer, empSig, at) {
 // النماذج المرسلة للمعلمة بزر «📤 إرسال» (اطلاع فقط أو اطلاع وتوقيع)
 function teacherInbox_(t) {
   return outRows_().filter(x => x.to === 't' && x.tid === t.id).map(x => { const o = outPublic_(x); delete o.unit; return o; }).reverse();
+}
+
+
+/* ============ «حصر الغياب والتأخير والاستئذان» من صفحة «إدارة المراكز» إلى مشرفة الإشراف الإداري ============
+   يعبّئه المركز لكل فصل دراسي (ثلاثة أشهر لكل موظفة)، وتوقّع المديرة، ويُرسل لمشرفة يختارها المركز من مشرفات الإشراف الإداري،
+   فيصلها في صفحة الإشراف الإداري تحت «الوارد من المراكز» مع تنبيه. توقيع المديرة في ورقة «التواقيع» بالمعرّف: الرقم|mgr */
+const HASR_SHEET = 'حصر الغياب والتأخير';
+const HASR_HEADERS = ['الرقم', 'المركز', 'الفترة', 'الفصل الدراسي', 'العام', 'اسم المديرة', 'المشرفة (اسم الدخول)', 'اسم المشرفة',
+  'عدد الموظفات', 'البيانات', 'وقت الإرسال', 'الحالة', 'وقت الاطلاع'];
+function hasrSheet_() {
+  const ss = ss_();
+  let sh = ss.getSheetByName(HASR_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(HASR_SHEET);
+    sh.getRange(1, 1, 1, HASR_HEADERS.length).setValues([HASR_HEADERS]);
+    styleHeader_(sh, HASR_HEADERS.length);
+    sh.setRightToLeft(true); sh.setFrozenRows(1);
+    sh.setColumnWidths(1, HASR_HEADERS.length, 140); sh.setColumnWidth(10, 380);
+    sh.getRange('A:M').setNumberFormat('@');
+  }
+  return sh;
+}
+function hasrRows_() {
+  const sh = hasrSheet_(), n = sh.getLastRow() - 1;
+  if (n < 1) return [];
+  return sh.getRange(2, 1, n, HASR_HEADERS.length).getDisplayValues().map((v, i) => {
+    let data = {};
+    try { data = JSON.parse(v[9] || '{}'); } catch (e) {}
+    return { row: i + 2, id: v[0], center: v[1], period: v[2], sem: v[3], year: v[4], mgrName: v[5], sup: String(v[6]).toLowerCase(), supName: v[7],
+      count: v[8], data: data, at: v[10], seen: v[11] === 'تم الاطلاع', seenAt: v[12] };
+  }).filter(x => x.id);
+}
+function hasrFor_(test) {
+  const disp = {};
+  centerAccounts_().forEach(a => { disp[a.name] = a.display; });
+  return hasrRows_().filter(test).map(x => { const o = Object.assign({}, x); delete o.row; o.centerDisplay = disp[x.center] || x.center; return o; }).reverse();
+}
+function hasrSave_(acc, r) {
+  const s = (v, n) => String(v == null ? '' : v).trim().slice(0, n || 200);
+  const sup = listNames_('users', IDARI_UNIT).find(x => norm_(x.u).toLowerCase() === norm_(r.sup).toLowerCase());
+  if (!sup) throw new Error('اختاري المشرفة من القائمة');
+  const d = r.data && typeof r.data === 'object' ? r.data : {};
+  const num = v => { v = String(v == null ? '' : v).replace(/[٠-٩]/g, x => '٠١٢٣٤٥٦٧٨٩'.indexOf(x)).trim(); return /^\d{1,4}$/.test(v) ? v : ''; };
+  const rows = (Array.isArray(d.rows) ? d.rows : []).slice(0, 80).map(x => ({
+    name: s(x && x.name, 120), job: s(x && x.job, 80), note: s(x && x.note, 300),
+    m: [0, 1, 2].map(k => { const o = (x && x.m && x.m[k]) || {}; return { z: num(o.z), g: num(o.g), j: num(o.j), t: num(o.t), e: num(o.e) }; })
+  })).filter(x => x.name);
+  if (!rows.length) throw new Error('أضيفي موظفة واحدة على الأقل');
+  const data = { rows: rows, months: (Array.isArray(d.months) ? d.months : []).slice(0, 3).map(x => s(x, 30)), hd: s(d.hd, 2), hm: s(d.hm, 2), hy: s(d.hy, 4) };
+  const json = JSON.stringify(data);
+  if (json.length > 45000) throw new Error('الحصر طويل جداً');
+  const sig = String(r.signature || '');
+  const sh = hasrSheet_();
+  let id = s(r.id, 60), row = 0, old = null;
+  if (id) {
+    old = hasrRows_().find(x => x.id === id);
+    if (!old || old.center !== acc.name) throw new Error('الحصر غير موجود');
+    row = old.row;
+  } else { id = Utilities.getUuid(); row = sh.getLastRow() + 1; }
+  if (sig.indexOf('data:image/') === 0) { if (sig.length > 49000) throw new Error('صورة التوقيع كبيرة'); sigPut_(id + '|mgr', sig); data.sig = '1'; }
+  else if (sig === 'keep' && old && old.data.sig) data.sig = '1';
+  else throw new Error('وقّعي في خانة توقيع مديرة المركز');
+  sh.getRange(row, 1, 1, HASR_HEADERS.length).setNumberFormat('@').setValues([[id, acc.name, s(r.period, 20), s(r.sem, 20), s(r.year, 4), s(r.mgrName, 120),
+    norm_(sup.u).toLowerCase(), sup.n, String(rows.length), JSON.stringify(data), nowStr_(), 'جديد', '']]);
+  return { ok: true, id: id, at: nowStr_(), supName: sup.n };
+}
+function hasrDel_(acc, r) {
+  const x = hasrRows_().find(y => y.id === String(r.id || '') && y.center === acc.name);
+  if (!x) throw new Error('الحصر غير موجود');
+  if (x.seen) throw new Error('اطّلعت عليه المشرفة، فلا يمكن حذفه');
+  hasrSheet_().deleteRow(x.row); sigDel_(x.id + '|mgr');
+  return { ok: true };
+}
+function hasrSeen_(r) {
+  const u = norm_(r.username).toLowerCase(), x = hasrRows_().find(y => y.id === String(r.id || '') && y.sup === u);
+  if (!x) throw new Error('غير موجود');
+  if (x.seen) return { ok: true, at: x.seenAt };
+  const at = nowStr_();
+  hasrSheet_().getRange(x.row, 12, 1, 2).setNumberFormat('@').setValues([['تم الاطلاع', at]]);
+  return { ok: true, at: at };
 }
