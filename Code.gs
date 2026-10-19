@@ -1387,7 +1387,9 @@ function teacherRoute_(r) {
       return t ? { ok: true, name: t.name.split(/\s+/).slice(0, 2).join(' ') } : { ok: false, error: 'رقم الجوال غير موجود في سجل المعلمات' };
     }
     const t = teacherAuth_(r);
-    if (r.action === 't_login' || r.action === 't_list') return { ok: true, teacher: { id: t.id, name: t.name, category: t.cat }, data: teacherReports_(t), minutes: minutesFor_(t), files: filesForTeacher_(t) };
+    if (r.action === 't_login' || r.action === 't_list') return { ok: true, teacher: { id: t.id, name: t.name, category: t.cat }, data: teacherReports_(t), minutes: minutesFor_(t), files: filesForTeacher_(t), inbox: teacherInbox_(t) };
+    if (r.action === 't_file') { const x = outRows_().find(y => y.id === String(r.id || '') && y.to === 't' && y.tid === t.id); if (!x) throw new Error('هذا النموذج ليس لكِ'); return outFile_(x); }
+    if (r.action === 't_done') return withLock_(() => centerDone_({ tid: t.id, name: t.name }, Object.assign({}, r, { signer: t.name })));
     if (r.action === 't_ack') return withLock_(() => minuteAck_(t, r));
     if (r.action === 't_fack') return withLock_(() => fileAck_(t, r));
     if (r.action === 't_sigs') {   // تواقيع تقرير من تقاريرها فقط (للعرض والطباعة)
@@ -1863,7 +1865,7 @@ function centerRoute_(r) {
     if (r.action === 'c_names') return { ok: true, data: centerAccounts_().map(a => ({ name: a.name, display: a.display })) };
     const acc = centerAuth_(r);
     if (r.action === 'c_login' || r.action === 'c_list') return { ok: true, center: { name: acc.name, display: acc.display }, data: centerReports_(acc), inbox: centerInbox_(acc) };
-    if (r.action === 'c_file') { const x = outRows_().find(y => y.id === String(r.id || '') && y.center === acc.name); if (!x) throw new Error('هذا النموذج لا يخص مركزكم'); return outFile_(x); }
+    if (r.action === 'c_file') { const x = outRows_().find(y => y.id === String(r.id || '') && y.to === 'c' && y.center === acc.name); if (!x) throw new Error('هذا النموذج لا يخص مركزكم'); return outFile_(x); }
     if (r.action === 'c_done') return withLock_(() => centerDone_(acc, r));
     if (r.action === 'c_sigs') {
       const rec = centerReports_(acc).find(x => x.id === String(r.id || ''));
@@ -1902,7 +1904,8 @@ function centerSign_(acc, r) {
    نسخة الملف (PDF أو Excel) تُحفظ في الدرايف بلا مشاركة عامة، ولا تُفتح إلا من حساب المركز أو حساب المشرفة المرسِلة. */
 const OUT_SHEET = 'المرسل للمراكز';
 const OUT_HEADERS = ['الرقم', 'وقت الإرسال', 'المرسِلة', 'اسم المستخدم', 'الوحدة', 'المصدر', 'رقم النموذج', 'العنوان', 'المركز',
-  'الطريقة', 'الملاحظة', 'اسم الملف', 'معرف الملف', 'الحالة', 'وقت الإجراء', 'اسم المديرة'];
+  'الطريقة', 'الملاحظة', 'اسم الملف', 'معرف الملف', 'الحالة', 'وقت الإجراء', 'اسم المديرة', 'المستلمة', 'Teacher ID'];
+// المستلمة: «مركز» (يظهر في صفحة المراكز، وعمود «المركز» فيه اسم حساب المركز) أو «معلمة» (يظهر في أيقونة «المعلمات»، وعمود «المركز» فيه اسم المعلمة)
 const OUT_ST = { NEW: 'لم يُطّلع عليه', ACK: 'تم الاطلاع', SIGN: 'تم التوقيع' };
 const OUT_MODE = { ack: 'اطلاع فقط', sign: 'اطلاع وتوقيع' };
 const OUT_FOLDER = 'المرسل للمراكز';
@@ -1917,8 +1920,8 @@ function outSheet_() {
     styleHeader_(sh, OUT_HEADERS.length);
     sh.setRightToLeft(true);
     sh.setFrozenRows(1);
-    sh.getRange('A:P').setNumberFormat('@');
-  }
+    sh.getRange('A:R').setNumberFormat('@');
+  } else ensureExtraHeaders_(sh, OUT_HEADERS);
   return sh;
 }
 function outFolder_() {
@@ -1931,10 +1934,11 @@ function outRows_() {
   return sh.getRange(2, 1, n, OUT_HEADERS.length).getDisplayValues().map((v, i) => ({
     row: i + 2, id: v[0], at: v[1], supName: v[2], owner: String(v[3]).toLowerCase(), unit: v[4], src: v[5], srcId: v[6], title: v[7],
     center: v[8], mode: v[9] === OUT_MODE.sign ? 'sign' : 'ack', note: v[10], name: v[11], fileId: v[12],
-    status: v[13] === OUT_ST.SIGN ? 'sign' : v[13] === OUT_ST.ACK ? 'ack' : 'new', doneAt: v[14], signer: v[15]
+    status: v[13] === OUT_ST.SIGN ? 'sign' : v[13] === OUT_ST.ACK ? 'ack' : 'new', doneAt: v[14], signer: v[15],
+    to: v[16] === 'معلمة' ? 't' : 'c', tid: String(v[17] || '')
   })).filter(x => x.id);
 }
-const outPublic_ = x => { const o = Object.assign({}, x); delete o.row; delete o.fileId; delete o.owner; return o; };
+const outPublic_ = x => { const o = Object.assign({}, x); delete o.row; delete o.fileId; delete o.owner; delete o.tid; return o; };
 function outFile_(x) {
   if (!x.fileId) throw new Error('الملف غير موجود');
   const f = DriveApp.getFileById(x.fileId), b = f.getBlob();
@@ -1945,8 +1949,17 @@ function outCenters_() { return centerAccounts_().map(a => ({ name: a.name, disp
 // إرسال (أو إعادة إرسال نسخة محدّثة إن لم يُطّلع عليه بعد)
 function sendCenter_(r) {
   const me = profileOf_(r.username);
-  const acc = centerAccounts_().find(a => a.name === String(r.center || '').trim());
-  if (!acc) throw new Error('اختاري المركز من القائمة');
+  const toT = r.to === 't';
+  let acc = null, tch = null;
+  if (toT) {   // إرسال لمعلمة من سجل المعلمات
+    const tid = String(r.tid || '').trim();
+    tch = tid ? certFind_(t => t.id === tid) : null;
+    if (!tch) throw new Error('اختاري المعلمة من القائمة');
+    acc = { name: tch.name };
+  } else {
+    acc = centerAccounts_().find(a => a.name === String(r.center || '').trim());
+    if (!acc) throw new Error('اختاري المركز من القائمة');
+  }
   const mode = r.mode === 'sign' ? 'sign' : 'ack';
   const data = String(r.data || '');
   if (!data) throw new Error('تعذّر تجهيز الملف');
@@ -1956,15 +1969,17 @@ function sendCenter_(r) {
   const name = String(r.name || 'ملف').replace(/[\\/:*?"<>|]+/g, ' ').slice(0, 150);
   const f = outFolder_().createFile(Utilities.newBlob(Utilities.base64Decode(data), r.mime || 'application/pdf', name));
   const sh = outSheet_(), at = nowStr_();
-  const old = srcId ? outRows_().find(x => x.owner === me.username && x.src === src && x.srcId === srcId && x.center === acc.name && x.status === 'new') : null;
-  const vals = [old ? old.id : Utilities.getUuid(), at, me.name, me.username, me.unit, src, srcId, title, acc.name, OUT_MODE[mode], note, name, f.getId(), OUT_ST.NEW, '', ''];
+  const same = x => toT ? (x.to === 't' && x.tid === tch.id) : (x.to === 'c' && x.center === acc.name);
+  const old = srcId ? outRows_().find(x => x.owner === me.username && x.src === src && x.srcId === srcId && same(x) && x.status === 'new') : null;
+  const vals = [old ? old.id : Utilities.getUuid(), at, me.name, me.username, me.unit, src, srcId, title, acc.name, OUT_MODE[mode], note, name, f.getId(), OUT_ST.NEW, '', '',
+    toT ? 'معلمة' : 'مركز', toT ? tch.id : ''];
   if (old) {
     try { DriveApp.getFileById(old.fileId).setTrashed(true); } catch (e) {}
     sh.getRange(old.row, 1, 1, vals.length).setNumberFormat('@').setValues([vals]);
   } else {
     sh.getRange(sh.getLastRow() + 1, 1, 1, vals.length).setNumberFormat('@').setValues([vals]);
   }
-  return { ok: true, replaced: !!old, item: outPublic_(outRows_().find(x => x.id === vals[0])) };
+  return { ok: true, replaced: !!old, item: outPublic_(outRows_().find(x => x.id === vals[0])), tPhone: toT ? (tch.phone || '') : '' };
 }
 function getSent_(r) {
   const u = norm_(r.username).toLowerCase();
@@ -1985,11 +2000,11 @@ function unsend_(r) {
 
 // جهة المركز
 function centerInbox_(acc) {
-  return outRows_().filter(x => x.center === acc.name).map(x => { const o = outPublic_(x); delete o.unit; return o; }).reverse();
+  return outRows_().filter(x => x.to === 'c' && x.center === acc.name).map(x => { const o = outPublic_(x); delete o.unit; return o; }).reverse();
 }
 function centerDone_(acc, r) {
-  const x = outRows_().find(y => y.id === String(r.id || '') && y.center === acc.name);
-  if (!x) throw new Error('هذا النموذج لا يخص مركزكم');
+  const x = outRows_().find(y => y.id === String(r.id || '') && (acc.tid ? (y.to === 't' && y.tid === acc.tid) : (y.to === 'c' && y.center === acc.name)));
+  if (!x) throw new Error(acc.tid ? 'هذا النموذج ليس لكِ' : 'هذا النموذج لا يخص مركزكم');
   if (x.status !== 'new') return { ok: true, at: x.doneAt, already: true };
   const signer = String(r.signer || '').trim().slice(0, 80), at = nowStr_();
   let sig = '';
@@ -2001,7 +2016,10 @@ function centerDone_(acc, r) {
   }
   outSheet_().getRange(x.row, 14, 1, 3).setNumberFormat('@').setValues([[x.mode === 'sign' ? OUT_ST.SIGN : OUT_ST.ACK, at, signer]]);
   // نماذج الإشراف الإداري التي فيها خانة «توقيع مديرة المركز»: يُكتب التوقيع في النموذج نفسه أيضاً
-  if (sig && x.src === 'idari' && x.srcId) {
+  if (sig && acc.tid && (x.src === 'sgh' || x.src === 'sge') && x.srcId) {   // تقرير/استمارة مرسلة لنفس المعلمة: يُكتب توقيعها فيها أيضاً
+    try { teacherSign_({ id: acc.tid }, { id: x.srcId, signature: sig }); } catch (e) {}
+  }
+  if (sig && !acc.tid && x.src === 'idari' && x.srcId) {
     try {
       const sh = ss_().getSheetByName(SHEET.IDARI), n = sh.getLastRow() - 1;
       const ids = n > 0 ? sh.getRange(2, 1, n, 2).getValues() : [];
@@ -2019,7 +2037,7 @@ function centerDone_(acc, r) {
       }
     } catch (e) {}
   }
-  if (x.src === 'stf' && x.srcId && x.mode === 'sign') {
+  if (!acc.tid && x.src === 'stf' && x.srcId && x.mode === 'sign') {
     const emp = String(r.empSig || '');
     try { stfCenterSign_(x.srcId, sig, signer, emp.indexOf('data:image/') === 0 && emp.length < 49000 ? emp : '', at); } catch (e) {}
   }
@@ -2136,4 +2154,9 @@ function stfCenterSign_(id, sig, signer, empSig, at) {
   if (sig) { sigPut_(id + '|mgr', sig); data.sigs.mgr = '1'; data.mgrAt = at; if (signer) sh.getRange(row, 9).setNumberFormat('@').setValue(signer); }
   if (empSig) { sigPut_(id + '|emp', empSig); data.sigs.emp = '1'; data.empAt = at; }
   sh.getRange(row, STF_DATA_COL).setNumberFormat('@').setValue(JSON.stringify(data));
+}
+
+// النماذج المرسلة للمعلمة بزر «📤 إرسال» (اطلاع فقط أو اطلاع وتوقيع)
+function teacherInbox_(t) {
+  return outRows_().filter(x => x.to === 't' && x.tid === t.id).map(x => { const o = outPublic_(x); delete o.unit; return o; }).reverse();
 }

@@ -22,6 +22,10 @@
   .t-item .act .btn{padding:8px 14px;font-size:14px}
   .t-badge{display:inline-block;background:var(--primary);color:#fff;border-radius:20px;padding:0 10px;font-size:13px;margin-right:6px}
   .t-signed{font-size:13px;color:#1f7a45;font-weight:700}
+  .in-note{background:#f6f0f2;border-right:4px solid var(--primary);border-radius:10px;padding:10px 12px;margin-bottom:10px;line-height:1.8}
+  .in-prev{border:1.5px solid var(--line);border-radius:12px;overflow:hidden;margin-top:10px;background:#f7f7f7}
+  .in-prev img{display:block;width:100%;height:auto;background:#fff;border-bottom:1px solid var(--line)}
+  .t-mode{display:inline-block;border-radius:20px;padding:1px 10px;font-size:12px;font-weight:700;background:#fbf3e0;color:#8a6a1f;margin-right:4px}
   .tile{position:relative}
   .t-tbadge{position:absolute;top:10px;left:10px;background:#c0392b;color:#fff;border-radius:20px;min-width:24px;padding:1px 8px;font-size:13px;font-weight:800}
   /* الشهادة: نفس تنسيق موقع الشهادات */
@@ -64,7 +68,7 @@
   <div id="homeView" class="hidden">
     <div class="t-hello" id="tHello" style="text-align:center;margin:4px 0 16px"></div>
     <div class="grid">
-      <button class="tile" onclick="tShow('reportsView')"><span class="t-tbadge hidden" id="tileBadge">0</span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V6a2 2 0 0 1 2-2h9l5 5v10.5a.5.5 0 0 1-.5.5H6a2 2 0 0 1-2-2z"/><path d="M14 4v5h5"/><path d="M7.5 16.5c1.2-1.6 2.2-1.6 3 0s1.8 1.6 3 0"/></svg><b>تقارير المشرفات</b></button>
+      <button class="tile" onclick="tShow('reportsView')"><span class="t-tbadge hidden" id="tileBadge">0</span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V6a2 2 0 0 1 2-2h9l5 5v10.5a.5.5 0 0 1-.5.5H6a2 2 0 0 1-2-2z"/><path d="M14 4v5h5"/><path d="M7.5 16.5c1.2-1.6 2.2-1.6 3 0s1.8 1.6 3 0"/></svg><b>الوارد من المشرفات</b></button>
       <button class="tile" onclick="tCertOpen()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="17" height="12" rx="1.5"/><path d="M7 8h10"/><path d="M8.5 11.5h7"/><circle cx="12" cy="17.5" r="2.5"/><path d="M10.6 19.6 10 22l2-1 2 1-.6-2.4"/></svg><b>شهادتي</b></button>
       <button class="tile" onclick="tMinOpen()"><span class="t-tbadge hidden" id="minBadge">0</span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="2.5"/><circle cx="16" cy="8" r="2.5"/><path d="M3.5 18c0-2.8 2-4.5 4.5-4.5s4.5 1.7 4.5 4.5"/><path d="M11.5 18c0-2.8 2-4.5 4.5-4.5s4.5 1.7 4.5 4.5"/><path d="M3 21h18"/></svg><b>محاضر الاجتماعات</b></button>
       <button class="tile" onclick="tFilesOpen()"><span class="t-tbadge hidden" id="filesBadge">0</span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5l-8 8a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L9.7 17.2a1.7 1.7 0 0 1-2.4-2.4L15 7"/></svg><b>المرفقات</b></button>
@@ -76,15 +80,15 @@
   <div id="reportsView" class="hidden">
     <button class="back" onclick="tShow('homeView')">← رجوع</button>
     <div class="stats">
-      <div class="stat"><b id="stPending">0</b><span>بانتظار توقيعكِ</span></div>
-      <div class="stat"><b id="stSigned">0</b><span>تقارير موقّعة</span></div>
+      <div class="stat"><b id="stPending">0</b><span>بانتظار اطّلاعكِ أو توقيعكِ</span></div>
+      <div class="stat"><b id="stSigned">0</b><span>تم الاطلاع أو التوقيع</span></div>
     </div>
     <div class="card">
-      <h2>تقارير بانتظار توقيعكِ <span class="t-badge" id="pendBadge">0</span></h2>
+      <h2>بانتظار اطّلاعكِ أو توقيعكِ <span class="t-badge" id="pendBadge">0</span></h2>
       <div id="pendList"><p class="empty">جارِ التحميل...</p></div>
     </div>
     <div class="card">
-      <h2>التقارير الموقّعة</h2>
+      <h2>تم الاطلاع أو التوقيع</h2>
       <div id="signedList"><p class="empty">جارِ التحميل...</p></div>
     </div>
     <p style="text-align:center"><button class="btn light" onclick="tLoad()">تحديث</button></p>
@@ -156,6 +160,24 @@
       <label>توقيعكِ</label>
       <div id="tSigW"></div>
       <button id="tSignBtn" class="btn block" onclick="tSign(this)">توقيع</button>
+    </div>
+  </div>
+
+  <!-- نموذج وارد بزر «📤 إرسال» من المشرفة -->
+  <div id="inView" class="hidden">
+    <button class="back" onclick="tShow('reportsView')">← رجوع</button>
+    <div class="card">
+      <h2 id="inTitle"></h2>
+      <div class="t-meta" id="inMeta" style="color:var(--muted);line-height:1.9;margin:6px 0 10px"></div>
+      <div class="in-note hidden" id="inNote"></div>
+      <div class="ex-bar" id="inBar"></div>
+      <div id="inPrev"></div>
+    </div>
+    <div class="card hidden" id="inAct">
+      <h2 id="inActTitle"></h2>
+      <label class="check" style="margin-top:0"><input type="checkbox" id="inAgree"><span>اطّلعتُ على النموذج وما ورد فيه.</span></label>
+      <div id="inSigBox"><label>توقيعكِ</label><div id="inSigW"></div></div>
+      <button id="inBtn" class="btn block" onclick="inDone(this)"></button>
     </div>
   </div>
 

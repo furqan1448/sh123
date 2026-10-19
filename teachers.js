@@ -2,10 +2,11 @@
    الدخول برقم الجوال وكلمة مرور بوابة المعلمات، والتقارير مرتبطة بها عن طريق رقم جوالها في تقرير المشرفة. */
 const $ = id => document.getElementById(id);
 const T_PHONE = 'tch_phone', T_PW = 'tch_pw', T_CACHE = 'tch_reports';
+let TIN = [], inCur = null, inFile = null;
 let TREP = [], tCur = null, tSigsCur = {}, TME = null, TMIN = [], tMinCur = null, TFILES = [];
 
 function tShow(id) {
-  ['loginView', 'homeView', 'reportsView', 'certView', 'signView', 'minView', 'minDocView', 'filesView'].forEach(v => $(v).classList.add('hidden'));
+  ['loginView', 'homeView', 'reportsView', 'certView', 'signView', 'minView', 'minDocView', 'filesView', 'inView'].forEach(v => $(v).classList.add('hidden'));
   $(id).classList.remove('hidden');
   window.scrollTo(0, 0);
   setTimeout(() => SIG_WIDGETS.forEach(w => w.resize()), 60);
@@ -63,7 +64,7 @@ async function tLogin() {
 
 function tLogout() {
   [T_PHONE, T_PW, T_CACHE].forEach(k => localStorage.removeItem(k));
-  TREP = []; $('tPhone').value = ''; $('tPw').value = ''; $('tHintBox').textContent = '';
+  TREP = []; TIN = []; $('tPhone').value = ''; $('tPw').value = ''; $('tHintBox').textContent = '';
   tShow('loginView');
 }
 
@@ -73,7 +74,8 @@ function tApply(out) {
   TME = out.teacher || TME;
   TMIN = out.minutes || [];
   TFILES = out.files || [];
-  try { localStorage.setItem(T_CACHE, JSON.stringify({ name: out.teacher.name, me: out.teacher, data: TREP, minutes: TMIN, files: TFILES })); } catch (e) {}
+  TIN = out.inbox || [];
+  try { localStorage.setItem(T_CACHE, JSON.stringify({ name: out.teacher.name, me: out.teacher, data: TREP, minutes: TMIN, files: TFILES, inbox: TIN })); } catch (e) {}
   tMinRender(); tFilesRender();
   $('tHello').textContent = 'مرحباً ' + out.teacher.name;
   tRender();
@@ -94,12 +96,23 @@ function tItem(r, pending) {
     '<div class="act">' + (pending ? '<button class="btn" onclick="tOpen(\'' + id + '\')">فتح التقرير والتوقيع</button>'
       : '<button class="btn light" onclick="tOpen(\'' + id + '\')">عرض</button><button class="btn light" onclick="tPdf(\'' + id + '\', this)">تحميل PDF</button>') + '</div></div>';
 }
+// نموذج وارد بزر «📤 إرسال» من المشرفة
+function inItem(x) {
+  const id = esc(x.id), pending = x.status === 'new';
+  return '<div class="t-item' + (pending ? ' pending' : '') + '"><b>' + esc(x.title || 'نموذج') + '</b> <span class="t-mode">' + (x.mode === 'sign' ? 'للاطلاع والتوقيع' : 'للاطلاع') + '</span>' +
+    '<div class="t-meta">المشرفة: ' + esc(x.supName || '—') + ' — أُرسل: ' + esc(idDigits(x.at)) + (x.note ? '<br>ملاحظة المشرفة: ' + esc(x.note) : '') +
+    (!pending ? '<br><span class="t-signed">✔ ' + (x.status === 'sign' ? 'وقّعتِ' : 'اطّلعتِ') + ' بتاريخ ' + esc(idDigits(x.doneAt)) + '</span>' : '') + '</div>' +
+    '<div class="act"><button class="btn' + (pending ? '' : ' light') + '" onclick="inOpen(\'' + id + '\')">' + (pending ? (x.mode === 'sign' ? 'فتح النموذج والتوقيع' : 'فتح النموذج') : 'عرض') + '</button></div></div>';
+}
 function tRender() {
-  const pend = TREP.filter(r => !r.signed), done = TREP.filter(r => r.signed);
+  const all = TREP.map(r => ({ h: () => tItem(r, !r.signed), pend: !r.signed, at: String(r.at || r.date || '') }))
+    .concat(TIN.map(x => ({ h: () => inItem(x), pend: x.status === 'new', at: String(x.at || '') })))
+    .sort((a, b) => b.at.localeCompare(a.at));
+  const pend = all.filter(x => x.pend), done = all.filter(x => !x.pend);
   $('stPending').textContent = pend.length; $('stSigned').textContent = done.length; $('pendBadge').textContent = pend.length;
   $('tileBadge').textContent = pend.length; $('tileBadge').classList.toggle('hidden', !pend.length);
-  $('pendList').innerHTML = pend.length ? pend.map(r => tItem(r, true)).join('') : '<p class="empty">لا توجد تقارير بانتظار توقيعكِ</p>';
-  $('signedList').innerHTML = done.length ? done.map(r => tItem(r, false)).join('') : '<p class="empty">لا توجد تقارير موقّعة بعد</p>';
+  $('pendList').innerHTML = pend.length ? pend.map(x => x.h()).join('') : '<p class="empty">لا يوجد ما ينتظر اطّلاعكِ</p>';
+  $('signedList').innerHTML = done.length ? done.map(x => x.h()).join('') : '<p class="empty">لا يوجد بعد</p>';
 }
 
 /* ---------- عرض التقرير والتوقيع ---------- */
@@ -236,12 +249,110 @@ async function tFileAck(id, btn) {
   catch (e) { toast(e.message, false); setBtnBusy(btn, false); }
 }
 
+/* ---------- نموذج وارد: عرض الملف ثم «تم الاطلاع» أو التوقيع ---------- */
+const inSig = makeSigWidget('inSigW', {});
+const IN_PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+let inPdfLoading = null;
+function inLoadPdfJs() {
+  if (window.pdfjsLib) return Promise.resolve();
+  if (inPdfLoading) return inPdfLoading;
+  inPdfLoading = new Promise((res, rej) => {
+    const sc = document.createElement('script');
+    sc.src = IN_PDFJS + 'pdf.min.js';
+    sc.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = IN_PDFJS + 'pdf.worker.min.js'; res(); };
+    sc.onerror = () => { inPdfLoading = null; rej(new Error('تعذّر تحميل عارض الملفات')); };
+    document.head.appendChild(sc);
+  });
+  return inPdfLoading;
+}
+function inBlob(o) {
+  const bin = atob(o.data), u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return { bytes: u, blob: new Blob([u], { type: o.mime || 'application/octet-stream' }), name: o.name || 'ملف', isPdf: /pdf/i.test(o.mime || '') || /\.pdf$/i.test(o.name || '') };
+}
+// معاينة صفحات ملف PDF داخل الصفحة (تعمل على الجوال)
+async function inPreview(f, id) {
+  const box = $('inPrev');
+  if (!f.isPdf) { box.innerHTML = '<p class="empty">الملف بصيغة Excel — اضغطي «تحميل الملف» لفتحه.</p>'; return; }
+  box.innerHTML = '<p class="empty">جارِ عرض الملف...</p>';
+  try {
+    await inLoadPdfJs();
+    const pdf = await window.pdfjsLib.getDocument({ data: f.bytes.slice() }).promise;
+    const out = document.createElement('div'); out.className = 'in-prev';
+    for (let p = 1; p <= pdf.numPages; p++) {
+      if (!inCur || inCur.id !== id) return;
+      const page = await pdf.getPage(p), vp = page.getViewport({ scale: 1.6 });
+      const cv = document.createElement('canvas'); cv.width = vp.width; cv.height = vp.height;
+      await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+      const im = new Image(); im.alt = 'صفحة ' + p; im.src = cv.toDataURL('image/jpeg', 0.9);
+      out.appendChild(im);
+    }
+    if (inCur && inCur.id === id) { box.innerHTML = ''; box.appendChild(out); }
+  } catch (e) { box.innerHTML = '<p class="empty">تعذّر عرض الملف هنا، اضغطي «فتح الملف» أو «تحميل الملف».</p>'; }
+}
+async function inOpen(id) {
+  const x = TIN.find(y => y.id === id); if (!x) return;
+  inCur = x; inFile = null;
+  const pending = x.status === 'new', sign = x.mode === 'sign';
+  $('inTitle').textContent = x.title || 'نموذج';
+  $('inMeta').innerHTML = 'المشرفة: <b>' + esc(x.supName || '—') + '</b><br>تاريخ الإرسال: ' + esc(idDigits(x.at)) + '<br>المطلوب: <b>' + (sign ? 'الاطلاع والتوقيع' : 'الاطلاع') + '</b>' +
+    (!pending ? '<br><span class="t-signed">✔ ' + (x.status === 'sign' ? 'وقّعتِ' : 'اطّلعتِ') + ' بتاريخ ' + esc(idDigits(x.doneAt)) + '</span>' : '');
+  $('inNote').classList.toggle('hidden', !x.note); $('inNote').textContent = x.note ? 'ملاحظة المشرفة: ' + x.note : '';
+  $('inBar').innerHTML = '';
+  $('inPrev').innerHTML = '<p class="empty">جارِ تحميل الملف...</p>';
+  $('inAct').classList.toggle('hidden', !pending);
+  if (pending) {
+    $('inActTitle').textContent = sign ? 'التوقيع بالاطلاع' : 'تأكيد الاطلاع';
+    $('inSigBox').classList.toggle('hidden', !sign);
+    $('inBtn').textContent = sign ? 'توقيع' : '✔ تم الاطلاع';
+    $('inAgree').checked = false; inSig.reset();
+  }
+  tShow('inView');
+  try {
+    const f = inBlob(await tApi('t_file', { id }));
+    if (!inCur || inCur.id !== id) return;
+    inFile = f;
+    $('inBar').innerHTML = (f.isPdf ? '<button class="btn light" onclick="inView()">فتح الملف</button>' : '') + '<button class="btn light" onclick="inSave()">تحميل الملف</button>';
+    inPreview(f, id);
+  } catch (e) { $('inPrev').innerHTML = '<p class="empty">' + esc(e.message) + '</p>'; }
+}
+function inView() {
+  if (!inFile) return;
+  const u = URL.createObjectURL(inFile.blob);
+  if (!window.open(u, '_blank')) inSave();
+  setTimeout(() => URL.revokeObjectURL(u), 60000);
+}
+function inSave() {
+  if (!inFile) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(inFile.blob); a.download = inFile.name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+async function inDone(btn) {
+  if (!inCur) return;
+  const sign = inCur.mode === 'sign';
+  if (!$('inAgree').checked) return toast('علّمي على «اطّلعتُ على النموذج» أولاً', false);
+  const sig = sign ? inSig.get() : '';
+  if (sign && !sig) return toast('وقّعي داخل المربع أو أرفقي صورة التوقيع', false);
+  setBtnBusy(btn, true, 'جارِ الحفظ...');
+  try {
+    const out = await tApi('t_done', { id: inCur.id, signature: sig });
+    Object.assign(inCur, { status: sign ? 'sign' : 'ack', doneAt: out.at });
+    toast(sign ? 'تم التوقيع، شكراً لكِ' : 'تم تسجيل اطلاعكِ، شكراً لكِ');
+    $('inAct').classList.add('hidden');
+    tRender(); tShow('reportsView'); tLoad();
+  } catch (e) { toast(e.message, false); }
+  finally { setBtnBusy(btn, false); }
+}
+
+
 /* ---------- استعادة الجلسة ---------- */
 (function init() {
   if (!localStorage.getItem(T_PHONE) || !localStorage.getItem(T_PW)) return;
   try {
     const c = JSON.parse(localStorage.getItem(T_CACHE) || 'null');
-    if (c) { TREP = c.data || []; TME = c.me || null; TMIN = c.minutes || []; TFILES = c.files || []; $('tHello').textContent = 'مرحباً ' + c.name; tRender(); tMinRender(); tFilesRender(); }
+    if (c) { TREP = c.data || []; TIN = c.inbox || []; TME = c.me || null; TMIN = c.minutes || []; TFILES = c.files || []; $('tHello').textContent = 'مرحباً ' + c.name; tRender(); tMinRender(); tFilesRender(); }
   } catch (e) {}
   tShow('homeView');
   tLoad();

@@ -303,7 +303,7 @@ function renderIdari() {
     const id = esc(r.id);
     const acts = '<td><div class="act">' + sBtn('عرض', 'idOpen(\'' + id + '\')') + sBtn('طباعة', 'idDo(\'' + id + '\', this, \'print\')') +
       sBtn('PDF', 'idDo(\'' + id + '\', this, \'pdf\')') + sBtn('مشاركة', 'idDo(\'' + id + '\', this, \'share\')') +
-      (idKind === 'visit' ? sBtn('📲 إرسال للمديرة', 'idDo(\'' + id + '\', this, \'send\')', 'id-wa') : scBtn('idari', r.id)) +
+      (idKind === 'visit' ? sBtn('📲 إرسال للمديرة', 'idDo(\'' + id + '\', this, \'send\')', 'id-wa') : '') + scBtn('idari', r.id) +
       sBtn('تعديل', 'idEditRec(\'' + id + '\')') + sBtn('حذف', 'idDel(\'' + id + '\')', 'danger') + '</div></td>';
     const date = (esc(idDayName(r)) + ' ' + idHDate(r)).trim();
     if (idKind === 'visit') { const d = r.data || {}, sg = d.sigs && d.sigs.mgr; return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.center) + '</td><td>' + date + '</td><td>' + (esc(r.visitNo) || '—') + '</td><td>' + cnt(r) + '</td><td>' + (sg ? '<span class="tag ok">✔ وقّعت' + (d.mgrAt ? ' <small>' + esc(d.mgrAt) + '</small>' : '') + '</span>' : '<span class="tag warn">⏳ بانتظار توقيعها</span>') + '</td>' + acts + '</tr>'; }
@@ -315,7 +315,7 @@ function renderIdari() {
   }).join('');
 }
 const recById = id => IDR.find(r => r.id === id);
-// «📤 إرسال للمركز» (تقرير الزيارة يصل للمركز تلقائياً فلا يحتاجه)
+// «📤 إرسال للمركز أو المعلمة» (تقرير الزيارة يصل للمركز تلقائياً أيضاً)
 scRegister('idari', {
   rec: recById,
   title: r => (ID_KINDS[r.kind] || 'نموذج') + (r.center ? ' — ' + r.center : '') + ((r.data && r.data.hy) ? ' — ' + idDigits(r.data.hd + '/' + r.data.hm + '/' + r.data.hy) + 'هـ' : ''),
