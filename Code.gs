@@ -1219,7 +1219,8 @@ function saveSgs_(r) {
   if (me.unit !== SGH_UNIT) throw new Error('هذا الحساب ليس من ' + SGH_UNIT);
   const d = r.data && typeof r.data === 'object' ? r.data : {};
   const rows = (Array.isArray(d.rows) ? d.rows : []).slice(0, 60).map(x => ({
-    center: s(x && x.center, 200), teacher: s(x && x.teacher, 200), notes: s(x && x.notes, 1500), att: s(x && x.att, 40), score: s(x && x.score, 20)
+    center: s(x && x.center, 200), teacher: s(x && x.teacher, 200), notes: s(x && x.notes, 1500), att: s(x && x.att, 40), score: s(x && x.score, 20),
+    tid: s(x && x.tid, 40)   // معرّف المعلمة في سجل المعلمات (لإرسال سطرها إليها)
   })).filter(x => x.center || x.teacher || x.notes || x.att || x.score);
   if (!rows.length) throw new Error('أضيفي معلمة واحدة على الأقل في الجدول');
   const hp = o => (o && typeof o === 'object') ? { d: s(o.d, 2), m: s(o.m, 2), y: s(o.y, 4) } : {};
@@ -1379,6 +1380,8 @@ function teacherReports_(t) {
   return getSgh_().concat(getSge_()).filter(x => x.data && x.data.tid === t.id).map(x => {
     const o = Object.assign({}, x); delete o.owner;
     o.signed = !!(x.data.sigs && x.data.sigs.tch);
+    // استمارات التقييم: تصل للمعلمة الملاحظات والتوصيات فقط، دون الدرجات والتقدير
+    if (o.kind === 'eval') { o.score = ''; o.max = ''; o.grade = ''; o.data = Object.assign({}, o.data, { sc: [], overall: '' }); o.tview = true; }
     return o;
   });
 }
@@ -2045,6 +2048,9 @@ function centerDone_(acc, r) {
       }
     } catch (e) {}
   }
+  if (sig && acc.tid && x.src === 'stf' && x.srcId) {   // وقّعت الموظفة من حسابها في «المعلمات»: يُكتب توقيعها في النموذج
+    try { stfCenterSign_(x.srcId, '', '', sig, at); } catch (e) {}
+  }
   if (!acc.tid && x.src === 'stf' && x.srcId && x.mode === 'sign') {
     const emp = String(r.empSig || '');
     try { stfCenterSign_(x.srcId, sig, signer, emp.indexOf('data:image/') === 0 && emp.length < 49000 ? emp : '', at); } catch (e) {}
@@ -2111,7 +2117,8 @@ function saveStf_(r) {
   const data = {
     form: form, obs: list(d.obs), req: list(d.req), oral: dd(d.oral), written: dd(d.written),
     job: s(d.job, 120), years: s(d.years, 10), action: ['shafawi', 'khatti', 'taahud'].indexOf(d.action) > -1 ? d.action : '',
-    hd: s(d.hd, 2), hm: s(d.hm, 2), hy: s(d.hy, 4), dayName: s(d.dayName, 10), greg: s(r.date, 10)
+    hd: s(d.hd, 2), hm: s(d.hm, 2), hy: s(d.hy, 4), dayName: s(d.dayName, 10), greg: s(r.date, 10),
+    tid: s(d.tid, 40), tName: s(d.tName, 200)   // الموظفة في سجل المعلمات (يُرسل لها النموذج بعد الحفظ)
   };
   if (!data.obs.length) throw new Error(form === 'taahud' ? 'اكتبي المخالفات' : 'اكتبي الملاحظات');
   const sigs = r.sigs && typeof r.sigs === 'object' ? r.sigs : {};
@@ -2130,6 +2137,10 @@ function saveStf_(r) {
   if (v === 'keep') { if (os.emp) { has.emp = '1'; if (oldData.empAt) data.empAt = oldData.empAt; } }
   else if (v.indexOf('data:image/') === 0) { if (v.length > 49000) throw new Error('صورة توقيع الموظفة كبيرة'); sigPut_(id + '|emp', v); has.emp = '1'; }
   else if (old && os.emp) sigDel_(id + '|emp');
+  const vs = String(sigs.sup || '');   // توقيع المشرفة
+  if (vs === 'keep') { if (os.sup) has.sup = '1'; }
+  else if (vs.indexOf('data:image/') === 0) { if (vs.length > 49000) throw new Error('صورة توقيع المشرفة كبيرة'); sigPut_(id + '|sup', vs); has.sup = '1'; }
+  else if (old && os.sup) sigDel_(id + '|sup');
   if (os.mgr) { has.mgr = '1'; data.mgrAt = oldData.mgrAt || ''; }   // توقيع المديرة من حساب المركز يبقى كما هو
   data.sigs = has;
   const json = JSON.stringify(data);
@@ -2148,7 +2159,7 @@ function deleteStf_(r) {
   if (!row) throw new Error('السجل غير موجود');
   if (String(sh.getRange(row, 13).getDisplayValue()) !== me.username) throw new Error('لا يمكن حذف نموذج سجّلته مشرفة أخرى');
   sh.deleteRow(row);
-  sigDel_(id + '|emp'); sigDel_(id + '|mgr');
+  sigDel_(id + '|emp'); sigDel_(id + '|mgr'); sigDel_(id + '|sup');
   return { ok: true };
 }
 // توقيع مديرة المركز (وتوقيع الموظفة إن وقّعت عندها) من صفحة المراكز يُكتب في النموذج نفسه

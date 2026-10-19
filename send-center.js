@@ -229,7 +229,7 @@ async function scSend(btn) {
   if (dup && dup.status !== 'new' && !confirm('سبق إرسال هذا النموذج لهذه الجهة واطّلعت عليه. هل تريدين إرساله مرة أخرى؟')) return;
   setBtnBusy(btn, true, 'جارِ تجهيز الملف...');
   try {
-    const f = await def.file(rec);
+    const f = await def.file(rec, toT ? 't' : 'c', tch);   // للمعلمة قد تكون نسخة خاصة بها (مثل استمارة التقييم دون الدرجات)
     btn.innerHTML = 'جارِ الإرسال...';
     const out = await api('sendCenter', { src, srcId: id, title: def.title(rec), to: toT ? 't' : 'c', center, tid: tch ? tch.id : '', mode, note, name: f.name, mime: f.mime, data: await scB64(f.blob) });
     SC_SENT = (SC_SENT || []).filter(x => x.id !== out.item.id);

@@ -285,10 +285,12 @@ function sgTStatus(r) {
   if (d.tid) return '<span class="tag warn">⏳ بانتظار توقيعها</span>';
   return '<span style="color:var(--muted)">—</span>';
 }
-/* ---------- اختيار المعلمة (المُرسَل إليها) من قائمة أسماء سجل المعلمات ----------
-   قائمة منسدلة بالأسماء (مع إمكانية الكتابة للبحث). الأسماء المكررة تظهر مرقّمة: «الاسم (٢)». */
+/* ---------- المعلمة المُرسَل إليها = اسم المعلمة المكتوب في النموذج نفسه (من سجل المعلمات) ----------
+   خانة اسم المعلمة قائمة منسدلة بأسماء سجل المعلمات (مع إمكانية الكتابة للبحث). الأسماء المكررة تظهر مرقّمة «الاسم (٢)»،
+   وإن كُتب اسم مكرر دون رقم تُحدَّد المعلمة من سجلاتكِ السابقة لنفس الاسم في نفس المركز. */
 let T_DIR = null, T_BY_LABEL = {}, T_LABEL_BY_ID = {}, tDirLoading = null;
 const tdKey = s => sgNorm(s);
+const tdClean = s => String(s || '').replace(/\s*\(\s*[٠-٩0-9]+\s*\)\s*$/, '').trim();
 function tdBuild(list) {
   T_DIR = list || []; T_BY_LABEL = {}; T_LABEL_BY_ID = {};
   const count = {}, seen = {};
@@ -305,33 +307,105 @@ function tdBuild(list) {
 function loadTDir() {
   if (T_DIR) return Promise.resolve(T_DIR);
   if (tDirLoading) return tDirLoading;
-  const c = cacheGet('tdir'); if (c) tdBuild(c);
-  tDirLoading = api('teacherDir').then(out => { tdBuild(out.data || []); cacheSet('tdir', T_DIR); return T_DIR; })
+  const c = cacheGet('tdir'); if (c) { tdBuild(c); tdRefreshAll(); }
+  tDirLoading = api('teacherDir').then(out => { tdBuild(out.data || []); cacheSet('tdir', T_DIR); tdRefreshAll(); return T_DIR; })
     .catch(e => { if (!T_DIR) toast('تعذّر تحميل أسماء المعلمات: ' + e.message, false); return T_DIR || []; })
     .finally(() => { tDirLoading = null; });
-  return tDirLoading;
+  return T_DIR ? Promise.resolve(T_DIR) : tDirLoading;
 }
-// يرجّع المعلمة المختارة {id,name}، أو null إن كانت الخانة فارغة، أو false إن كان الاسم غير موجود
-function tdResolve(p) {
-  const v = $(p + 'TSel').value.trim();
-  if (!v) return null;
-  return T_BY_LABEL[tdKey(v)] || false;
+// السجلات السابقة المرتبطة بمعلمة (لتمييز الأسماء المكررة حسب المركز)
+function tdHist() {
+  const out = [], add = (name, center, tid) => { if (tid) out.push({ k: sgNorm(name), c: center, tid }); };
+  SGH.concat(SGE).forEach(r => add(r.teacher, r.center, r.data && r.data.tid));
+  (typeof STF !== 'undefined' ? STF : []).forEach(r => add(r.teacher, r.center, r.data && r.data.tid));
+  SGS.forEach(r => ((r.data && r.data.rows) || []).forEach(x => add(x.teacher, x.center, x.tid)));
+  return out;
 }
-function tdPicked(p) {
-  const hint = $(p + 'THint'), t = tdResolve(p);
-  if (t === null) { hint.textContent = ''; return; }
-  if (t === false) { hint.textContent = '✖ الاسم غير موجود في سجل المعلمات، اختاريه من القائمة'; return; }
-  hint.innerHTML = '✔ يصل إلى: <b>' + esc(t.name) + '</b>';
-  const nameEl = p === 'sg' ? $('sgTeacher') : $('seF_teacher');
-  if (nameEl && !nameEl.value.trim()) { nameEl.value = t.name; if (p === 'sg') sgUpdateNo(); }
-  tdAutoFill(p);
+// يرجّع { t, why: 'ok' | 'none' (غير موجودة) | 'dup' (مكررة) | 'empty' | 'loading', n, byCenter }
+function tdFind(name, center, pin) {
+  const raw = String(name || '').trim();
+  if (!raw) return { why: 'empty' };
+  if (!T_DIR) return { why: 'loading' };
+  const lab = T_BY_LABEL[tdKey(raw)];
+  if (lab) return { t: lab, why: 'ok' };
+  const k = tdKey(tdClean(raw));
+  if (pin) { const p = T_DIR.find(x => x.id === pin && tdKey(x.name) === k); if (p) return { t: p, why: 'ok' }; }
+  const L = T_DIR.filter(x => tdKey(x.name) === k);
+  if (L.length === 1) return { t: L[0], why: 'ok' };
+  if (!L.length) return { why: 'none' };
+  if (center) {
+    const ids = new Set(tdHist().filter(h => h.k === k && h.c === center && L.some(x => x.id === h.tid)).map(h => h.tid));
+    if (ids.size === 1) { const id = [...ids][0]; return { t: L.find(x => x.id === id), why: 'ok', byCenter: true }; }
+  }
+  return { why: 'dup', n: L.length };
 }
-// تعبئة الخانة عند فتح تقرير/استمارة محفوظة
+function tdHintHtml(res) {
+  if (res.why === 'ok') return '<span style="color:#1f7a45">✔ يُرسَل بعد الحفظ إلى: <b>' + esc(res.t.name) + '</b>' + (res.byCenter ? ' <small>(حُدّدت من سجلاتكِ السابقة في هذا المركز)</small>' : '') + '</span>';
+  if (res.why === 'dup') return '<span style="color:#a15c00">⚠ يوجد ' + arD(res.n) + ' بهذا الاسم في سجل المعلمات، اختاري الاسم المرقّم الصحيح من القائمة.</span>';
+  if (res.why === 'none') return '<span style="color:#a12a2a">✖ الاسم غير موجود في سجل المعلمات، فلن يُرسَل لها. اختاريه من القائمة.</span>';
+  if (res.why === 'loading') return 'جارِ تحميل سجل المعلمات...';
+  return '';
+}
+// خانات كل نموذج: [اسم المعلمة، المركز، التلميح]
+function tdEls(p) {
+  if (p === 'sg') return [$('sgTeacher'), $('sgCenter'), $('sgTHint')];
+  if (p === 'se') return [$('seF_teacher'), $('seF_center'), $('seTHint')];
+  if (p === 'sf') return [$('sfEmp'), $('sfCenter'), $('sfTHint')];
+  return [];
+}
+const tdOf = (input, centerEl) => tdFind(input ? input.value : '', centerEl ? centerEl.value : '', input ? input.dataset.tid : '');
+// عند اختيار اسم مرقّم من القائمة: يُكتب الاسم دون الرقم وتُثبَّت المعلمة المختارة
+function tdPin(input) {
+  if (!input || !T_DIR) return;
+  const lab = T_BY_LABEL[tdKey(input.value)];
+  if (lab) { input.dataset.tid = lab.id; if (input.value.trim() !== lab.name) input.value = lab.name; return; }
+  const pin = input.dataset.tid && T_DIR.find(x => x.id === input.dataset.tid);
+  if (pin && tdKey(pin.name) !== tdKey(tdClean(input.value))) delete input.dataset.tid;
+}
+const tdShow = (input, centerEl, hint) => { if (hint) hint.innerHTML = tdHintHtml(tdOf(input, centerEl)); };
+function tdRefresh(p) { const [i, c, h] = tdEls(p); if (i) tdShow(i, c, h); }
+function ssRowHint(row) { tdShow(row.querySelector('[data-k="teacher"]'), row.querySelector('[data-k="center"]'), row.querySelector('.ss-th')); }
+function tdRefreshAll() { ['sg', 'se', 'sf'].forEach(tdRefresh); document.querySelectorAll('#ssRows .id-row').forEach(ssRowHint); }
+// المعلمة المحددة {id,name}، أو null إن كانت الخانة فارغة، أو false إن كان الاسم غير موجود أو مكرراً
+function tdResolve(p) { const [i, c] = tdEls(p); const r = tdOf(i, c); return r.why === 'empty' ? null : r.why === 'ok' ? r.t : false; }
+// عند فتح سجل محفوظ: تثبيت المعلمة المرتبطة به
 function tdSet(p, d) {
   d = d || {};
-  $(p + 'TSel').value = d.tid ? (T_LABEL_BY_ID[d.tid] || d.tName || '') : (d.tSel || '');
-  $(p + 'THint').innerHTML = d.tid && d.tName ? '✔ يصل إلى: <b>' + esc(d.tName) + '</b>' + (d.tchAt ? ' — وقّعت من حسابها' : '') : '';
-  if (d.tid && !T_LABEL_BY_ID[d.tid]) loadTDir().then(() => { if (T_LABEL_BY_ID[d.tid] && $(p + 'TSel').value === (d.tName || '')) $(p + 'TSel').value = T_LABEL_BY_ID[d.tid]; });
+  const [i] = tdEls(p);
+  if (i) { if (d.tid) i.dataset.tid = d.tid; else delete i.dataset.tid; }
+  tdRefresh(p);
+}
+// قبل الحفظ: يرجّع المعلمة، أو '' للحفظ دون إرسال، أو undefined لإلغاء الحفظ
+async function tdConfirm(input, centerEl, who) {
+  await loadTDir();
+  tdPin(input);
+  const r = tdOf(input, centerEl);
+  if (r.why === 'ok') return r.t;
+  if (r.why === 'empty') return '';
+  if (r.why === 'dup') { input.focus(); input.scrollIntoView({ block: 'center' }); toast('يوجد أكثر من ' + who + ' بهذا الاسم في سجل المعلمات، اختاري الاسم المرقّم الصحيح من القائمة', false); return undefined; }
+  if (r.why === 'loading') return confirm('تعذّر تحميل سجل المعلمات، فلن يُرسَل النموذج الآن. هل تريدين الحفظ دون إرسال؟') ? '' : undefined;
+  return confirm('اسم ' + who + ' «' + input.value.trim() + '» غير موجود في سجل المعلمات، فلن يُرسَل لها.\nهل تريدين الحفظ دون إرسال؟\n(للإرسال: اختاري الاسم من القائمة)') ? '' : undefined;
+}
+['input', 'change'].forEach(ev => document.addEventListener(ev, e => {
+  const el = e.target;
+  if (!el || !el.closest) return;
+  if (el.classList.contains('td-name')) tdPin(el);
+  const row = el.closest('#ssRows .id-row');
+  if (row) return ssRowHint(row);
+  if (el.id === 'sgTeacher' || el.id === 'sgCenter') { tdRefresh('sg'); if (el.id === 'sgTeacher') sgUpdateNo(); }
+  else if (el.id === 'seF_teacher' || el.id === 'seF_center') tdRefresh('se');
+  else if (el.id === 'sfEmp' || el.id === 'sfCenter') tdRefresh('sf');
+}));
+// نسخة المعلمة: استمارات التقييم بالملاحظات والتوصيات فقط دون الدرجات، والخلاصة بسطرها فقط دون الدرجة
+function sgTeacherCopy(r, t) {
+  if (!r) return r;
+  if (r.kind === 'eval') return Object.assign({}, r, { score: '', max: '', grade: '', tview: true, data: Object.assign({}, r.data, { sc: [], overall: '' }) });
+  if (r.kind === 'sum') {
+    const rows = (r.data && r.data.rows) || [];
+    const mine = t ? rows.filter(x => (x.tid && x.tid === t.id) || sgNorm(x.teacher) === sgNorm(t.name)) : rows;
+    return Object.assign({}, r, { tview: true, data: Object.assign({}, r.data, { rows: mine }) });
+  }
+  return r;
 }
 function sgOpen(id) { const r = recById(id); if (r) sgView(r); }
 function sgDo(id, btn, what) { const r = recById(id); if (!r) return; what === 'pdf' ? sgPdf(r, btn) : what === 'share' ? sgShare(r, btn) : sgPrint(r, btn); }
@@ -411,6 +485,7 @@ function sgFill(r) {
   $('sgSupName').value = edit ? (r.supName || '') : myName();
   $('sgVisitNoHint').textContent = '';
   sgNoTouched = false;
+  tdRefresh('sg');
   const has = (r.data && r.data.sigs) || {};
   Object.keys(SGW).forEach(k => { SGW[k].reset(); if (edit && has[k]) SGW[k].keepOld('الإبقاء على التوقيع السابق'); });
 }
@@ -419,8 +494,7 @@ function sgEditRec(id) { const r = recById(id); if (!r) return; sgEdit = r; sgFi
 function sgBack() { sgEdit = null; show('sgListView'); renderSgh(); }
 
 /* ---------- الحفظ ---------- */
-async function sgSave(btn, notify) {
-  if (notify && !tdResolve('sg')) { $('sgTSel').focus(); $('sgTSel').scrollIntoView({ block: 'center' }); return toast('اختاري المعلمة من خانة «إرسال التقرير للمعلمة» أعلى النموذج', false); }
+async function sgSave(btn) {
   const hd = hdGet('sg');
   if (!/^\d{4}$/.test(hd.hy)) return toast('اكتبي سنة التاريخ الهجري (مثال: 1448)', false);
   const req = {
@@ -436,8 +510,9 @@ async function sgSave(btn, notify) {
   if (!req.period) return toast('اختاري الفترة (صباحي أو مسائي)', false);
   if (!req.lesson) return toast('اكتبي موضوع الدرس', false);
   if (!req.recs) return toast('اكتبي توصية واحدة على الأقل', false);
-  const sgT = tdResolve('sg');
-  if (sgT === false) return toast('اسم المعلمة المُرسَل إليها غير موجود في سجل المعلمات، اختاريه من القائمة', false);
+  const sgT = await tdConfirm($('sgTeacher'), $('sgCenter'), 'المعلمة');   // المعلمة من اسمها في التقرير نفسه
+  if (sgT === undefined) return;
+  req.teacher = $('sgTeacher').value.trim();
   req.tid = sgT ? sgT.id : '';
   const oldHas = (sgEdit && sgEdit.data && sgEdit.data.sigs) || {};
   req.sigs = {};
@@ -457,7 +532,7 @@ async function sgSave(btn, notify) {
     cacheSet('sgh', SGH);
     sgEdit = null;
     show('sgListView'); renderSgh(); fillTeachers();
-    if (res.tid) sgNotifyShow(rec, res.tWa, true);
+    sgAfterSave(sgLinkedResult('التقرير', 'sgh', rec, res));
     loadSgh(true);
   } catch (e) { toast(e.message, false); }
   finally { setBtnBusy(btn, false); }
@@ -525,13 +600,13 @@ function ssRowHtml(r) {
     (r.center && (LISTS.centers || []).indexOf(r.center) < 0 ? '<option selected>' + esc(r.center) + '</option>' : '');
   return '<div class="id-row"><div class="id-row-h"><b>معلمة</b><button type="button" class="btn danger" onclick="ssRowDel(this)">حذف</button></div>' +
     '<div class="row2"><div><label>اسم المركز</label><select data-k="center">' + centers + '</select></div>' +
-    '<div><label>اسم المعلمة</label><input data-k="teacher" list="sgTeachers" autocomplete="off" value="' + esc(r.teacher) + '"></div></div>' +
+    '<div><label>اسم المعلمة</label><input data-k="teacher" class="td-name" list="tDirList" autocomplete="off" placeholder="اختاري من سجل المعلمات" value="' + esc(r.teacher) + '"' + (r.tid ? ' data-tid="' + esc(r.tid) + '"' : '') + '><div class="id-hint ss-th"></div></div></div>' +
     '<label>الملاحظات التي تم رصدها</label><textarea data-k="notes" rows="2">' + esc(r.notes) + '</textarea>' +
     '<div class="row2"><div><label>حضور مادة أم قرآن أم كليهما</label><select data-k="att">' + opts + '</select></div>' +
     '<div><label>مستوى أداء المعلمة بالدرجة</label><input data-k="score" inputmode="decimal" value="' + esc(r.score) + '"></div></div></div>';
 }
 function ssNum() { [...$('ssRows').children].forEach((el, i) => { el.querySelector('.id-row-h b').textContent = 'المعلمة ' + arD(i + 1); }); }
-function ssAddRow(r) { $('ssRows').insertAdjacentHTML('beforeend', ssRowHtml(r)); ssNum(); }
+function ssAddRow(r) { $('ssRows').insertAdjacentHTML('beforeend', ssRowHtml(r)); ssNum(); ssRowHint($('ssRows').lastElementChild); }
 function ssRowDel(btn) {
   const row = btn.closest('.id-row');
   if ($('ssRows').children.length < 2) { row.querySelectorAll('input,textarea,select').forEach(x => x.value = ''); return; }
@@ -541,6 +616,8 @@ function ssRowsSet(rows) { $('ssRows').innerHTML = ''; (rows && rows.length ? ro
 const ssRowsGet = () => [...$('ssRows').children].map(el => {
   const o = {}; el.querySelectorAll('[data-k]').forEach(x => { o[x.dataset.k] = x.value.trim(); });
   o.score = (o.score || '').replace(/[٠-٩]/g, x => '٠١٢٣٤٥٦٧٨٩'.indexOf(x));
+  const ti = el.querySelector('[data-k="teacher"]'), r = tdOf(ti, el.querySelector('[data-k="center"]'));
+  o.tid = r.why === 'ok' ? r.t.id : (r.why === 'loading' ? (ti.dataset.tid || '') : '');   // المعلمة في سجل المعلمات (لإرسال سطرها إليها)
   return o;
 }).filter(o => o.center || o.teacher || o.notes || o.att || o.score);
 
@@ -562,7 +639,7 @@ async function ssImport() {
     const ex = add.find(x => sgNorm(x.teacher) + '|' + x.center === k);
     if (ex) { if (notes) ex.notes = [ex.notes, notes].filter(Boolean).join('\n'); return; }
     if (have.has(k)) return;
-    add.push({ center: r.center, teacher: r.teacher, notes, att: '', score: '' });
+    add.push({ center: r.center, teacher: r.teacher, notes, att: '', score: '', tid: (r.data && r.data.tid) || '' });
   });
   if (!add.length) return toast('كل معلمات الفترة موجودات في الجدول');
   ssRowsSet(cur.concat(add));
@@ -583,6 +660,7 @@ function ssFill(r) {
   hdSet('ss', edit ? r : null);
   ssSupW.reset();
   if (edit && d.sigs && d.sigs.sup) ssSupW.keepOld('الإبقاء على التوقيع السابق');
+  loadTDir();
 }
 function ssNew() { ssEdit = null; ssFill(null); show('ssForm'); }
 function ssEditRec(id) { const r = ssById(id); if (!r) return; ssEdit = r; ssFill(r); show('ssForm'); }
@@ -599,6 +677,15 @@ async function ssSave(btn) {
   };
   if (!req.sem) return toast('اختاري الفصل الدراسي', false);
   if (!req.data.rows.length) return toast('أضيفي معلمة واحدة على الأقل', false);
+  // المعلمات المُرسَل إليهن: من أسمائهن في الجدول
+  await loadTDir();
+  [...$('ssRows').children].forEach(el => tdPin(el.querySelector('[data-k="teacher"]')));
+  req.data.rows = ssRowsGet();
+  const chk = [...$('ssRows').children].map(el => ({ el, r: tdOf(el.querySelector('[data-k="teacher"]'), el.querySelector('[data-k="center"]')), name: el.querySelector('[data-k="teacher"]').value.trim() })).filter(x => x.name);
+  const dup = chk.find(x => x.r.why === 'dup');
+  if (dup) { dup.el.scrollIntoView({ block: 'center' }); return toast('«' + dup.name + '» مكرر في سجل المعلمات، اختاري الاسم المرقّم الصحيح من القائمة', false); }
+  const miss = chk.filter(x => x.r.why === 'none' || x.r.why === 'loading').map(x => x.name);
+  if (miss.length && !confirm('لن تُرسَل الخلاصة لهؤلاء لأن أسماءهن غير موجودة في سجل المعلمات:\n' + miss.join('\n') + '\n\nهل تريدين الحفظ؟')) return;
   const v = ssSupW.get();
   req.sigs = { sup: v || (ssEdit && ssEdit.data && ssEdit.data.sigs && ssEdit.data.sigs.sup ? 'keep' : '') };
   setBtnBusy(btn, true);
@@ -612,7 +699,25 @@ async function ssSave(btn) {
     SGS = SGS.filter(r => r.id !== rec.id); SGS.unshift(rec);
     cacheSet('sgs', SGS);
     ssEdit = null;
+    // إرسال كل معلمة سطرها فقط (للاطلاع)
+    const groups = [];
+    rec.data.rows.forEach(x => {
+      const t = x.tid && T_DIR && T_DIR.find(y => y.id === x.tid); if (!t) return;
+      const g = groups.find(y => y.t.id === t.id); if (g) g.rows.push(x); else groups.push({ t, rows: [x] });
+    });
+    const out = { what: 'الخلاصة', src: 'sgs', id: rec.id, sent: [], skipped: [], failed: [], none: miss };
+    if (groups.length) {
+      let sigs = {};
+      try { sigs = await sgLoadSigs(rec); } catch (e) {}
+      for (let i = 0; i < groups.length; i++) {
+        const g = groups[i];
+        btn.innerHTML = '<span class="spin"></span> جارِ الإرسال للمعلمات ' + arD(i + 1) + ' من ' + arD(groups.length) + '...';
+        const fileRec = Object.assign({}, rec, { tview: true, data: Object.assign({}, rec.data, { rows: g.rows }) });
+        await sgPushInto(out, 'sgs', rec.id, SGS_TITLE + ' — ' + g.t.name, g.t, 'ack', fileRec, sigs);
+      }
+    }
     show('ssListView'); renderSgs();
+    sgAfterSave(out);
     loadSgs(true);
   } catch (e) { toast(e.message, false); }
   finally { setBtnBusy(btn, false); }
@@ -659,7 +764,8 @@ const sgScDef = get => ({
   rec: get,
   title: r => sgFileName(r).replace(/_/g, ' '),
   center: r => r.center || '', period: r => r.period || '',
-  file: async r => ({ blob: await sgPdfBlob(r), name: sgFileName(r) + '.pdf', mime: 'application/pdf' })
+  // للمعلمة: نسخة الاستمارة بالملاحظات والتوصيات فقط، ونسخة الخلاصة بسطرها فقط
+  file: async (r, to, t) => ({ blob: await sgPdfBlob(to === 't' ? sgTeacherCopy(r, t) : r), name: sgFileName(r) + '.pdf', mime: 'application/pdf' })
 });
 scRegister('sgh', sgScDef(id => recById(id)));
 scRegister('sgs', sgScDef(id => ssById(id)));
@@ -688,7 +794,7 @@ function seBuild(k, r) {
   function seFieldHtml(key, lbl) {
     if (key === 'center') return '<label for="seF_center">' + lbl + '</label><select id="seF_center"><option value="">اختاري المركز</option>' + (LISTS.centers || []).map(x => '<option>' + esc(x) + '</option>').join('') + '</select>';
     if (key === 'period') return '<label>' + lbl + '</label><div class="chips" id="seF_period"><label class="chip"><input type="checkbox" value="صباحي"><span>صباحي</span></label><label class="chip"><input type="checkbox" value="مسائي"><span>مسائي</span></label></div>';
-    if (key === 'teacher') return '<label for="seF_teacher">' + lbl + '</label><input id="seF_teacher" list="sgTeachers" autocomplete="off">';
+    if (key === 'teacher') return '<label for="seF_teacher">' + lbl + '</label><input id="seF_teacher" class="td-name" list="tDirList" autocomplete="off" placeholder="اختاري من سجل المعلمات">';
     if (key === 'sem') return '<label for="seF_sem">' + lbl + '</label><select id="seF_sem"><option value="">اختاري</option><option>الأول</option><option>الثاني</option><option>الثالث</option></select>';
     return '<label for="seF_' + key + '">' + lbl + '</label><input id="seF_' + key + '" autocomplete="off"' + (SE_NUMERIC.indexOf(key) > -1 ? ' inputmode="numeric"' : '') + '>';
   }
@@ -751,8 +857,7 @@ function seNew(k) { seEdit = null; seFill(k, null); show('seForm'); }
 function seEditRec(id) { const r = seById(id); if (!r) return; seEdit = r; seFill(r.data.form, r); show('seForm'); }
 function seBack() { seEdit = null; show('seListView'); renderSge(); }
 
-async function seSave(btn, notify) {
-  if (notify && !tdResolve('se')) { $('seTSel').focus(); $('seTSel').scrollIntoView({ block: 'center' }); return toast('اختاري المعلمة من خانة «إرسال الاستمارة للمعلمة» أعلى الاستمارة', false); }
+async function seSave(btn) {
   const form = SGE_FORMS[seType]; if (!form) return;
   const hd = hdGet('se');
   if (!/^\d{4}$/.test(hd.hy)) return toast('اكتبي سنة التاريخ الهجري (مثال: 1448)', false);
@@ -778,8 +883,9 @@ async function seSave(btn, notify) {
   if (!req.center) return toast('اختاري المركز', false);
   if (!form.grades && !req.grade) return toast('اختاري التقدير العام', false);
   if (!req.supName) return toast('اكتبي اسم المشرفة', false);
-  const seT = tdResolve('se');
-  if (seT === false) return toast('اسم المعلمة المُرسَل إليها غير موجود في سجل المعلمات، اختاريه من القائمة', false);
+  const seT = await tdConfirm($('seF_teacher'), $('seF_center'), form.who || 'المعلمة');   // المعلمة من اسمها في الاستمارة نفسها
+  if (seT === undefined) return;
+  req.teacher = $('seF_teacher').value.trim();
   req.tid = seT ? seT.id : '';
   const oldHas = (seEdit && seEdit.data && seEdit.data.sigs) || {};
   req.sigs = {};
@@ -799,7 +905,7 @@ async function seSave(btn, notify) {
     cacheSet('sge', SGE);
     seEdit = null;
     show('seListView'); renderSge(); loadSge(true);
-    if (res.tid) sgNotifyShow(rec, res.tWa, true);
+    sgAfterSave(sgLinkedResult('الاستمارة', 'sge', rec, res));
   } catch (e) { toast(e.message, false); }
   finally { setBtnBusy(btn, false); }
 }
@@ -899,6 +1005,67 @@ async function sgNotifyRec(id, btn) {
   catch (e) { toast(e.message, false); }
   finally { setBtnBusy(btn, false); }
 }
+/* ======================= بعد الحفظ: الإرسال للمعلمة، ثم خيار الإرسال للمديرة =======================
+   التقرير والاستمارة: يُربطان بحساب المعلمة عند الحفظ (تطّلع وتوقّع من «المعلمات»).
+   الخلاصة وإجراءات الموظفات: تُرسَل نسخة PDF للمعلمة تلقائياً بعد الحفظ (مثل زر «📤 إرسال»).
+   المديرة: زر «📤 إرسال للمديرة» يفتح نافذة الإرسال للمركز (اطلاع فقط، أو اطلاع وتوقيع) كما هي. */
+function sgWaMsg(name, title, mode) {
+  return 'السلام عليكم ورحمة الله وبركاته\n' +
+    'الأستاذة/ ' + name + ' المحترمة\n' +
+    'نفيدكِ بأنه أُرسل إليكِ «' + title + '»، وهو بانتظار ' + (mode === 'sign' ? 'اطّلاعكِ وتوقيعكِ' : 'اطّلاعكِ') + '.\n' +
+    'يُرجى الدخول إلى منظومة مشرفات ← أيقونة «المعلمات» برقم جوالكِ وكلمة المرور:\n' +
+    new URL('teachers.html', location.href).href + '\n' +
+    (myName() ? 'المشرفة: ' + myName() + '\n' : '') +
+    'وحدة تحفيظ الصغار — جمعية فرقان';
+}
+const SG_HOW = { sign: 'للاطلاع والتوقيع', ack: 'للاطلاع' };
+// نتيجة الحفظ للتقرير/الاستمارة المرتبطين بحساب المعلمة
+function sgLinkedResult(what, src, rec, res) {
+  const out = { what, src, id: rec.id, sent: [], skipped: [], failed: [], none: [] };
+  if (!res.tid) { if (rec.teacher) out.none.push(rec.teacher); return out; }
+  if (res.tchAt) out.skipped.push({ name: res.tName, st: 'وقّعت عليه سابقاً من حسابها، ويبقى توقيعها بعد التعديل.' });
+  else out.sent.push({ name: res.tName, phone: res.tWa, how: SG_HOW.sign, msg: sgNotifyMsg(rec) });
+  return out;
+}
+// إرسال نسخة PDF للمعلمة (لا يُعاد الإرسال إن كانت قد اطّلعت/وقّعت على النسخة السابقة)
+async function sgPushInto(out, src, srcId, title, t, mode, fileRec, sigs) {
+  try {
+    await scLoad(true);
+    const prev = (SC_SENT || []).find(x => x.src === src && x.srcId === srcId && x.to === 't' && x.center === t.name);
+    if (prev && prev.status !== 'new') {
+      out.skipped.push({ name: t.name, st: 'سبق أن ' + (prev.status === 'sign' ? 'وقّعت' : 'اطّلعت') + ' على النسخة المرسلة، فلم تُرسَل مرة أخرى (لإعادة الإرسال: زر «📤 إرسال»).' });
+      return;
+    }
+    const blob = await sgPdfBlob(fileRec, sigs);
+    const r = await api('sendCenter', { src, srcId, title, to: 't', center: '', tid: t.id, mode, note: '',
+      name: (sgFileName(fileRec) + '_' + t.name).replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, '_') + '.pdf', mime: 'application/pdf', data: await scB64(blob) });
+    SC_SENT = (SC_SENT || []).filter(x => x.id !== r.item.id); SC_SENT.unshift(r.item);
+    cacheSet('sc_sent', SC_SENT); scPaint();
+    out.sent.push({ name: t.name, phone: r.tPhone, how: SG_HOW[mode], again: r.replaced, msg: sgWaMsg(t.name, title, mode) });
+  } catch (e) { out.failed.push({ name: t.name, err: e.message || 'تعذّر الإرسال' }); }
+}
+function sgAfterSave(o) {
+  const m = $('sgModal'), b = $('sgModalBody');
+  let h = '<div class="id-send"><div><b>✅ تم حفظ ' + o.what + '.</b></div>';
+  o.sent.forEach(x => {
+    const wa = sgTWaPhone(x.phone);
+    h += '<div class="sa-it">✔ ' + (x.again ? 'حُدّثت النسخة المرسلة' : 'أُرسل') + ' للمعلمة <b>' + esc(x.name) + '</b> ' + x.how + '، ويظهر لها في أيقونة «المعلمات».' +
+      (wa ? '<br><a class="btn id-wa" target="_blank" rel="noopener" href="https://wa.me/' + wa + '?text=' + encodeURIComponent(x.msg) + '">💬 تنبيهها في واتساب</a>'
+        : '<br><small style="color:#a12a2a">لا يوجد رقم جوال صحيح لها في سجل المعلمات، فلا يمكن تنبيهها في واتساب.</small>') + '</div>';
+  });
+  o.skipped.forEach(x => { h += '<div class="sa-it">ℹ️ <b>' + esc(x.name) + '</b>: ' + esc(x.st) + '</div>'; });
+  o.failed.forEach(x => { h += '<div class="sa-it" style="color:#a12a2a">✖ تعذّر الإرسال للمعلمة <b>' + esc(x.name) + '</b>: ' + esc(x.err) + ' — أعيدي المحاولة من زر «📤 إرسال».</div>'; });
+  if (o.none.length) h += '<div class="sa-it" style="color:#a15c00">⚠ لم يُرسَل لـ: <b>' + o.none.map(esc).join('، ') + '</b> — الاسم غير موجود في سجل المعلمات (اختاريه من القائمة ثم احفظي).</div>';
+  h += '<div class="sa-mgr"><b>المديرة:</b> يمكنكِ إرسال ' + o.what + ' للمركز للاطلاع فقط، أو للاطلاع والتوقيع.<br>' +
+    '<button class="btn" onclick="sgToMgr(\'' + o.src + '\', \'' + esc(o.id) + '\', ' + (o.mgrSign ? 1 : 0) + ')">📤 إرسال للمديرة</button> ' +
+    '<button class="btn light" onclick="sgCloseModal()">إغلاق</button></div></div>';
+  b.innerHTML = h;
+  m.classList.remove('hidden');
+}
+function sgToMgr(src, id, sign) {
+  sgCloseModal();
+  scOpen(src, id).then(() => { if (sign) { const x = document.querySelector('#scModal input[name="scMode"][value="sign"]'); if (x) x.checked = true; } });
+}
 // يُضاف لأزرار القائمة
 const sgNotifyBtn = r => (r.data && r.data.tid && !(r.data.sigs && r.data.sigs.tch)) ? sBtn('📲 تنبيه المعلمة', 'sgNotifyRec(\'' + esc(r.id) + '\', this)', 'id-wa') : '';
 
@@ -909,7 +1076,7 @@ const adWrap = (name, after) => { const o = window[name]; window[name] = functio
 AD.register('sgForm', {
   key: () => sgEdit ? sgEdit.id : 'new',
   collect: () => ({ teacher: $('sgTeacher').value, center: $('sgCenter').value, period: periodGet('sgPeriod'), visitNo: $('sgVisitNo').value, lesson: $('sgLesson').value,
-    recs: sgRecsGet(), supName: $('sgSupName').value, data: Object.assign(adHd('sg'), { tSel: $('sgTSel').value }) }),
+    recs: sgRecsGet(), supName: $('sgSupName').value, data: Object.assign(adHd('sg'), { tid: $('sgTeacher').dataset.tid || '' }) }),
   apply: d => { sgFill(Object.assign({}, sgEdit || {}, d, { data: Object.assign({}, (sgEdit && sgEdit.data) || {}, d.data) })); hdSet('sg', d); },
   reset: () => sgFill(sgEdit)
 });
@@ -931,7 +1098,7 @@ AD.register('seForm', {
     form.fields.forEach(([key]) => { if (['center', 'period', 'teacher'].indexOf(key) < 0 && $('seF_' + key)) f[key] = $('seF_' + key).value; });
     return { teacher: $('seF_teacher').value, center: $('seF_center').value, period: $('seF_period') ? periodGet('seF_period') : '', supName: $('seSupName').value,
       data: Object.assign(adHd('se'), { form: seType, f, sc: form.grades ? seScores() : [], nt: [...document.querySelectorAll('#seItems .se-nt')].map(x => x.value),
-        recs: form.recs.map((_, i) => $('seR' + i).value), overall: $('seOverall').value, tSel: $('seTSel').value, supName: $('seSupName').value }) };
+        recs: form.recs.map((_, i) => $('seR' + i).value), overall: $('seOverall').value, tid: $('seF_teacher').dataset.tid || '', supName: $('seSupName').value }) };
   },
   apply: d => { seFill(d.data.form, Object.assign({}, seEdit || {}, d, { data: Object.assign({}, (seEdit && seEdit.data) || {}, d.data) })); hdSet('se', d); seCalc(); },
   reset: () => seFill(seType, seEdit)

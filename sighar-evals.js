@@ -976,6 +976,21 @@ function sgeDocHtml(rec, sigs, lhUrl) {
   if (!form.nodate) { cells.push('اليوم: ' + m(esc(d.dayName || ''))); cells.push('التاريخ: ' + m(d.hy ? idHDate(rec) : '')); }
   let info = '';
   for (let i = 0; i < cells.length; i += 3) info += '<tr>' + [0, 1, 2].map(j => '<td>' + (cells[i + j] || '') + '</td>').join('') + '</tr>';
+  const sigCol = (lbl, name, sg) => '<div>' + lbl + (name ? '<br>' + m(esc(name)) : '') + idSig(sg) + '</div>';
+  const recs = (form.recs || []).map((lbl, i) => (d.recs && d.recs[i]) ? '<div class="sge-box idc-avoid"><b>' + esc(lbl) + '</b><div>' + esc(d.recs[i]) + '</div></div>' : '').join('');
+  // نسخة المعلمة: الملاحظات والتوصيات فقط، دون الدرجات والتقدير
+  if (rec.tview) {
+    const L = form.items.map((it, i) => ({ it, n: String((d.nt || [])[i] || '').trim() })).filter(x => x.n);
+    const rows = L.length ? L.map((x, i) => '<tr><td class="idc-n">' + idDigits(i + 1) + '</td><td class="sge-t">' + (x.it.g && form.gtitle ? '<small style="color:#7a1f2b">' + esc(x.it.g) + ' — </small>' : '') + esc(x.it.t) + '</td><td class="sge-t">' + esc(x.n) + '</td></tr>').join('')
+      : '<tr><td colspan="3" style="padding:10px">لا توجد ملاحظات على بنود التقييم.</td></tr>';
+    return '<div class="idoc sg sge">' + head + '<div class="idc-body">' +
+      '<div class="idc-title">' + esc(form.title) + '</div>' +
+      '<div class="sg-sub" style="margin:-4px 0 10px;font-size:16px">الملاحظات والتوصيات</div>' +
+      '<table class="sge-info">' + info + '</table>' +
+      '<table><colgroup><col style="width:40px"><col style="width:46%"><col></colgroup><tr><th>م</th><th>البند</th><th>الملاحظة</th></tr>' + rows + '</table>' + recs +
+      '<div class="idc-foot idc-avoid">' + sigCol('اسم ' + form.who + ' والتوقيع', rec.teacher, sigs.tch) + sigCol('اسم المشرفة والتوقيع', d.supName || rec.supName, sigs.sup) + '</div>' +
+    '</div></div>';
+  }
   // البنود
   const scored = !!form.grades, hasG = !!form.gtitle, items = form.items, sc = d.sc || [], nt = d.nt || [];
   let body = '';
@@ -991,8 +1006,6 @@ function sgeDocHtml(rec, sigs, lhUrl) {
     : '<tr class="sge-sum"><td>التقدير العام</td><td colspan="2" style="text-align:right">' + m(esc(d.overall || '')) + '</td></tr>';
   const cols = (hasG ? '<col style="width:96px">' : '<col style="width:40px">') + '<col>' + (scored ? '<col style="width:52px"><col style="width:66px">' : '') + '<col style="width:' + (scored ? '19%' : '30%') + '">';
   const thead = '<tr><th>' + (hasG ? esc(form.gtitle) : 'م') + '</th><th>بنود التقييم</th>' + (scored ? '<th>الدرجة</th><th>المستحقة</th>' : '') + '<th>ملاحظات</th></tr>';
-  const recs = (form.recs || []).map((lbl, i) => (d.recs && d.recs[i]) ? '<div class="sge-box idc-avoid"><b>' + esc(lbl) + '</b><div>' + esc(d.recs[i]) + '</div></div>' : '').join('');
-  const sigCol = (lbl, name, sg) => '<div>' + lbl + (name ? '<br>' + m(esc(name)) : '') + idSig(sg) + '</div>';
   return '<div class="idoc sg sge">' + head + '<div class="idc-body">' +
     '<div class="idc-title">' + esc(form.title) + '</div>' +
     '<table class="sge-info">' + info + '</table>' +

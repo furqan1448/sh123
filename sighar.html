@@ -15,6 +15,8 @@
   .btn.id-wa{background:#1f8f4e;border-color:#1f8f4e;color:#fff;text-decoration:none;display:inline-block}
   .id-send{padding:14px 16px;border:1px solid #bfe3cd;background:#f1faf4;border-radius:12px;line-height:2}
   .id-send .btn{margin-top:8px}
+  .id-send .sa-it{border-bottom:1px dashed #bfe3cd;padding:8px 0}
+  .id-send .sa-mgr{margin-top:10px;padding-top:6px}
   #seFields,.fgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-flow:row dense;gap:0 14px}
   #seFields .se-fld,.fgrid .se-fld{min-width:0}
   #seFields .se-fld input,#seFields .se-fld select,.fgrid .se-fld input,.fgrid .se-fld select{width:100%}
@@ -163,15 +165,12 @@
     <div class="edit-note hidden" data-edit>وضع التعديل: يُحفظ التعديل على نفس التقرير.</div>
     <div class="card">
       <h2>تقرير زيارة مشرفة تحفيظ صغار</h2>
-      <label for="sgTSel">إرسال التقرير للمعلمة <span style="font-weight:400;color:var(--muted);font-size:14px">(ليصلها في أيقونة «المعلمات» وتوقّع عليه)</span></label>
-      <input id="sgTSel" list="tDirList" placeholder="اكتبي أو اختاري اسم المعلمة من القائمة" autocomplete="off" onchange="tdPicked('sg')">
-      <div class="id-hint" id="sgTHint"></div>
       <datalist id="tDirList"></datalist>
       <datalist id="sgTeachers"></datalist>
       <!-- شبكة مضغوطة مثل استمارات التقييم -->
       <div class="fgrid" id="sgFields">
         <div class="se-fld wide"><label for="sgTeacher">اسم المعلمة</label>
-          <input id="sgTeacher" list="sgTeachers" autocomplete="off" oninput="sgUpdateNo()"></div>
+          <input id="sgTeacher" class="td-name" list="tDirList" autocomplete="off" placeholder="اختاري من سجل المعلمات" oninput="sgUpdateNo()"></div>
         <div class="se-fld wide"><label for="sgCenter">المركز</label>
           <select id="sgCenter" onchange="sgUpdateNo()"></select></div>
         <div class="se-fld wide"><label>الفترة</label>
@@ -181,6 +180,7 @@
         <div class="se-fld wide sg-lesson"><label for="sgLesson">موضوع الدرس</label>
           <input id="sgLesson" autocomplete="off"></div>
       </div>
+      <div class="id-hint" id="sgTHint"></div>
       <div class="id-hint" id="sgAutoHint"></div>
       <div class="id-hint" id="sgVisitNoHint"></div>
       <div id="sgDateBox"></div>
@@ -195,12 +195,11 @@
 
     <div class="card">
       <h2>التواقيع</h2>
-      <p class="rp-hint" style="margin-top:0">توقيع المعلمة: يُرسَل التقرير للمعلمة المختارة أعلاه، فتطّلع عليه في أيقونة «المعلمات» وتوقّع من حسابها.</p>
+      <p class="rp-hint" style="margin-top:0">بعد الحفظ يُرسَل التقرير تلقائياً للمعلمة المكتوب اسمها أعلاه، فتطّلع عليه في أيقونة «المعلمات» وتوقّع من حسابها، ثم يمكنكِ إرساله للمديرة.</p>
       <label for="sgSupName">اسم المشرفة</label><input id="sgSupName">
       <label>توقيع المشرفة</label>
       <div id="sgSupW"></div>
-      <button id="sgSaveBtn" class="btn block" onclick="sgSave(this)">حفظ التقرير</button>
-      <button class="btn block id-wa" style="margin-top:10px" onclick="sgSave(this, true)">📲 حفظ وتنبيه المعلمة</button>
+      <button id="sgSaveBtn" class="btn block" onclick="sgSave(this)">حفظ التقرير وإرساله للمعلمة</button>
     </div>
   </div>
 
@@ -251,7 +250,8 @@
       <div id="ssDateBox"></div>
       <label>توقيع المشرفة</label>
       <div id="ssSupW"></div>
-      <button id="ssSaveBtn" class="btn block" onclick="ssSave(this)">حفظ الخلاصة</button>
+      <p class="rp-hint">بعد الحفظ تُرسَل لكل معلمة في الجدول نسختها (سطرها فقط) للاطلاع في أيقونة «المعلمات»، ثم يمكنكِ إرسال الخلاصة للمديرة.</p>
+      <button id="ssSaveBtn" class="btn block" onclick="ssSave(this)">حفظ الخلاصة وإرسالها للمعلمات</button>
     </div>
   </div>
 
@@ -279,10 +279,8 @@
     <div class="edit-note hidden" data-edit>وضع التعديل: يُحفظ التعديل على نفس الاستمارة.</div>
     <div class="card">
       <h2 id="seTitle"></h2>
-      <label for="seTSel">إرسال الاستمارة للمعلمة <span style="font-weight:400;color:var(--muted);font-size:14px">(لتصلها في أيقونة «المعلمات» وتوقّع عليها)</span></label>
-      <input id="seTSel" list="tDirList" placeholder="اكتبي أو اختاري اسم المعلمة من القائمة" autocomplete="off" onchange="tdPicked('se')">
-      <div class="id-hint" id="seTHint"></div>
       <div id="seFields"></div>
+      <div class="id-hint" id="seTHint"></div>
       <div class="id-hint" id="seAutoHint"></div>
       <div id="seDateBox"></div>
     </div>
@@ -300,9 +298,8 @@
       <label for="seSupName" style="margin-top:0">اسم المشرفة</label><input id="seSupName">
       <label>توقيع المشرفة</label>
       <div id="seSupW"></div>
-      <p class="rp-hint" style="margin-top:0"><span id="seTchLbl">توقيع المعلمة</span>: تُرسَل الاستمارة للمعلمة المختارة أعلاها، فتطّلع عليها في أيقونة «المعلمات» وتوقّع من حسابها.</p>
-      <button id="seSaveBtn" class="btn block" onclick="seSave(this)">حفظ الاستمارة</button>
-      <button class="btn block id-wa" style="margin-top:10px" onclick="seSave(this, true)">📲 حفظ وتنبيه المعلمة</button>
+      <p class="rp-hint" style="margin-top:0"><span id="seTchLbl">توقيع المعلمة</span>: بعد الحفظ تُرسَل الاستمارة تلقائياً للمكتوب اسمها أعلاه، وتصلها <b>الملاحظات والتوصيات فقط دون الدرجات</b>، فتطّلع عليها في أيقونة «المعلمات» وتوقّع من حسابها.</p>
+      <button id="seSaveBtn" class="btn block" onclick="seSave(this)">حفظ الاستمارة وإرسالها للمعلمة</button>
     </div>
     <div class="ev-bar" id="seBar"><span>المجموع: <b id="seSum">٠</b> من <b id="seMax">٠</b></span><span>التقدير: <b id="seGrade">—</b></span></div>
   </div>
@@ -312,7 +309,7 @@
     <button class="back" onclick="show('homeView')">← رجوع</button>
     <div class="card">
       <h2>إجراءات الموظفات</h2>
-      <p class="rp-hint">اختاري النموذج. توقّع الموظفة على الجهاز، وتوقّع مديرة المركز من حسابها بعد الإرسال للمركز.</p>
+      <p class="rp-hint">اختاري النموذج. بعد الحفظ يُرسَل النموذج للموظفة لتطّلع وتوقّع من حسابها في «المعلمات»، ويمكن إرساله للمديرة (اطلاع، أو اطلاع وتوقيع).</p>
       <div class="grid se-types" id="sfTypes"></div>
     </div>
     <div class="card">
@@ -338,7 +335,7 @@
         </div>
       </div>
       <div class="row2">
-        <div><label for="sfEmp">اسم الموظفة <span style="font-weight:400;color:var(--muted);font-size:14px">(الاسم وفق الهوية)</span></label><input id="sfEmp" autocomplete="off"></div>
+        <div><label for="sfEmp">اسم الموظفة <span style="font-weight:400;color:var(--muted);font-size:14px">(الاسم وفق الهوية)</span></label><input id="sfEmp" class="td-name" list="tDirList" autocomplete="off" placeholder="اختاري من سجل المعلمات"><div class="id-hint" id="sfTHint"></div></div>
         <div id="sfSemBox"><label for="sfSem">الفصل الدراسي</label><select id="sfSem"><option value="">اختاري</option><option>الأول</option><option>الثاني</option><option>الثالث</option></select></div>
       </div>
       <div class="row2" id="sfJobBox">
@@ -370,12 +367,13 @@
       <h2>التواقيع</h2>
       <label for="sfMgr" style="margin-top:0">اسم مديرة المركز</label><input id="sfMgr">
       <div class="id-hint" id="sfMgrHint"></div>
-      <label>توقيع الموظفة <span style="font-weight:400;color:var(--muted);font-size:14px">(اختياري — إن كانت حاضرة، أو توقّع عند المديرة في المركز)</span></label>
+      <label>توقيع الموظفة <span style="font-weight:400;color:var(--muted);font-size:14px">(اختياري — إن كانت حاضرة؛ وإلا توقّع من حسابها في «المعلمات» بعد الإرسال)</span></label>
       <div id="sfEmpW"></div>
-      <p class="rp-hint" style="margin-top:0">توقيع مديرة المركز: بعد الحفظ أرسلي النموذج للمركز (اطلاع وتوقيع)، فتوقّع المديرة من حساب المركز ويُكتب توقيعها في النموذج.</p>
       <label for="sfSupName">اسم المشرفة</label><input id="sfSupName">
-      <button id="sfSaveBtn" class="btn block" onclick="sfSave(this)">حفظ النموذج</button>
-      <button class="btn block light" style="margin-top:10px" onclick="sfSave(this, true)">📤 حفظ وإرسال للمركز للتوقيع</button>
+      <label>توقيع المشرفة</label>
+      <div id="sfSupW"></div>
+      <p class="rp-hint">بعد الحفظ يُرسَل النموذج تلقائياً للموظفة لتطّلع وتوقّع من حسابها. ولمديرة المركز: يظهر لكِ بعد الحفظ زر الإرسال للمركز (اطلاع فقط، أو اطلاع وتوقيع فيُكتب توقيعها في النموذج).</p>
+      <button id="sfSaveBtn" class="btn block" onclick="sfSave(this)">حفظ النموذج وإرساله للموظفة</button>
     </div>
   </div>
 

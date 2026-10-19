@@ -73,13 +73,14 @@ function sgsDocHtml(rec, sigs, lhUrl) {
   const m = x => '<span class="idc-m">' + x + '</span>';
   const head = '<img class="idc-lh" src="' + esc(lhUrl || SG_BG) + '" width="2000" height="351" alt="">';
   const periodBoxes = '<span class="idc-per"><span>' + idBox(per.indexOf('صباحي') > -1) + 'صباحي</span><span>' + idBox(per.indexOf('مسائي') > -1) + 'مسائي</span></span>';
+  const tv = !!rec.tview;   // نسخة المعلمة: سطرها فقط ودون عمود الدرجة
   const rows = (d.rows || []).filter(r => r && (r.center || r.teacher || r.notes || r.att || r.score));
   const n = Math.max(rows.length, 1);
   let body = '';
   for (let i = 0; i < n; i++) {
     const r = rows[i] || {};
     body += '<tr><td class="idc-n">' + idDigits(i + 1) + '</td><td class="sg-l">' + esc(r.center || '') + '</td><td class="sg-l">' + esc(r.teacher || '') +
-      '</td><td class="sg-l">' + idNl(r.notes || '') + '</td><td>' + esc(r.att || '') + '</td><td>' + m(esc(idDigits(r.score || ''))) + '</td></tr>';
+      '</td><td class="sg-l">' + idNl(r.notes || '') + '</td><td>' + esc(r.att || '') + '</td>' + (tv ? '' : '<td>' + m(esc(idDigits(r.score || ''))) + '</td>') + '</tr>';
   }
   const sub = [rec.sem ? 'الفصل الدراسي ' + esc(rec.sem) + (rec.year ? ' لعام ' + idDigits(rec.year) + 'هـ' : '') : (rec.year ? 'لعام ' + idDigits(rec.year) + 'هـ' : ''),
     (d.from && d.from.y) || (d.to && d.to.y) ? 'خلال الفترة من ' + m(sgHTxt(d.from)) + ' إلى ' + m(sgHTxt(d.to)) : ''].filter(Boolean).join('<br>');
@@ -87,8 +88,8 @@ function sgsDocHtml(rec, sigs, lhUrl) {
   return '<div class="idoc sg">' + head + '<div class="idc-body">' +
     '<div class="idc-title">' + SGS_TITLE + '</div>' + (sub ? '<div class="sg-sub">' + sub + '</div>' : '') +
     '<div class="idc-meta"><span>رقم الزيارة: ' + m(esc(idDigits(rec.visitNo)) || '—') + '</span><span>الفترة: ' + periodBoxes + '</span></div>' +
-    '<table><colgroup><col style="width:56px"><col style="width:17%"><col style="width:19%"><col><col style="width:14%"><col style="width:12%"></colgroup>' +
-    '<tr><th>م</th><th>اسم المركز</th><th>اسم المعلمة</th><th>الملاحظات التي تم رصدها</th><th>حضور مادة أم قرآن أم كليهما</th><th>مستوى أداء المعلمة بالدرجة</th></tr>' +
+    '<table><colgroup><col style="width:56px"><col style="width:17%"><col style="width:19%"><col><col style="width:14%">' + (tv ? '' : '<col style="width:12%">') + '</colgroup>' +
+    '<tr><th>م</th><th>اسم المركز</th><th>اسم المعلمة</th><th>الملاحظات التي تم رصدها</th><th>حضور مادة أم قرآن أم كليهما</th>' + (tv ? '' : '<th>مستوى أداء المعلمة بالدرجة</th>') + '</tr>' +
     body + '</table>' +
     '<div class="sg-sumfoot idc-avoid"><div>اسم المشرفة: ' + m(esc(rec.supName || '')) + '<br>التاريخ: ' + m(date) + '<br>التوقيع: ' + (sigs.sup ? '<img src="' + sigs.sup + '" alt="">' : '') + '</div></div>' +
   '</div></div>';
@@ -257,10 +258,10 @@ const STF_CSS = `
 .idoc.stf .stf-li:last-child{border-bottom:0}
 .idoc.stf .stf-li b{color:#7a1f2b;min-width:24px;flex:none}
 .idoc.stf .stf-close{text-align:center;font-weight:800;margin:18px 0 8px}
-.idoc.stf .stf-sigs{display:flex;justify-content:space-between;gap:30px;margin-top:22px}
+.idoc.stf .stf-sigs{display:flex;justify-content:space-between;gap:22px;margin-top:22px}
 .idoc.stf .stf-sigs>div{flex:1;line-height:2.1;font-weight:700}
 .idoc.stf .stf-sigs .stf-sh{color:#7a1f2b;font-weight:800;font-size:19px}
-.idoc.stf .stf-sigs img{max-height:60px;max-width:190px;vertical-align:middle}
+.idoc.stf .stf-sigs img{max-height:60px;max-width:170px;vertical-align:middle}
 .idoc.stf .stf-acts{display:flex;justify-content:center;gap:46px;font-weight:800;margin:4px 0 14px}
 .idoc.stf .stf-sub{text-align:center;color:#7a1f2b;font-weight:800;font-size:20px;text-decoration:underline;text-underline-offset:6px;margin:10px 0 10px}
 .idoc.stf .stf-cut{border-top:2px dashed #7a1f2b;margin:22px 0 16px}
@@ -280,8 +281,10 @@ function stfDocHtml(rec, sigs, lhUrl) {
   const meta = '<div class="stf-meta"><span>اسم المركز: ' + m(esc(rec.center || '')) + '</span><span>اليوم: ' + m(esc(d.dayName || '')) + '</span><span>التاريخ: ' + m(date) +
     '</span><span>الفصل الدراسي: ' + m(esc(rec.sem || '')) + '</span></div>';
   const prev = (o, lead) => '<p>' + lead + ' يوم ' + m(esc((o && o.day) || '')) + ' بتاريخ ' + m(hd(o)) + '</p>';
+  const sup = esc(rec.supName || '');
   const foot = '<div class="stf-sigs idc-avoid"><div>اسم الموظفة: ' + m(name) + '<br>التاريخ: ' + m(date) + '<br>التوقيع: ' + sigImg('emp') + '</div>' +
-    '<div><span class="stf-sh">مديرة المركز</span><br>الاسم: ' + m(mgr) + '<br>التاريخ: ' + m(date) + '<br>التوقيع: ' + sigImg('mgr') + '</div></div>';
+    '<div><span class="stf-sh">مديرة المركز</span><br>الاسم: ' + m(mgr) + '<br>التاريخ: ' + m(date) + '<br>التوقيع: ' + sigImg('mgr') + '</div>' +
+    '<div><span class="stf-sh">المشرفة</span><br>الاسم: ' + m(sup) + '<br>التوقيع: ' + sigImg('sup') + '</div></div>';
   let body = '';
   if (f === 'shafawi' || f === 'khatti') {
     body = meta +
@@ -302,6 +305,7 @@ function stfDocHtml(rec, sigs, lhUrl) {
       '<div class="stf-h">رُصدت حولكِ الملاحظات التالية:</div>' + ol(d.obs) +
       '<div class="stf-h">وعليه مطلوب منكِ التالي:</div>' + ol(d.req) +
       '<div class="stf-sigs stf-r3 idc-avoid" style="margin-top:12px"><div>مديرة المركز / ' + m(mgr) + '</div><div>التاريخ: ' + m(date) + '</div><div>التوقيع: ' + sigImg('mgr') + '</div></div>' +
+      '<div class="stf-sigs stf-r3 idc-avoid" style="margin-top:4px"><div>المشرفة / ' + m(sup) + '</div><div></div><div>التوقيع: ' + sigImg('sup') + '</div></div>' +
       '<div class="stf-cut"></div>' +
       '<div class="idc-avoid"><p>المكرمة مديرة المركز / ' + m(mgr) + ' &nbsp; سلمها الله</p><p style="text-align:center">السلام عليكم ورحمة الله وبركاته... وبعد:</p>' +
       '<p>لقد اطّلعتُ على الملاحظات المذكورة، وبإذن الله لن تتكرر، وإذا تكرر ذلك مني فللجمعية أن تتخذ ما تراه مناسباً في حقي، وعلى هذا أوقّع.. والله المستعان.</p>' +

@@ -1,9 +1,11 @@
 /* ===== وحدة تحفيظ الصغار: إجراءات الموظفات (إنذار شفوي، إنذار خطي، تعهد موظفة مقصرة، ملاحظات على موظفة) =====
-   تعبّئ المشرفة النموذج، وتوقّع الموظفة على الجهاز (اختياري)، وتوقّع مديرة المركز من حساب المركز بعد «📤 إرسال للمركز».
+   تعبّئ المشرفة النموذج وتوقّع، وبعد الحفظ يُرسَل للموظفة (من اسمها في النموذج) لتطّلع وتوقّع من حسابها في «المعلمات»
+   فيُكتب توقيعها في النموذج. ولمديرة المركز: «📤 إرسال للمديرة» (اطلاع فقط، أو اطلاع وتوقيع) كما كان.
    الشكل والطباعة في sighar-print.js (stfDocHtml)، ويُحمَّل هذا الملف بعد sighar.js. */
 let STF = [], sfEdit = null, sfType = '', SF_DIRS = null;
 ALL_VIEWS.push('sfListView', 'sfForm');
 const sfEmpW = makeSigWidget('sfEmpW', {});
+const sfSupW = makeSigWidget('sfSupW', { saved: true });   // توقيع المشرفة (يمكن حفظه للنماذج القادمة)
 hdBuild('sf');
 hpBuild('sfOd'); hpBuild('sfWd');
 ['sfOralDay', 'sfWrDay'].forEach(id => { $(id).innerHTML = '<option value="">اليوم</option>' + DAYS.map(x => '<option>' + x + '</option>').join(''); });
@@ -119,20 +121,18 @@ function sfFill(k, r) {
   $('sfSupName').value = edit ? (r.supName || '') : myName();
   sfEmpW.reset();
   if (edit && d.sigs && d.sigs.emp) sfEmpW.keepOld('الإبقاء على توقيع الموظفة السابق');
-  sfEmpList();
+  sfSupW.reset();
+  if (edit && d.sigs && d.sigs.sup) sfSupW.keepOld('الإبقاء على توقيع المشرفة السابق');
+  tdSet('sf', d);
+  loadTDir();
 }
 function sfNew(k) { sfEdit = null; sfFill(k, null); show('sfForm'); sfLoadDirs(); }
 function sfEditRec(id) { const r = sfById(id); if (!r) return; sfEdit = r; sfFill(sfForm(r), r); show('sfForm'); sfLoadDirs(); }
 function sfBack() { sfEdit = null; show('sfListView'); renderStf(); }
 
-// أسماء الموظفات السابقة للاقتراح، وتعبئة الإنذارات السابقة تلقائياً من النماذج المحفوظة لنفس الموظفة
-function sfEmpList() {
-  let dl = $('sfEmpList');
-  if (!dl) { dl = document.createElement('datalist'); dl.id = 'sfEmpList'; document.body.appendChild(dl); $('sfEmp').setAttribute('list', 'sfEmpList'); }
-  const set = new Set(STF.map(r => r.teacher).filter(Boolean));
-  dl.innerHTML = [...set].map(n => '<option value="' + esc(n) + '">').join('');
-}
+// اسم الموظفة من قائمة سجل المعلمات (tDirList)، وتعبئة الإنذارات السابقة تلقائياً من النماذج المحفوظة لنفس الموظفة
 $('sfEmp').addEventListener('change', () => {
+  tdPin($('sfEmp'));
   const k = sgNorm($('sfEmp').value);
   if (!k) return;
   const mine = STF.filter(r => sgNorm(r.teacher) === k && (!sfEdit || r.id !== sfEdit.id));
@@ -168,7 +168,7 @@ function sfMgrAuto() {
 }
 $('sfMgr').addEventListener('input', () => { $('sfMgr').dataset.auto = ''; });
 
-async function sfSave(btn, thenSend) {
+async function sfSave(btn) {
   const hd = hdGet('sf');
   const req = {
     id: sfEdit ? sfEdit.id : '', center: $('sfCenter').value, period: periodGet('sfPeriod'), sem: sfType === 'notes' ? '' : $('sfSem').value,
@@ -187,10 +187,16 @@ async function sfSave(btn, thenSend) {
   if (!req.data.obs.length) return toast(sfType === 'taahud' ? 'اكتبي المخالفات' : 'اكتبي الملاحظات', false);
   if (sfType === 'notes' && !req.data.action) return toast('اختاري نوع الإجراء المتخذ', false);
   const old = sfEdit && sfEdit.data && sfEdit.data.sigs;
-  req.sigs = { emp: sfEmpW.get() || (old && old.emp ? 'keep' : '') };
+  req.sigs = { emp: sfEmpW.get() || (old && old.emp ? 'keep' : ''), sup: sfSupW.get() || (old && old.sup ? 'keep' : '') };
+  if (!req.sigs.sup) return toast('وقّعي توقيع المشرفة', false);
+  const sfT = await tdConfirm($('sfEmp'), $('sfCenter'), 'الموظفة');   // الموظفة من اسمها في النموذج نفسه
+  if (sfT === undefined) return;
+  req.teacher = $('sfEmp').value.trim();
+  req.data.tid = sfT ? sfT.id : ''; req.data.tName = sfT ? sfT.name : '';
   setBtnBusy(btn, true);
   try {
     const res = await api('saveStf', req);
+    sfSupW.commit();
     AD.done('sfForm', sfEdit && sfEdit.id);
     toast(sfEdit ? 'تم حفظ التعديل' : 'تم حفظ النموذج');
     const prev = sfEdit || {};
@@ -200,8 +206,14 @@ async function sfSave(btn, thenSend) {
     STF = STF.filter(r => r.id !== rec.id); STF.unshift(rec);
     cacheSet('stf', STF);
     sfEdit = null;
+    // الإرسال للموظفة: اطلاع وتوقيع (أو اطلاع فقط إن وقّعت على الجهاز)
+    const out = { what: 'النموذج', src: 'stf', id: rec.id, sent: [], skipped: [], failed: [], none: sfT ? [] : [req.teacher], mgrSign: true };
+    if (sfT) {
+      btn.innerHTML = '<span class="spin"></span> جارِ الإرسال للموظفة...';
+      await sgPushInto(out, 'stf', rec.id, SC_SRC.stf.title(rec), sfT, rec.data.sigs && rec.data.sigs.emp ? 'ack' : 'sign', rec);
+    }
     show('sfListView'); renderStf();
-    if (thenSend) setTimeout(() => { scOpen('stf', rec.id).then(() => { const s = document.querySelector('#scModal input[value="sign"]'); if (s) s.checked = true; }); }, 150);
+    sgAfterSave(out);
     loadStf(true);
   } catch (e) { toast(e.message, false); }
   finally { setBtnBusy(btn, false); }
@@ -211,7 +223,7 @@ async function sfSave(btn, thenSend) {
 AD.register('sfForm', {
   key: () => sfEdit ? sfEdit.id : 'new-' + sfType,
   collect: () => ({ center: $('sfCenter').value, period: periodGet('sfPeriod'), sem: $('sfSem').value, teacher: $('sfEmp').value, mgrName: $('sfMgr').value, supName: $('sfSupName').value,
-    data: Object.assign(adHd('sf'), { form: sfType, obs: sfGet('sfObs'), req: sfGet('sfReq'), oral: sfPrevGet('sfOralDay', 'sfOd'), written: sfPrevGet('sfWrDay', 'sfWd'),
+    data: Object.assign(adHd('sf'), { form: sfType, tid: $('sfEmp').dataset.tid || '', obs: sfGet('sfObs'), req: sfGet('sfReq'), oral: sfPrevGet('sfOralDay', 'sfOd'), written: sfPrevGet('sfWrDay', 'sfWd'),
       job: $('sfJob').value, years: $('sfYears').value, action: (document.querySelector('#sfAction input:checked') || {}).value || '' }) }),
   apply: d => { sfFill(d.data.form || sfType, Object.assign({}, sfEdit || {}, d, { data: Object.assign({}, (sfEdit && sfEdit.data) || {}, d.data) })); },
   reset: () => sfFill(sfType, sfEdit)
