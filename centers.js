@@ -1,11 +1,12 @@
 /* ===== أيقونة «المراكز» (centers.html): دخول المركز باسمه وكلمة مروره (مثل نظام المقاصف) =====
-   تصل للمركز تقارير زيارة الإشراف الإداري الخاصة به مع تنبيه بعددها، فتطّلع المديرة عليها وتوقّع من حساب المركز. */
+   «الوارد من المشرفات»: تقارير زيارة الإشراف الإداري (تصل تلقائياً)، وكل نموذج ترسله مشرفة من أي وحدة بزر «📤 إرسال للمركز».
+   مع تنبيه بعدد ما لم يُطّلع عليه، فتطّلع المديرة وتضغط «تم الاطلاع» أو توقّع من حساب المركز. */
 const $ = id => document.getElementById(id);
 const C_NAME = 'ctr_name', C_PW = 'ctr_pw', C_CACHE = 'ctr_reports', C_SIGNER = 'ctr_signer';
-let CREP = [], cCur = null, cSigsCur = {}, CME = null;
+let CREP = [], CIN = [], cCur = null, cSigsCur = {}, CME = null, inCur = null, inFile = null;
 
 function cShow(id) {
-  ['loginView', 'homeView', 'reportsView', 'signView'].forEach(v => $(v).classList.add('hidden'));
+  ['loginView', 'homeView', 'reportsView', 'signView', 'inView'].forEach(v => $(v).classList.add('hidden'));
   $(id).classList.remove('hidden');
   window.scrollTo(0, 0);
   setTimeout(() => SIG_WIDGETS.forEach(w => w.resize()), 60);
@@ -63,15 +64,16 @@ async function cLogin() {
 $('cPw').addEventListener('keydown', e => { if (e.key === 'Enter') cLogin(); });
 function cLogout() {
   [C_PW, C_CACHE].forEach(k => localStorage.removeItem(k));
-  CREP = []; $('cPw').value = '';
+  CREP = []; CIN = []; $('cPw').value = '';
   cShow('loginView');
 }
 
 /* ---------- القائمة والتنبيه ---------- */
 function cApply(out) {
   CREP = out.data || [];
+  CIN = out.inbox || [];
   CME = out.center || CME;
-  try { localStorage.setItem(C_CACHE, JSON.stringify({ me: CME, data: CREP })); } catch (e) {}
+  try { localStorage.setItem(C_CACHE, JSON.stringify({ me: CME, data: CREP, inbox: CIN })); } catch (e) {}
   $('cHello').textContent = 'مرحباً بكم — ' + (CME ? (CME.display || CME.name) : '');
   cRender();
 }
@@ -91,14 +93,27 @@ function cItem(r, pending) {
     '<div class="act">' + (pending ? '<button class="btn" onclick="cOpen(\'' + id + '\')">فتح التقرير والتوقيع</button>'
       : '<button class="btn light" onclick="cOpen(\'' + id + '\')">عرض</button><button class="btn light" onclick="cPdf(\'' + id + '\', this)">تحميل PDF</button>') + '</div></div>';
 }
+// نموذج وارد بزر «📤 إرسال للمركز»
+function inItem(x) {
+  const id = esc(x.id), pending = x.status === 'new';
+  return '<div class="t-item' + (pending ? ' pending' : '') + '"><b>' + esc(x.title || 'نموذج') + '</b> <span class="t-mode">' + (x.mode === 'sign' ? 'للاطلاع والتوقيع' : 'للاطلاع') + '</span>' +
+    '<div class="t-meta">المشرفة: ' + esc(x.supName || '—') + ' — أُرسل: ' + esc(idDigits(x.at)) +
+    (x.note ? '<br>ملاحظة المشرفة: ' + esc(x.note) : '') +
+    (!pending ? '<br><span class="t-signed">✔ ' + (x.status === 'sign' ? 'تم التوقيع' : 'تم الاطلاع') + (x.signer ? ' من ' + esc(x.signer) : '') + ' بتاريخ ' + esc(idDigits(x.doneAt)) + '</span>' : '') + '</div>' +
+    '<div class="act"><button class="btn' + (pending ? '' : ' light') + '" onclick="inOpen(\'' + id + '\')">' + (pending ? (x.mode === 'sign' ? 'فتح النموذج والتوقيع' : 'فتح النموذج') : 'عرض') + '</button></div></div>';
+}
+const cTime = x => String(x.at || (x.data && x.data.savedAt) || x.date || '');
 function cRender() {
-  const pend = CREP.filter(r => !r.signed), done = CREP.filter(r => r.signed);
+  const all = CREP.map(r => ({ t: 'r', r, pend: !r.signed, at: cTime(r) })).concat(CIN.map(x => ({ t: 'i', r: x, pend: x.status === 'new', at: x.at })))
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  const pend = all.filter(x => x.pend), done = all.filter(x => !x.pend);
+  const html = x => x.t === 'r' ? cItem(x.r, x.pend) : inItem(x.r);
   $('stPending').textContent = idDigits(pend.length); $('stSigned').textContent = idDigits(done.length); $('pendBadge').textContent = idDigits(pend.length);
   $('tileBadge').textContent = idDigits(pend.length); $('tileBadge').classList.toggle('hidden', !pend.length);
   $('cBanner').classList.toggle('hidden', !pend.length);
-  $('cBanner').textContent = pend.length ? '🔔 لديكم ' + idDigits(pend.length) + (pend.length === 1 ? ' تقرير زيارة بانتظار توقيع المديرة' : ' تقارير زيارة بانتظار توقيع المديرة') + ' — اضغطي للاطلاع' : '';
-  $('pendList').innerHTML = pend.length ? pend.map(r => cItem(r, true)).join('') : '<p class="empty">لا توجد تقارير بانتظار التوقيع</p>';
-  $('signedList').innerHTML = done.length ? done.map(r => cItem(r, false)).join('') : '<p class="empty">لا توجد تقارير موقّعة بعد</p>';
+  $('cBanner').textContent = pend.length ? '🔔 لديكم ' + idDigits(pend.length) + (pend.length === 1 ? ' نموذج وارد من المشرفات بانتظار الاطلاع' : ' نماذج واردة من المشرفات بانتظار الاطلاع') + ' — اضغطي للاطلاع' : '';
+  $('pendList').innerHTML = pend.length ? pend.map(html).join('') : '<p class="empty">لا يوجد وارد بانتظار الاطلاع</p>';
+  $('signedList').innerHTML = done.length ? done.map(html).join('') : '<p class="empty">لا يوجد بعد</p>';
 }
 
 /* ---------- عرض التقرير والتوقيع ---------- */
@@ -154,11 +169,112 @@ async function cSign(btn) {
   finally { setBtnBusy(btn, false); }
 }
 
+/* ---------- نموذج وارد: عرض الملف ثم «تم الاطلاع» أو التوقيع ---------- */
+const inSig = makeSigWidget('inSigW', {});
+const IN_PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+let inPdfLoading = null;
+function inLoadPdfJs() {
+  if (window.pdfjsLib) return Promise.resolve();
+  if (inPdfLoading) return inPdfLoading;
+  inPdfLoading = new Promise((res, rej) => {
+    const sc = document.createElement('script');
+    sc.src = IN_PDFJS + 'pdf.min.js';
+    sc.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = IN_PDFJS + 'pdf.worker.min.js'; res(); };
+    sc.onerror = () => { inPdfLoading = null; rej(new Error('تعذّر تحميل عارض الملفات')); };
+    document.head.appendChild(sc);
+  });
+  return inPdfLoading;
+}
+function inBlob(o) {
+  const bin = atob(o.data), u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return { bytes: u, blob: new Blob([u], { type: o.mime || 'application/octet-stream' }), name: o.name || 'ملف', isPdf: /pdf/i.test(o.mime || '') || /\.pdf$/i.test(o.name || '') };
+}
+// معاينة صفحات ملف PDF داخل الصفحة (تعمل على الجوال)
+async function inPreview(f, id) {
+  const box = $('inPrev');
+  if (!f.isPdf) { box.innerHTML = '<p class="empty">الملف بصيغة Excel — اضغطي «تحميل الملف» لفتحه.</p>'; return; }
+  box.innerHTML = '<p class="empty">جارِ عرض الملف...</p>';
+  try {
+    await inLoadPdfJs();
+    const pdf = await window.pdfjsLib.getDocument({ data: f.bytes.slice() }).promise;
+    const out = document.createElement('div'); out.className = 'in-prev';
+    for (let p = 1; p <= pdf.numPages; p++) {
+      if (!inCur || inCur.id !== id) return;
+      const page = await pdf.getPage(p), vp = page.getViewport({ scale: 1.6 });
+      const cv = document.createElement('canvas'); cv.width = vp.width; cv.height = vp.height;
+      await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+      const im = new Image(); im.alt = 'صفحة ' + p; im.src = cv.toDataURL('image/jpeg', 0.9);
+      out.appendChild(im);
+    }
+    if (inCur && inCur.id === id) { box.innerHTML = ''; box.appendChild(out); }
+  } catch (e) { box.innerHTML = '<p class="empty">تعذّر عرض الملف هنا، اضغطي «فتح الملف» أو «تحميل الملف».</p>'; }
+}
+async function inOpen(id) {
+  const x = CIN.find(y => y.id === id); if (!x) return;
+  inCur = x; inFile = null;
+  const pending = x.status === 'new';
+  $('inTitle').textContent = x.title || 'نموذج';
+  $('inMeta').innerHTML = 'المشرفة: <b>' + esc(x.supName || '—') + '</b><br>تاريخ الإرسال: ' + esc(idDigits(x.at)) + '<br>المطلوب: <b>' + (x.mode === 'sign' ? 'الاطلاع والتوقيع' : 'الاطلاع') + '</b>' +
+    (!pending ? '<br><span class="t-signed">✔ ' + (x.status === 'sign' ? 'تم التوقيع' : 'تم الاطلاع') + (x.signer ? ' من ' + esc(x.signer) : '') + ' بتاريخ ' + esc(idDigits(x.doneAt)) + '</span>' : '');
+  $('inNote').classList.toggle('hidden', !x.note); $('inNote').textContent = x.note ? 'ملاحظة المشرفة: ' + x.note : '';
+  $('inBar').innerHTML = '';
+  $('inPrev').innerHTML = '<p class="empty">جارِ تحميل الملف...</p>';
+  $('inAct').classList.toggle('hidden', !pending);
+  if (pending) {
+    const sign = x.mode === 'sign';
+    $('inActTitle').textContent = sign ? 'اعتماد وتوقيع مديرة المركز' : 'تأكيد الاطلاع';
+    $('inSigBox').classList.toggle('hidden', !sign);
+    $('inBtn').textContent = sign ? 'اعتماد وتوقيع' : 'تم الاطلاع';
+    $('inAgree').checked = false; inSig.reset();
+    $('inSigner').value = localStorage.getItem(C_SIGNER) || '';
+  }
+  cShow('inView');
+  try {
+    const f = inBlob(await cApi('c_file', { id }));
+    if (!inCur || inCur.id !== id) return;
+    inFile = f;
+    $('inBar').innerHTML = (f.isPdf ? '<button class="btn light" onclick="inView()">فتح الملف</button>' : '') + '<button class="btn light" onclick="inSave()">تحميل الملف</button>';
+    inPreview(f, id);
+  } catch (e) { $('inPrev').innerHTML = '<p class="empty">' + esc(e.message) + '</p>'; }
+}
+function inView() {
+  if (!inFile) return;
+  const u = URL.createObjectURL(inFile.blob);
+  if (!window.open(u, '_blank')) inSave();
+  setTimeout(() => URL.revokeObjectURL(u), 60000);
+}
+function inSave() {
+  if (!inFile) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(inFile.blob); a.download = inFile.name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+async function inDone(btn) {
+  if (!inCur) return;
+  const sign = inCur.mode === 'sign', signer = $('inSigner').value.trim();
+  if (!signer) return toast('اكتبي اسم مديرة المركز', false);
+  if (!$('inAgree').checked) return toast('علّمي على «اطّلعتُ على النموذج» أولاً', false);
+  const sig = sign ? inSig.get() : '';
+  if (sign && !sig) return toast('وقّعي داخل المربع أو أرفقي صورة التوقيع', false);
+  setBtnBusy(btn, true, 'جارِ الحفظ...');
+  try {
+    const out = await cApi('c_done', { id: inCur.id, signature: sig, signer });
+    try { localStorage.setItem(C_SIGNER, signer); } catch (e) {}
+    Object.assign(inCur, { status: sign ? 'sign' : 'ack', doneAt: out.at, signer });
+    toast(sign ? 'تم التوقيع، شكراً لكم' : 'تم تأكيد الاطلاع، شكراً لكم');
+    $('inAct').classList.add('hidden');
+    cRender(); cShow('reportsView'); cLoad();
+  } catch (e) { toast(e.message, false); }
+  finally { setBtnBusy(btn, false); }
+}
+
 /* ---------- استعادة الجلسة ---------- */
 (function init() {
   cLoadNames();
   if (!localStorage.getItem(C_NAME) || !localStorage.getItem(C_PW)) return;
-  try { const c = JSON.parse(localStorage.getItem(C_CACHE) || 'null'); if (c) { CME = c.me; cApply({ center: c.me, data: c.data }); } } catch (e) {}
+  try { const c = JSON.parse(localStorage.getItem(C_CACHE) || 'null'); if (c) { CME = c.me; cApply({ center: c.me, data: c.data, inbox: c.inbox }); } } catch (e) {}
   cShow('homeView');
   cLoad();
 })();

@@ -478,7 +478,7 @@ function evRenderW() {
   body.innerHTML = rows.map(([r, i]) => '<tr><td>' + esc(r.date) + '</td><td>' + esc(r.center) + '</td><td>' + esc(r.teacher) +
     (r.formType === 'multi' || r.formType === 'tj_multi' ? ' <span class="tag">تعدد المجموعات</span>' : '') + '</td>' +
     '<td>' + esc(r.raw) + '</td>' + (sub.weighted ? '<td>' + esc(r.weighted) + '</td>' : '') +
-    '<td>' + evGradeTag(r.grade) + '</td><td><div class="act">' + btnView(i) + btnDl(i) + '</div></td>' +
+    '<td>' + evGradeTag(r.grade) + '</td><td><div class="act">' + btnView(i) + btnDl(i) + (typeof scBtn === 'function' ? scBtn('ev', r.id) : '') + '</div></td>' +
     '<td><div class="act">' + btnEdit(i) + '<button class="btn danger" onclick="evDelete(\'' + esc(r.id) + '\')">حذف</button></div></td></tr>').join('');
 }
 

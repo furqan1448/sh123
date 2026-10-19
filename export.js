@@ -331,18 +331,22 @@ function exSave(blob, name) {
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
 }
 
+// يبني ملف الإكسل ويعيده كـ Blob (يُستخدم للتحميل وللإرسال للمركز)
+async function exBlob(m, pre) {
+  if (pre) await pre(m);   // مثلاً جلب التواقيع قبل البناء
+  await exLoad();
+  if (!exLetterBuf) {
+    const resp = await fetch(EX_LETTERHEAD);
+    if (!resp.ok) throw new Error('تعذّر تحميل الكليشة (letterhead.jpg)');
+    exLetterBuf = await resp.arrayBuffer();
+  }
+  const out = await exBuildXlsx(m, exLetterBuf, window.ExcelJS);
+  return new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
 async function exRun(m, btn, pre) {
   if (btn) setBtnBusy(btn, true, 'جارِ التجهيز...');
   try {
-    if (pre) await pre(m);   // مثلاً جلب التواقيع قبل البناء
-    await exLoad();
-    if (!exLetterBuf) {
-      const resp = await fetch(EX_LETTERHEAD);
-      if (!resp.ok) throw new Error('تعذّر تحميل الكليشة (letterhead.jpg)');
-      exLetterBuf = await resp.arrayBuffer();
-    }
-    const out = await exBuildXlsx(m, exLetterBuf, window.ExcelJS);
-    exSave(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), m.file + '.xlsx');
+    exSave(await exBlob(m, pre), m.file + '.xlsx');
     toast('تم التحميل');
   } catch (e) { toast(e.message || 'تعذّر التحميل', false); }
   finally { if (btn) setBtnBusy(btn, false); }
@@ -371,6 +375,14 @@ function exRow(i, btn) {
     if (r.signature) { const sg = await exFetchSigs([{ id: r.id, url: r.signature }]); m.signature = sg[r.id] || null; }
   });
 }
+// «📤 إرسال للمركز» لاستمارات التقييم (الأسبوعية والنهائية): تُرسل بملف Excel المنسّق بالكليشة
+const exSigPre = r => async m => { if (r.signature) { const sg = await exFetchSigs([{ id: r.id, url: r.signature }]); m.signature = sg[r.id] || null; } };
+if (typeof scRegister === 'function') scRegister('ev', {
+  rec: id => evRows.find(r => r.id === id),
+  title: r => { let t = 'استمارة تقييم'; try { t = exFormModel(r).title || t; } catch (e) {} return t + ' — ' + r.teacher + ' — ' + r.date; },
+  center: r => r.center || '', period: r => r.period || '',
+  file: async r => { const m = exFormModel(r); return { blob: await exBlob(m, exSigPre(r)), name: m.file + '.xlsx', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }; }
+});
 // تحميل كشف الخروج: كل مركز وتحته أيام الحضور والغياب (حسب تصفية المركز المعروضة)
 function exVisits(btn) {
   const f = document.getElementById('fCenter').value;

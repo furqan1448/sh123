@@ -270,7 +270,7 @@ function renderSgh() {
     return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.teacher) + '</td><td>' + esc(r.center) + '</td><td>' + esc(r.period) + '</td><td>' +
       (esc((r.data && r.data.dayName) || r.day) + ' ' + idHDate(r)).trim() + '</td><td>' + (esc(arD(r.visitNo)) || '—') + '</td><td>' + sgTStatus(r) + '</td>' +
       '<td><div class="act">' + sBtn('عرض', 'sgOpen(\'' + id + '\')') + sBtn('طباعة', 'sgDo(\'' + id + '\', this, \'print\')') +
-      sBtn('PDF', 'sgDo(\'' + id + '\', this, \'pdf\')') + sBtn('مشاركة', 'sgDo(\'' + id + '\', this, \'share\')') + sgNotifyBtn(r) +
+      sBtn('PDF', 'sgDo(\'' + id + '\', this, \'pdf\')') + sBtn('مشاركة', 'sgDo(\'' + id + '\', this, \'share\')') + sgNotifyBtn(r) + scBtn('sgh', r.id) +
       sBtn('تعديل', 'sgEditRec(\'' + id + '\')') + sBtn('حذف', 'sgDel(\'' + id + '\')', 'danger') + '</div></td></tr>';
   }).join('');
 }
@@ -498,7 +498,7 @@ function renderSgs() {
     return '<tr><td>' + (i + 1) + '</td><td>' + (esc([r.sem, r.year && arD(r.year) + 'هـ'].filter(Boolean).join(' / ')) || '—') + '</td><td>' + range + '</td><td>' +
       (esc(arD(r.visitNo)) || '—') + '</td><td>' + ((d.rows || []).length) + '</td>' +
       '<td><div class="act">' + sBtn('عرض', 'ssOpen(\'' + id + '\')') + sBtn('طباعة', 'ssDo(\'' + id + '\', this, \'print\')') +
-      sBtn('PDF', 'ssDo(\'' + id + '\', this, \'pdf\')') + sBtn('مشاركة', 'ssDo(\'' + id + '\', this, \'share\')') +
+      sBtn('PDF', 'ssDo(\'' + id + '\', this, \'pdf\')') + sBtn('مشاركة', 'ssDo(\'' + id + '\', this, \'share\')') + scBtn('sgs', r.id) +
       sBtn('تعديل', 'ssEditRec(\'' + id + '\')') + sBtn('حذف', 'ssDel(\'' + id + '\')', 'danger') + '</div></td></tr>';
   }).join('');
 }
@@ -641,11 +641,21 @@ function renderSge() {
     const gr = r.grade || (r.data && r.data.overall) || '';
     return '<tr><td>' + (i + 1) + '</td><td>' + esc(form.name || r.formName || '') + '</td><td>' + esc(r.teacher) + '</td><td>' + esc(r.center) + '</td><td>' +
       ((esc((r.data && r.data.dayName) || '') + ' ' + (r.data && r.data.hy ? idHDate(r) : '')).trim() || '—') + '</td><td>' + sc + '</td><td>' + (gr ? gradeTag(gr) : '—') + '</td><td>' + sgTStatus(r) + '</td>' +
-      '<td><div class="act">' + sBtn('عرض', 'seOpen(\'' + id + '\')') + sBtn('PDF', 'seDo(\'' + id + '\', this, \'pdf\')') + sBtn('مشاركة', 'seDo(\'' + id + '\', this, \'share\')') + sgNotifyBtn(r) +
+      '<td><div class="act">' + sBtn('عرض', 'seOpen(\'' + id + '\')') + sBtn('PDF', 'seDo(\'' + id + '\', this, \'pdf\')') + sBtn('مشاركة', 'seDo(\'' + id + '\', this, \'share\')') + sgNotifyBtn(r) + scBtn('sge', r.id) +
       sBtn('تعديل', 'seEditRec(\'' + id + '\')') + sBtn('حذف', 'seDel(\'' + id + '\')', 'danger') + '</div></td></tr>';
   }).join('');
 }
 const seById = id => SGE.find(r => r.id === id);
+// «📤 إرسال للمركز»: تقارير المتابعة والخلاصات والاستمارات
+const sgScDef = get => ({
+  rec: get,
+  title: r => sgFileName(r).replace(/_/g, ' '),
+  center: r => r.center || '', period: r => r.period || '',
+  file: async r => ({ blob: await sgPdfBlob(r), name: sgFileName(r) + '.pdf', mime: 'application/pdf' })
+});
+scRegister('sgh', sgScDef(id => recById(id)));
+scRegister('sgs', sgScDef(id => ssById(id)));
+scRegister('sge', sgScDef(id => seById(id)));
 function seOpen(id) { const r = seById(id); if (r) sgView(r); }
 function seDo(id, btn, what) { const r = seById(id); if (!r) return; what === 'share' ? sgShare(r, btn) : sgPdf(r, btn); }
 async function seDel(id) {

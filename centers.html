@@ -22,6 +22,10 @@
   .t-signed{font-size:13px;color:#1f7a45;font-weight:700}
   .tile{position:relative}
   .t-tbadge{position:absolute;top:10px;left:10px;background:#c0392b;color:#fff;border-radius:20px;min-width:24px;padding:1px 8px;font-size:13px;font-weight:800}
+  .in-note{background:#f6f0f2;border-right:4px solid var(--primary);border-radius:10px;padding:10px 12px;margin-bottom:10px;line-height:1.8}
+  .in-prev{border:1.5px solid var(--line);border-radius:12px;overflow:hidden;margin-top:10px;background:#f7f7f7}
+  .in-prev img{display:block;width:100%;height:auto;background:#fff;border-bottom:1px solid var(--line)}
+  .t-mode{display:inline-block;border-radius:20px;padding:1px 10px;font-size:12px;font-weight:700;background:#fbf3e0;color:#8a6a1f;margin-right:4px}
   .c-banner{background:#fffbf2;border:1.5px solid var(--gold);border-radius:14px;padding:12px 14px;margin-bottom:14px;font-weight:700;color:var(--primary);cursor:pointer}
 </style>
 </head>
@@ -54,7 +58,7 @@
     <div class="t-hello" id="cHello" style="text-align:center;margin:4px 0 16px"></div>
     <div id="cBanner" class="c-banner hidden" onclick="cShow('reportsView')"></div>
     <div class="grid">
-      <button class="tile" onclick="cShow('reportsView')"><span class="t-tbadge hidden" id="tileBadge">0</span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M4 9h16"/><path d="M9.5 9v11.5"/><path d="M12.5 13h5"/><path d="M12.5 16.5h3.5"/></svg><b>تقارير زيارة الإشراف الإداري</b></button>
+      <button class="tile" onclick="cShow('reportsView')"><span class="t-tbadge hidden" id="tileBadge">0</span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M4 9h16"/><path d="M9.5 9v11.5"/><path d="M12.5 13h5"/><path d="M12.5 16.5h3.5"/></svg><b>الوارد من المشرفات</b></button>
     </div>
     <p style="text-align:center;margin-top:22px"><button class="btn light" onclick="cLogout()">تسجيل الخروج</button></p>
   </div>
@@ -63,15 +67,15 @@
   <div id="reportsView" class="hidden">
     <button class="back" onclick="cShow('homeView')">← رجوع</button>
     <div class="stats">
-      <div class="stat"><b id="stPending">0</b><span>بانتظار التوقيع</span></div>
-      <div class="stat"><b id="stSigned">0</b><span>تقارير موقّعة</span></div>
+      <div class="stat"><b id="stPending">0</b><span>بانتظار الإجراء</span></div>
+      <div class="stat"><b id="stSigned">0</b><span>تم الاطلاع أو التوقيع</span></div>
     </div>
     <div class="card">
-      <h2>تقارير بانتظار توقيع المديرة <span class="t-badge" id="pendBadge">0</span></h2>
+      <h2>بانتظار اطلاع المديرة أو توقيعها <span class="t-badge" id="pendBadge">0</span></h2>
       <div id="pendList"><p class="empty">جارِ التحميل...</p></div>
     </div>
     <div class="card">
-      <h2>التقارير الموقّعة</h2>
+      <h2>تم الاطلاع أو التوقيع</h2>
       <div id="signedList"><p class="empty">جارِ التحميل...</p></div>
     </div>
     <p style="text-align:center"><button class="btn light" onclick="cLoad()">تحديث</button></p>
@@ -92,6 +96,26 @@
       <label>التوقيع</label>
       <div id="cSigW"></div>
       <button id="cSignBtn" class="btn block" onclick="cSign(this)">اعتماد وتوقيع التقرير</button>
+    </div>
+  </div>
+
+  <!-- نموذج وارد من «📤 إرسال للمركز» -->
+  <div id="inView" class="hidden">
+    <button class="back" onclick="cShow('reportsView')">← رجوع</button>
+    <div class="card">
+      <h2 id="inTitle"></h2>
+      <div class="t-meta" id="inMeta" style="color:var(--muted);line-height:1.9;margin:6px 0 10px"></div>
+      <div class="in-note hidden" id="inNote"></div>
+      <div class="ex-bar" id="inBar"></div>
+      <div id="inPrev"></div>
+    </div>
+    <div class="card hidden" id="inAct">
+      <h2 id="inActTitle"></h2>
+      <label for="inSigner" style="margin-top:0">اسم مديرة المركز</label>
+      <input id="inSigner" autocomplete="name">
+      <label class="check"><input type="checkbox" id="inAgree"><span id="inAgreeTxt">اطّلعتُ على النموذج وما ورد فيه.</span></label>
+      <div id="inSigBox"><label>التوقيع</label><div id="inSigW"></div></div>
+      <button id="inBtn" class="btn block" onclick="inDone(this)"></button>
     </div>
   </div>
 

@@ -233,6 +233,12 @@ function route_(r) {
     case 'getSgs': return { ok: true, data: getSgsFor_(r.username) };
     case 'saveSgs': return withLock_(() => saveSgs_(r));
     case 'deleteSgs': return withLock_(() => deleteSgs_(r));
+    case 'scCenters': return { ok: true, data: outCenters_() };   // «📤 إرسال للمركز»
+    case 'sendCenter': return withLock_(() => sendCenter_(r));
+    case 'getSent': return { ok: true, data: getSent_(r) };
+    case 'sentFile': return outFile_(sentOwn_(r));
+    case 'sentSig': { const x = sentOwn_(r); return { ok: true, data: sigGet_(x.id + '|ctr') }; }
+    case 'unsend': return withLock_(() => unsend_(r));
     default: throw new Error('إجراء غير معروف');
   }
 }
@@ -1852,7 +1858,9 @@ function centerRoute_(r) {
   try {
     if (r.action === 'c_names') return { ok: true, data: centerAccounts_().map(a => ({ name: a.name, display: a.display })) };
     const acc = centerAuth_(r);
-    if (r.action === 'c_login' || r.action === 'c_list') return { ok: true, center: { name: acc.name, display: acc.display }, data: centerReports_(acc) };
+    if (r.action === 'c_login' || r.action === 'c_list') return { ok: true, center: { name: acc.name, display: acc.display }, data: centerReports_(acc), inbox: centerInbox_(acc) };
+    if (r.action === 'c_file') { const x = outRows_().find(y => y.id === String(r.id || '') && y.center === acc.name); if (!x) throw new Error('هذا النموذج لا يخص مركزكم'); return outFile_(x); }
+    if (r.action === 'c_done') return withLock_(() => centerDone_(acc, r));
     if (r.action === 'c_sigs') {
       const rec = centerReports_(acc).find(x => x.id === String(r.id || ''));
       if (!rec) throw new Error('التقرير غير موجود');
@@ -1883,4 +1891,129 @@ function centerSign_(acc, r) {
     return { ok: true, at: data.mgrAt };
   }
   throw new Error('التقرير غير موجود');
+}
+
+/* ============ «📤 إرسال للمركز»: أي نموذج محفوظ من أي وحدة يصل للمركز في «الوارد من المشرفات» ============
+   المشرفة تختار المركز وطريقة الإرسال (اطلاع فقط / اطلاع وتوقيع) وملاحظة اختيارية.
+   نسخة الملف (PDF أو Excel) تُحفظ في الدرايف بلا مشاركة عامة، ولا تُفتح إلا من حساب المركز أو حساب المشرفة المرسِلة. */
+const OUT_SHEET = 'المرسل للمراكز';
+const OUT_HEADERS = ['الرقم', 'وقت الإرسال', 'المرسِلة', 'اسم المستخدم', 'الوحدة', 'المصدر', 'رقم النموذج', 'العنوان', 'المركز',
+  'الطريقة', 'الملاحظة', 'اسم الملف', 'معرف الملف', 'الحالة', 'وقت الإجراء', 'اسم المديرة'];
+const OUT_ST = { NEW: 'لم يُطّلع عليه', ACK: 'تم الاطلاع', SIGN: 'تم التوقيع' };
+const OUT_MODE = { ack: 'اطلاع فقط', sign: 'اطلاع وتوقيع' };
+const OUT_FOLDER = 'المرسل للمراكز';
+const OUT_MAX_B64 = 14 * 1024 * 1024;   // حد حجم الملف المرسل (~10 ميجا)
+
+function outSheet_() {
+  const ss = ss_();
+  let sh = ss.getSheetByName(OUT_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(OUT_SHEET);
+    sh.getRange(1, 1, 1, OUT_HEADERS.length).setValues([OUT_HEADERS]);
+    styleHeader_(sh, OUT_HEADERS.length);
+    sh.setRightToLeft(true);
+    sh.setFrozenRows(1);
+    sh.getRange('A:P').setNumberFormat('@');
+  }
+  return sh;
+}
+function outFolder_() {
+  const p = folder_(), it = p.getFoldersByName(OUT_FOLDER);
+  return it.hasNext() ? it.next() : p.createFolder(OUT_FOLDER);
+}
+function outRows_() {
+  const sh = outSheet_(), n = sh.getLastRow() - 1;
+  if (n < 1) return [];
+  return sh.getRange(2, 1, n, OUT_HEADERS.length).getDisplayValues().map((v, i) => ({
+    row: i + 2, id: v[0], at: v[1], supName: v[2], owner: String(v[3]).toLowerCase(), unit: v[4], src: v[5], srcId: v[6], title: v[7],
+    center: v[8], mode: v[9] === OUT_MODE.sign ? 'sign' : 'ack', note: v[10], name: v[11], fileId: v[12],
+    status: v[13] === OUT_ST.SIGN ? 'sign' : v[13] === OUT_ST.ACK ? 'ack' : 'new', doneAt: v[14], signer: v[15]
+  })).filter(x => x.id);
+}
+const outPublic_ = x => { const o = Object.assign({}, x); delete o.row; delete o.fileId; delete o.owner; return o; };
+function outFile_(x) {
+  if (!x.fileId) throw new Error('الملف غير موجود');
+  const f = DriveApp.getFileById(x.fileId), b = f.getBlob();
+  return { ok: true, name: x.name || f.getName(), mime: b.getContentType(), data: Utilities.base64Encode(b.getBytes()) };
+}
+function outCenters_() { return centerAccounts_().map(a => ({ name: a.name, display: a.display })); }
+
+// إرسال (أو إعادة إرسال نسخة محدّثة إن لم يُطّلع عليه بعد)
+function sendCenter_(r) {
+  const me = profileOf_(r.username);
+  const acc = centerAccounts_().find(a => a.name === String(r.center || '').trim());
+  if (!acc) throw new Error('اختاري المركز من القائمة');
+  const mode = r.mode === 'sign' ? 'sign' : 'ack';
+  const data = String(r.data || '');
+  if (!data) throw new Error('تعذّر تجهيز الملف');
+  if (data.length > OUT_MAX_B64) throw new Error('حجم الملف كبير جداً');
+  const title = String(r.title || 'نموذج').trim().slice(0, 200), note = String(r.note || '').trim().slice(0, 1000);
+  const src = String(r.src || '').slice(0, 30), srcId = String(r.srcId || '').slice(0, 80);
+  const name = String(r.name || 'ملف').replace(/[\\/:*?"<>|]+/g, ' ').slice(0, 150);
+  const f = outFolder_().createFile(Utilities.newBlob(Utilities.base64Decode(data), r.mime || 'application/pdf', name));
+  const sh = outSheet_(), at = nowStr_();
+  const old = srcId ? outRows_().find(x => x.owner === me.username && x.src === src && x.srcId === srcId && x.center === acc.name && x.status === 'new') : null;
+  const vals = [old ? old.id : Utilities.getUuid(), at, me.name, me.username, me.unit, src, srcId, title, acc.name, OUT_MODE[mode], note, name, f.getId(), OUT_ST.NEW, '', ''];
+  if (old) {
+    try { DriveApp.getFileById(old.fileId).setTrashed(true); } catch (e) {}
+    sh.getRange(old.row, 1, 1, vals.length).setNumberFormat('@').setValues([vals]);
+  } else {
+    sh.getRange(sh.getLastRow() + 1, 1, 1, vals.length).setNumberFormat('@').setValues([vals]);
+  }
+  return { ok: true, replaced: !!old, item: outPublic_(outRows_().find(x => x.id === vals[0])) };
+}
+function getSent_(r) {
+  const u = norm_(r.username).toLowerCase();
+  return outRows_().filter(x => x.owner === u).map(outPublic_).reverse();
+}
+function sentOwn_(r) {
+  const u = norm_(r.username).toLowerCase(), x = outRows_().find(y => y.id === String(r.id || ''));
+  if (!x || x.owner !== u) throw new Error('غير موجود');
+  return x;
+}
+function unsend_(r) {
+  const x = sentOwn_(r);
+  try { DriveApp.getFileById(x.fileId).setTrashed(true); } catch (e) {}
+  outSheet_().deleteRow(x.row);
+  sigDel_(x.id + '|ctr');
+  return { ok: true };
+}
+
+// جهة المركز
+function centerInbox_(acc) {
+  return outRows_().filter(x => x.center === acc.name).map(x => { const o = outPublic_(x); delete o.unit; return o; }).reverse();
+}
+function centerDone_(acc, r) {
+  const x = outRows_().find(y => y.id === String(r.id || '') && y.center === acc.name);
+  if (!x) throw new Error('هذا النموذج لا يخص مركزكم');
+  if (x.status !== 'new') return { ok: true, at: x.doneAt, already: true };
+  const signer = String(r.signer || '').trim().slice(0, 80), at = nowStr_();
+  let sig = '';
+  if (x.mode === 'sign') {
+    sig = String(r.signature || '');
+    if (!signer) throw new Error('اكتبي اسم مديرة المركز');
+    if (sig.indexOf('data:image/') !== 0 || sig.length > 49000) throw new Error('التوقيع غير صالح، أعيدي التوقيع');
+    sigPut_(x.id + '|ctr', sig);
+  }
+  outSheet_().getRange(x.row, 14, 1, 3).setNumberFormat('@').setValues([[x.mode === 'sign' ? OUT_ST.SIGN : OUT_ST.ACK, at, signer]]);
+  // نماذج الإشراف الإداري التي فيها خانة «توقيع مديرة المركز»: يُكتب التوقيع في النموذج نفسه أيضاً
+  if (sig && x.src === 'idari' && x.srcId) {
+    try {
+      const sh = ss_().getSheetByName(SHEET.IDARI), n = sh.getLastRow() - 1;
+      const ids = n > 0 ? sh.getRange(2, 1, n, 2).getValues() : [];
+      for (let i = 0; i < ids.length; i++) {
+        if (String(ids[i][0]) !== x.srcId) continue;
+        if (['visit', 'program'].indexOf(idariKey_(ids[i][1])) < 0) break;
+        const row = i + 2;
+        let data = {};
+        try { data = JSON.parse(sh.getRange(row, 12).getValue() || '{}'); } catch (e) {}
+        sigPut_(x.srcId + '|mgr', sig);
+        data.sigs = data.sigs || {}; data.sigs.mgr = '1'; data.mgrAt = at;
+        sh.getRange(row, 12).setNumberFormat('@').setValue(JSON.stringify(data));
+        sh.getRange(row, 11).setNumberFormat('@').setValue(signer);
+        break;
+      }
+    } catch (e) {}
+  }
+  return { ok: true, at };
 }

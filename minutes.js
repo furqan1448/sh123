@@ -195,10 +195,16 @@ function mnRender() {
       '<div style="font-size:14px;color:var(--muted);margin:4px 0 10px;line-height:1.8">' + esc(r.dayName || '') + ' ' + esc(idDigits(r.hijri || '')) + (r.center ? ' — ' + esc(r.center) : '') +
       '<br>يصل إلى: ' + (tg.all ? 'كل المعلمات' : idDigits(n) + ' معلمة') + ' — اطّلعت: <b style="color:#1f7a45">' + idDigits(a) + (n != null ? ' من ' + idDigits(n) : '') + '</b></div>' +
       '<div class="act" style="display:flex;flex-wrap:wrap;gap:6px">' + b('من اطّلعت', 'mnAcks(\'' + id + '\')') + b('عرض', 'mnView(\'' + id + '\')') + b('PDF', 'mnDo(\'' + id + '\', this, \'pdf\')') +
-      b('مشاركة', 'mnDo(\'' + id + '\', this, \'share\')') + b('تعديل', 'mnEditRec(\'' + id + '\')') + b('حذف', 'mnDel(\'' + id + '\')', 'danger') + '</div></div>';
+      b('مشاركة', 'mnDo(\'' + id + '\', this, \'share\')') + (typeof scBtn === 'function' ? scBtn('min', r.id) : '') + b('تعديل', 'mnEditRec(\'' + id + '\')') + b('حذف', 'mnDel(\'' + id + '\')', 'danger') + '</div></div>';
   }).join('');
 }
 const mnById = id => MN.find(r => r.id === id);
+if (typeof scRegister === 'function') scRegister('min', {
+  rec: id => mnById(id),
+  title: r => 'محضر اجتماع رقم ( ' + idDigits(r.no) + ' )' + (r.center ? ' — ' + r.center : ''),
+  center: r => r.center || '', period: r => r.period || '',
+  file: async r => ({ blob: await sgPdfBlob(r), name: sgFileName(r) + '.pdf', mime: 'application/pdf' })
+});
 function mnView(id) { const r = mnById(id); if (r) sgView(r); }
 function mnDo(id, btn, what) { const r = mnById(id); if (!r) return; what === 'share' ? sgShare(r, btn) : sgPdf(r, btn); }
 function mnAcks(id) {
