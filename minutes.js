@@ -187,6 +187,19 @@ async function mnLoad() {
 function mnRender() {
   const box = mn$('mnList'); if (!box) return;
   if (!MN.length) { box.innerHTML = '<p class="empty">لا توجد محاضر منشورة</p>'; return; }
+  if (typeof rcCard === 'function') {   // نفس شكل بطاقات باقي القوائم
+    rcStart();
+    box.className = 'rc-list';
+    box.innerHTML = MN.map((r, i) => {
+      const tg = (r.data && r.data.target) || {}, n = tg.all ? null : (tg.ids || []).length, a = (r.acks || []).length, id = esc(r.id);
+      return rcCard({ no: idDigits(i + 1), title: 'محضر اجتماع رقم ( ' + esc(idDigits(r.no)) + ' )', sub: esc(r.center || ''),
+        meta: [rcM('التاريخ', esc((r.dayName || '') + ' ' + idDigits(r.hijri || '')).trim()), rcM('يصل إلى', tg.all ? 'كل المعلمات' : idDigits(n) + ' معلمة')],
+        tags: '<span class="tag ' + (n != null && a >= n ? 'ok' : 'warn') + '">اطّلعت: ' + idDigits(a) + (n != null ? ' من ' + idDigits(n) : '') + '</span>' + (typeof scTag === 'function' ? scTag('min', r.id) : ''),
+        main: [['عرض', 'mnView(\'' + id + '\')'], ['PDF', 'mnDo(\'' + id + '\', this, \'pdf\')'], typeof scAct === 'function' ? scAct('min', r.id) : null, ['من اطّلعت', 'mnAcks(\'' + id + '\')']],
+        more: [['🔗 مشاركة', 'mnDo(\'' + id + '\', this, \'share\')'], '-', ['✏️ تعديل', 'mnEditRec(\'' + id + '\')'], ['🗑️ حذف', 'mnDel(\'' + id + '\')', 'danger']] });
+    }).join('');
+    return;
+  }
   const b = (t, fn, cls) => '<button class="btn ' + (cls || 'light') + '" style="padding:6px 10px;font-size:13px" onclick="' + fn + '">' + t + '</button>';
   box.innerHTML = MN.map(r => {
     const tg = (r.data && r.data.target) || {}, n = tg.all ? null : (tg.ids || []).length, a = (r.acks || []).length, id = esc(r.id);

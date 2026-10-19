@@ -153,12 +153,7 @@
       <h2>التقارير المحفوظة</h2>
       <label for="sgFilter" style="margin-top:0">بحث باسم المعلمة أو المركز</label>
       <input id="sgFilter" autocomplete="off" oninput="renderSgh()" placeholder="اكتبي للبحث...">
-      <div class="tbl-wrap" style="margin-top:12px">
-        <table style="min-width:640px">
-          <thead><tr><th>م</th><th>المعلمة</th><th>المركز</th><th>الفترة</th><th>التاريخ</th><th>رقم الزيارة</th><th>توقيع المعلمة</th><th></th></tr></thead>
-          <tbody id="sgBody"><tr><td colspan="8" class="empty">جارِ التحميل...</td></tr></tbody>
-        </table>
-      </div>
+      <div id="sgBody" class="rc-list" style="margin-top:12px"><p class="rc-empty">جارِ التحميل...</p></div>
     </div>
   </div>
 
@@ -219,12 +214,7 @@
     </div>
     <div class="card">
       <h2>الخلاصات المحفوظة</h2>
-      <div class="tbl-wrap">
-        <table style="min-width:640px">
-          <thead><tr><th>م</th><th>الفصل الدراسي</th><th>خلال الفترة</th><th>رقم الزيارة</th><th>عدد المعلمات</th><th></th></tr></thead>
-          <tbody id="ssBody"><tr><td colspan="6" class="empty">جارِ التحميل...</td></tr></tbody>
-        </table>
-      </div>
+      <div id="ssBody" class="rc-list"><p class="rc-empty">جارِ التحميل...</p></div>
     </div>
   </div>
 
@@ -279,12 +269,7 @@
         <div><label for="seFType" style="margin-top:0">نوع الاستمارة</label><select id="seFType" onchange="renderSge()"></select></div>
         <div><label for="seFQ" style="margin-top:0">بحث باسم المعلمة أو المركز</label><input id="seFQ" autocomplete="off" oninput="renderSge()" placeholder="اكتبي للبحث..."></div>
       </div>
-      <div class="tbl-wrap" style="margin-top:12px">
-        <table style="min-width:720px">
-          <thead><tr><th>م</th><th>الاستمارة</th><th>المعلمة</th><th>المركز</th><th>التاريخ</th><th>الدرجة</th><th>التقدير</th><th>توقيع المعلمة</th><th></th></tr></thead>
-          <tbody id="seBody"><tr><td colspan="9" class="empty">جارِ التحميل...</td></tr></tbody>
-        </table>
-      </div>
+      <div id="seBody" class="rc-list" style="margin-top:12px"><p class="rc-empty">جارِ التحميل...</p></div>
     </div>
   </div>
 
@@ -327,7 +312,7 @@
     <button class="back" onclick="show('homeView')">← رجوع</button>
     <div class="card">
       <h2>إجراءات الموظفات</h2>
-      <p class="rp-hint">الإنذار الشفوي والخطي والتعهد والملاحظات على موظفات المراكز. توقّع الموظفة على الجهاز، وتوقّع مديرة المركز من حساب المركز بعد «📤 إرسال للمركز» (اطلاع وتوقيع).</p>
+      <p class="rp-hint">اختاري النموذج. توقّع الموظفة على الجهاز، وتوقّع مديرة المركز من حسابها بعد الإرسال للمركز.</p>
       <div class="grid se-types" id="sfTypes"></div>
     </div>
     <div class="card">
@@ -336,12 +321,7 @@
         <div><label for="sfFType" style="margin-top:0">نوع النموذج</label><select id="sfFType" onchange="renderStf()"></select></div>
         <div><label for="sfFQ" style="margin-top:0">بحث باسم الموظفة أو المركز</label><input id="sfFQ" autocomplete="off" oninput="renderStf()" placeholder="اكتبي للبحث..."></div>
       </div>
-      <div class="tbl-wrap" style="margin-top:12px">
-        <table style="min-width:720px">
-          <thead><tr><th>م</th><th>النموذج</th><th>الموظفة</th><th>المركز</th><th>التاريخ</th><th>توقيع الموظفة</th><th>توقيع المديرة</th><th></th></tr></thead>
-          <tbody id="sfBody"><tr><td colspan="8" class="empty">جارِ التحميل...</td></tr></tbody>
-        </table>
-      </div>
+      <div id="sfBody" class="rc-list" style="margin-top:12px"><p class="rc-empty">جارِ التحميل...</p></div>
     </div>
   </div>
 
@@ -392,7 +372,7 @@
       <div class="id-hint" id="sfMgrHint"></div>
       <label>توقيع الموظفة <span style="font-weight:400;color:var(--muted);font-size:14px">(اختياري — إن كانت حاضرة، أو توقّع عند المديرة في المركز)</span></label>
       <div id="sfEmpW"></div>
-      <p class="rp-hint" style="margin-top:0">توقيع مديرة المركز: بعد الحفظ أرسلي النموذج بـ «📤 إرسال للمركز» (اطلاع وتوقيع)، فتوقّع المديرة من حساب المركز ويُكتب توقيعها في النموذج.</p>
+      <p class="rp-hint" style="margin-top:0">توقيع مديرة المركز: بعد الحفظ أرسلي النموذج للمركز (اطلاع وتوقيع)، فتوقّع المديرة من حساب المركز ويُكتب توقيعها في النموذج.</p>
       <label for="sfSupName">اسم المشرفة</label><input id="sfSupName">
       <button id="sfSaveBtn" class="btn block" onclick="sfSave(this)">حفظ النموذج</button>
       <button class="btn block light" style="margin-top:10px" onclick="sfSave(this, true)">📤 حفظ وإرسال للمركز للتوقيع</button>
@@ -412,6 +392,7 @@
 <script src="logo-config.js"></script>
 <script src="config.js"></script>
 <script src="send-center.js"></script>
+<script src="list-ui.js"></script>
 <script src="autosave.js"></script>
 <script src="export.js"></script>
 <script src="idari-print.js"></script>

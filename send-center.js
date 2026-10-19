@@ -28,6 +28,9 @@ function scBtn(src, id) {
   return '<button class="btn light sc-btn" style="padding:6px 10px;font-size:13px" onclick="scOpen(\'' + src + '\', \'' + id + '\')">📤 إرسال للمركز أو المعلمة</button>' +
     '<span class="sc-st" data-sc="' + src + '|' + id + '" onclick="scOpen(\'' + src + '\', \'' + id + '\')"></span>';
 }
+// للبطاقات: زر الإرسال وحالته منفصلين
+const scAct = (src, id) => ['📤 إرسال', 'scOpen(\'' + src + '\', \'' + esc(id) + '\')'];
+const scTag = (src, id) => '<span class="sc-st" data-sc="' + src + '|' + esc(id) + '" onclick="scOpen(\'' + src + '\', \'' + esc(id) + '\')"></span>';
 function scLoad(force) {
   if (SC_SENT && !force && Date.now() - scAt < 60000) return Promise.resolve(SC_SENT);
   if (scLoading) return scLoading;

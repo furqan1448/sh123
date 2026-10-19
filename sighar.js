@@ -264,14 +264,17 @@ const sgNorm = t => String(t || '').replace(/[ً-ْـ]/g, '').replace(/[أإآ]/
 function renderSgh() {
   const q = sgNorm($('sgFilter').value);
   const L = SGH.filter(r => !q || sgNorm(r.teacher + ' ' + r.center).indexOf(q) > -1);
-  if (!L.length) { $('sgBody').innerHTML = '<tr><td colspan="8" class="empty">' + (SGH.length ? 'لا توجد نتائج' : 'لا توجد تقارير محفوظة') + '</td></tr>'; return; }
+  rcStart();
+  if (!L.length) { $('sgBody').innerHTML = rcEmpty(SGH.length ? 'لا توجد نتائج' : 'لا توجد تقارير محفوظة'); return; }
   $('sgBody').innerHTML = L.map((r, i) => {
     const id = esc(r.id);
-    return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.teacher) + '</td><td>' + esc(r.center) + '</td><td>' + esc(r.period) + '</td><td>' +
-      (esc((r.data && r.data.dayName) || r.day) + ' ' + idHDate(r)).trim() + '</td><td>' + (esc(arD(r.visitNo)) || '—') + '</td><td>' + sgTStatus(r) + '</td>' +
-      '<td><div class="act">' + sBtn('عرض', 'sgOpen(\'' + id + '\')') + sBtn('طباعة', 'sgDo(\'' + id + '\', this, \'print\')') +
-      sBtn('PDF', 'sgDo(\'' + id + '\', this, \'pdf\')') + sBtn('مشاركة', 'sgDo(\'' + id + '\', this, \'share\')') + sgNotifyBtn(r) + scBtn('sgh', r.id) +
-      sBtn('تعديل', 'sgEditRec(\'' + id + '\')') + sBtn('حذف', 'sgDel(\'' + id + '\')', 'danger') + '</div></td></tr>';
+    return rcCard({ no: arD(i + 1), title: esc(r.teacher) || '—', sub: esc([r.center, r.period].filter(Boolean).join(' — ')),
+      meta: [rcM('التاريخ', (esc((r.data && r.data.dayName) || r.day) + ' ' + idHDate(r)).trim()), rcM('رقم الزيارة', esc(arD(r.visitNo))), r.lesson ? rcM('الدرس', esc(r.lesson)) : ''],
+      tags: (r.data && r.data.tid ? sgTStatus(r) : '') + scTag('sgh', r.id),
+      main: [['عرض', 'sgOpen(\'' + id + '\')'], ['PDF', 'sgDo(\'' + id + '\', this, \'pdf\')'], scAct('sgh', r.id)],
+      more: [['🖨️ طباعة', 'sgDo(\'' + id + '\', this, \'print\')'], ['🔗 مشاركة', 'sgDo(\'' + id + '\', this, \'share\')'],
+        r.data && r.data.tid && !(r.data.sigs && r.data.sigs.tch) ? ['📲 تنبيه المعلمة', 'sgNotifyRec(\'' + id + '\', this)'] : null,
+        '-', ['✏️ تعديل', 'sgEditRec(\'' + id + '\')'], ['🗑️ حذف', 'sgDel(\'' + id + '\')', 'danger']].filter(Boolean) });
   }).join('');
 }
 const recById = id => SGH.find(r => r.id === id);
@@ -491,15 +494,16 @@ async function loadSgs(silent) {
 function ssOpenList() { show('ssListView'); loadSgs(); if (!SGH.length) loadSgh(true); }
 
 function renderSgs() {
-  if (!SGS.length) { $('ssBody').innerHTML = '<tr><td colspan="6" class="empty">لا توجد خلاصات محفوظة</td></tr>'; return; }
+  rcStart();
+  if (!SGS.length) { $('ssBody').innerHTML = rcEmpty('لا توجد خلاصات محفوظة'); return; }
   $('ssBody').innerHTML = SGS.map((r, i) => {
     const id = esc(r.id), d = r.data || {};
-    const range = (d.from && d.from.y) || (d.to && d.to.y) ? sgHTxt(d.from) + ' — ' + sgHTxt(d.to) : '—';
-    return '<tr><td>' + (i + 1) + '</td><td>' + (esc([r.sem, r.year && arD(r.year) + 'هـ'].filter(Boolean).join(' / ')) || '—') + '</td><td>' + range + '</td><td>' +
-      (esc(arD(r.visitNo)) || '—') + '</td><td>' + ((d.rows || []).length) + '</td>' +
-      '<td><div class="act">' + sBtn('عرض', 'ssOpen(\'' + id + '\')') + sBtn('طباعة', 'ssDo(\'' + id + '\', this, \'print\')') +
-      sBtn('PDF', 'ssDo(\'' + id + '\', this, \'pdf\')') + sBtn('مشاركة', 'ssDo(\'' + id + '\', this, \'share\')') + scBtn('sgs', r.id) +
-      sBtn('تعديل', 'ssEditRec(\'' + id + '\')') + sBtn('حذف', 'ssDel(\'' + id + '\')', 'danger') + '</div></td></tr>';
+    const range = (d.from && d.from.y) || (d.to && d.to.y) ? sgHTxt(d.from) + ' — ' + sgHTxt(d.to) : '';
+    return rcCard({ no: arD(i + 1), title: 'الفصل ' + (esc(r.sem) || '—') + (r.year ? ' — ' + esc(arD(r.year)) + 'هـ' : ''), sub: esc(r.period || ''),
+      meta: [rcM('خلال الفترة', range), rcM('رقم الزيارة', esc(arD(r.visitNo))), rcM('عدد المعلمات', arD((d.rows || []).length))],
+      tags: scTag('sgs', r.id),
+      main: [['عرض', 'ssOpen(\'' + id + '\')'], ['PDF', 'ssDo(\'' + id + '\', this, \'pdf\')'], scAct('sgs', r.id)],
+      more: [['🖨️ طباعة', 'ssDo(\'' + id + '\', this, \'print\')'], ['🔗 مشاركة', 'ssDo(\'' + id + '\', this, \'share\')'], '-', ['✏️ تعديل', 'ssEditRec(\'' + id + '\')'], ['🗑️ حذف', 'ssDel(\'' + id + '\')', 'danger']] });
   }).join('');
 }
 const ssById = id => SGS.find(r => r.id === id);
@@ -634,15 +638,19 @@ function seOpenList() { show('seListView'); loadSge(); }
 function renderSge() {
   const t = $('seFType').value, q = sgNorm($('seFQ').value);
   const L = SGE.filter(r => (!t || (r.data && r.data.form) === t) && (!q || sgNorm(r.teacher + ' ' + r.center).indexOf(q) > -1));
-  if (!L.length) { $('seBody').innerHTML = '<tr><td colspan="9" class="empty">' + (SGE.length ? 'لا توجد نتائج' : 'لا توجد استمارات محفوظة') + '</td></tr>'; return; }
+  rcStart();
+  if (!L.length) { $('seBody').innerHTML = rcEmpty(SGE.length ? 'لا توجد نتائج' : 'لا توجد استمارات محفوظة'); return; }
   $('seBody').innerHTML = L.map((r, i) => {
     const id = esc(r.id), form = sgeFormOf(r) || {};
-    const sc = form.grades ? sgeFmt(sgeNum(r.score)) + ' / ' + sgeFmt(form.max) : '—';
     const gr = r.grade || (r.data && r.data.overall) || '';
-    return '<tr><td>' + (i + 1) + '</td><td>' + esc(form.name || r.formName || '') + '</td><td>' + esc(r.teacher) + '</td><td>' + esc(r.center) + '</td><td>' +
-      ((esc((r.data && r.data.dayName) || '') + ' ' + (r.data && r.data.hy ? idHDate(r) : '')).trim() || '—') + '</td><td>' + sc + '</td><td>' + (gr ? gradeTag(gr) : '—') + '</td><td>' + sgTStatus(r) + '</td>' +
-      '<td><div class="act">' + sBtn('عرض', 'seOpen(\'' + id + '\')') + sBtn('PDF', 'seDo(\'' + id + '\', this, \'pdf\')') + sBtn('مشاركة', 'seDo(\'' + id + '\', this, \'share\')') + sgNotifyBtn(r) + scBtn('sge', r.id) +
-      sBtn('تعديل', 'seEditRec(\'' + id + '\')') + sBtn('حذف', 'seDel(\'' + id + '\')', 'danger') + '</div></td></tr>';
+    return rcCard({ no: arD(i + 1), title: esc(r.teacher) || '—', sub: esc(form.name || r.formName || ''),
+      meta: [rcM('المركز', esc(r.center)), rcM('التاريخ', (esc((r.data && r.data.dayName) || '') + ' ' + (r.data && r.data.hy ? idHDate(r) : '')).trim()),
+        form.grades ? rcM('الدرجة', sgeFmt(sgeNum(r.score)) + ' / ' + sgeFmt(form.max)) : ''],
+      tags: (gr ? gradeTag(gr) : '') + (r.data && r.data.tid ? sgTStatus(r) : '') + scTag('sge', r.id),
+      main: [['عرض', 'seOpen(\'' + id + '\')'], ['PDF', 'seDo(\'' + id + '\', this, \'pdf\')'], scAct('sge', r.id)],
+      more: [['🔗 مشاركة', 'seDo(\'' + id + '\', this, \'share\')'],
+        r.data && r.data.tid && !(r.data.sigs && r.data.sigs.tch) ? ['📲 تنبيه المعلمة', 'sgNotifyRec(\'' + id + '\', this)'] : null,
+        '-', ['✏️ تعديل', 'seEditRec(\'' + id + '\')'], ['🗑️ حذف', 'seDel(\'' + id + '\')', 'danger']].filter(Boolean) });
   }).join('');
 }
 const seById = id => SGE.find(r => r.id === id);

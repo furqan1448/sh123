@@ -27,13 +27,16 @@ const sfSigTag = (on, at) => on ? '<span class="tag ok">✔ وقّعت' + (at ? 
 function renderStf() {
   const t = $('sfFType').value, q = sgNorm($('sfFQ').value);
   const L = STF.filter(r => (!t || sfForm(r) === t) && (!q || sgNorm(r.teacher + ' ' + r.center).indexOf(q) > -1));
-  if (!L.length) { $('sfBody').innerHTML = '<tr><td colspan="8" class="empty">' + (STF.length ? 'لا توجد نتائج' : 'لا توجد نماذج محفوظة') + '</td></tr>'; return; }
+  rcStart();
+  if (!L.length) { $('sfBody').innerHTML = rcEmpty(STF.length ? 'لا توجد نتائج' : 'لا توجد نماذج محفوظة'); return; }
   $('sfBody').innerHTML = L.map((r, i) => {
     const id = esc(r.id), d = r.data || {}, sg = d.sigs || {};
-    return '<tr><td>' + (i + 1) + '</td><td>' + esc(STF_TYPES[sfForm(r)] || '') + '</td><td>' + esc(r.teacher) + '</td><td>' + esc(r.center) + (r.period ? '<br><small>' + esc(r.period) + '</small>' : '') + '</td><td>' +
-      ((esc(d.dayName || '') + ' ' + (d.hy ? idHDate(r) : '')).trim() || '—') + '</td><td>' + sfSigTag(sg.emp, d.empAt) + '</td><td>' + sfSigTag(sg.mgr, d.mgrAt) + '</td>' +
-      '<td><div class="act">' + sBtn('عرض', 'sfOpen(\'' + id + '\')') + sBtn('طباعة', 'sfDo(\'' + id + '\', this, \'print\')') + sBtn('PDF', 'sfDo(\'' + id + '\', this, \'pdf\')') +
-      sBtn('مشاركة', 'sfDo(\'' + id + '\', this, \'share\')') + scBtn('stf', r.id) + sBtn('تعديل', 'sfEditRec(\'' + id + '\')') + sBtn('حذف', 'sfDel(\'' + id + '\')', 'danger') + '</div></td></tr>';
+    return rcCard({ no: arD(i + 1), title: esc(r.teacher) || '—', sub: esc(STF_TYPES[sfForm(r)] || ''),
+      meta: [rcM('المركز', esc([r.center, r.period].filter(Boolean).join(' — '))), rcM('التاريخ', (esc(d.dayName || '') + ' ' + (d.hy ? idHDate(r) : '')).trim())],
+      tags: (sg.emp ? '<span class="tag ok">✔ وقّعت الموظفة</span>' : '<span class="tag warn">⏳ توقيع الموظفة</span>') +
+        (sg.mgr ? '<span class="tag ok">✔ وقّعت المديرة</span>' : '<span class="tag warn">⏳ توقيع المديرة</span>') + scTag('stf', r.id),
+      main: [['عرض', 'sfOpen(\'' + id + '\')'], ['PDF', 'sfDo(\'' + id + '\', this, \'pdf\')'], scAct('stf', r.id)],
+      more: [['🖨️ طباعة', 'sfDo(\'' + id + '\', this, \'print\')'], ['🔗 مشاركة', 'sfDo(\'' + id + '\', this, \'share\')'], '-', ['✏️ تعديل', 'sfEditRec(\'' + id + '\')'], ['🗑️ حذف', 'sfDel(\'' + id + '\')', 'danger']] });
   }).join('');
 }
 const sfById = id => STF.find(r => r.id === id);

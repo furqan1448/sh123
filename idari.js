@@ -287,31 +287,26 @@ function idOpenList(kind) {
 const sBtn = (txt, fn, cls) => '<button class="btn ' + (cls || 'light') + '" style="padding:6px 10px;font-size:13px" onclick="' + fn + '">' + txt + '</button>';
 function renderIdari() {
   const L = IDR.filter(r => r.kind === idKind);
-  const heads = {
-    visit: ['م', 'المركز', 'التاريخ', 'رقم الزيارة', 'البنود', 'توقيع المديرة', ''],
-    program: ['م', 'المركز', 'التاريخ', 'المحتوى', ''],
-    suggest: ['م', 'الفصل الدراسي', 'العام', 'التاريخ', 'البنود', ''],
-    monthly: ['م', 'المركز', 'التاريخ', 'رقم الزيارة', 'نوعها', 'تحتاج متابعة', ''],
-    mgreval: ['م', 'المركز', 'المديرة', 'التاريخ', 'الدرجة', ''],
-    halls: ['م', 'المركز', 'الفصل / العام', 'القاعات', 'الطاقة الاستيعابية', '']
-  }[idKind];
-  $('idHead').innerHTML = '<tr>' + heads.map(h => '<th>' + h + '</th>').join('') + '</tr>';
-  if (!L.length) { $('idBody').innerHTML = '<tr><td colspan="' + heads.length + '" class="empty">لا توجد نماذج محفوظة</td></tr>'; return; }
+  rcStart();
+  if (!L.length) { $('idBody').innerHTML = rcEmpty('لا توجد نماذج محفوظة'); return; }
   const cnt = r => ((r.data && (r.data.notes || r.data.rows)) || []).length;
-  const short = s => { s = String(s || ''); return s.length > 50 ? s.slice(0, 50) + '…' : s; };
+  const short = s => { s = String(s || ''); return s.length > 70 ? s.slice(0, 70) + '…' : s; };
   $('idBody').innerHTML = L.map((r, i) => {
-    const id = esc(r.id);
-    const acts = '<td><div class="act">' + sBtn('عرض', 'idOpen(\'' + id + '\')') + sBtn('طباعة', 'idDo(\'' + id + '\', this, \'print\')') +
-      sBtn('PDF', 'idDo(\'' + id + '\', this, \'pdf\')') + sBtn('مشاركة', 'idDo(\'' + id + '\', this, \'share\')') +
-      (idKind === 'visit' ? sBtn('📲 إرسال للمديرة', 'idDo(\'' + id + '\', this, \'send\')', 'id-wa') : '') + scBtn('idari', r.id) +
-      sBtn('تعديل', 'idEditRec(\'' + id + '\')') + sBtn('حذف', 'idDel(\'' + id + '\')', 'danger') + '</div></td>';
+    const id = esc(r.id), d = r.data || {};
     const date = (esc(idDayName(r)) + ' ' + idHDate(r)).trim();
-    if (idKind === 'visit') { const d = r.data || {}, sg = d.sigs && d.sigs.mgr; return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.center) + '</td><td>' + date + '</td><td>' + (esc(r.visitNo) || '—') + '</td><td>' + cnt(r) + '</td><td>' + (sg ? '<span class="tag ok">✔ وقّعت' + (d.mgrAt ? ' <small>' + esc(d.mgrAt) + '</small>' : '') + '</span>' : '<span class="tag warn">⏳ بانتظار توقيعها</span>') + '</td>' + acts + '</tr>'; }
-    if (idKind === 'mgreval') { const sc = (r.data && r.data.sc) || []; return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.center) + '</td><td>' + (esc(r.mgrName) || '—') + '</td><td>' + date + '</td><td>' + (sc.some(x => meNum(x) != null) ? '<b>' + arD(meTotal(sc)) + '</b> / ١٠٠' : '—') + '</td>' + acts + '</tr>'; }
-    if (idKind === 'halls') { const t = hlTotals(r.data); return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.center) + '</td><td>' + esc([r.sem, r.year].filter(Boolean).join(' / ') || '—') + '</td><td>' + arD(t.halls) + '</td><td>' + arD(t.cap) + '</td>' + acts + '</tr>'; }
-    if (idKind === 'monthly') { const neg = imNegCount(r.data); return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.center) + (r.period ? '<br><small>' + esc(r.period) + '</small>' : '') + '</td><td>' + date + '</td><td>' + (esc(r.visitNo) || '—') + '</td><td>' + (esc(r.data && r.data.vtype) || '—') + '</td><td>' + (neg ? '<b style="color:#b03a2e">' + arD(neg) + '</b>' : '٠') + '</td>' + acts + '</tr>'; }
-    if (idKind === 'program') return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.center) + '</td><td>' + date + '</td><td>' + esc(short(r.data && r.data.content)) + '</td>' + acts + '</tr>';
-    return '<tr><td>' + (i + 1) + '</td><td>' + (esc(r.sem) || '—') + '</td><td>' + (esc(r.year) || '—') + '</td><td>' + (date || '—') + '</td><td>' + cnt(r) + '</td>' + acts + '</tr>';
+    let title = esc(r.center || '') || '—', sub = r.period ? esc(r.period) : '', meta = [], tags = '';
+    if (idKind === 'visit') {
+      meta = [rcM('التاريخ', date), rcM('رقم الزيارة', esc(idDigits(r.visitNo))), rcM('عدد البنود', arD(cnt(r)))];
+      tags = d.sigs && d.sigs.mgr ? '<span class="tag ok">✔ وقّعت المديرة' + (d.mgrAt ? ' <small>' + esc(d.mgrAt) + '</small>' : '') + '</span>' : '<span class="tag warn">⏳ بانتظار توقيع المديرة</span>';
+    } else if (idKind === 'program') meta = [rcM('التاريخ', date), d.content ? esc(short(d.content)) : ''];
+    else if (idKind === 'suggest') { title = 'الفصل ' + (esc(r.sem) || '—') + (r.year ? ' — ' + esc(arD(r.year)) + 'هـ' : ''); sub = ''; meta = [rcM('التاريخ', date), rcM('عدد البنود', arD(cnt(r)))]; }
+    else if (idKind === 'monthly') { const neg = imNegCount(d); meta = [rcM('التاريخ', date), rcM('رقم الزيارة', esc(idDigits(r.visitNo))), rcM('نوعها', esc(d.vtype || ''))]; tags = neg ? '<span class="tag warn">تحتاج متابعة: ' + arD(neg) + '</span>' : '<span class="tag ok">لا توجد بنود تحتاج متابعة</span>'; }
+    else if (idKind === 'mgreval') { const sc = d.sc || []; meta = [rcM('المديرة', esc(r.mgrName || '')), rcM('التاريخ', date)]; if (sc.some(x => meNum(x) != null)) tags = '<span class="tag ok">الدرجة: ' + arD(meTotal(sc)) + ' / ١٠٠</span>'; }
+    else if (idKind === 'halls') { const t = hlTotals(d); meta = [rcM('الفصل / العام', esc([r.sem, r.year].filter(Boolean).join(' / '))), rcM('القاعات', arD(t.halls)), rcM('الطاقة الاستيعابية', arD(t.cap))]; }
+    return rcCard({ no: arD(i + 1), title, sub, meta, tags: tags + scTag('idari', r.id),
+      main: [['عرض', 'idOpen(\'' + id + '\')'], ['PDF', 'idDo(\'' + id + '\', this, \'pdf\')'], scAct('idari', r.id),
+        idKind === 'visit' ? ['📲 للمديرة', 'idDo(\'' + id + '\', this, \'send\')', 'id-wa'] : null],
+      more: [['🖨️ طباعة', 'idDo(\'' + id + '\', this, \'print\')'], ['🔗 مشاركة', 'idDo(\'' + id + '\', this, \'share\')'], '-', ['✏️ تعديل', 'idEditRec(\'' + id + '\')'], ['🗑️ حذف', 'idDel(\'' + id + '\')', 'danger']] });
   }).join('');
 }
 const recById = id => IDR.find(r => r.id === id);
