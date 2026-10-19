@@ -5,10 +5,10 @@ const SG_BG = 'letterhead.jpg';   // الكليشة الحمراء الموحّ�
 const SG_UNIT = 'وحدة تحفيظ الصغار';
 const SG_TITLE = 'تقرير زيارة مشرفة وحدة تحفيظ الصغار';
 const SGS_TITLE = 'خلاصة التقارير التعليمية – متابعة المشرفة للمعلمة';
-const sgTitleOf = rec => rec && rec.kind === 'min' ? 'محضر اجتماع رقم ' + (rec.no || '') : rec && rec.kind === 'sum' ? SGS_TITLE : rec && rec.kind === 'eval' && typeof sgeFormOf === 'function' && sgeFormOf(rec) ? sgeFormOf(rec).title : SG_TITLE;
+const sgTitleOf = rec => rec && rec.kind === 'stf' ? (STF_TYPES[(rec.data && rec.data.form) || rec.form] || 'نموذج موظفة') : rec && rec.kind === 'min' ? 'محضر اجتماع رقم ' + (rec.no || '') : rec && rec.kind === 'sum' ? SGS_TITLE : rec && rec.kind === 'eval' && typeof sgeFormOf === 'function' && sgeFormOf(rec) ? sgeFormOf(rec).title : SG_TITLE;
 // استمارات التقييم صفحة طولية، وباقي النماذج عرضية
-const sgPortrait = rec => !!(rec && (rec.kind === 'eval' || rec.kind === 'min'));
-const sgAllCss = () => SG_CSS + (typeof SGE_CSS === 'string' ? SGE_CSS : '') + (typeof MN_CSS === 'string' ? MN_CSS : '');
+const sgPortrait = rec => !!(rec && (rec.kind === 'eval' || rec.kind === 'min' || rec.kind === 'stf'));
+const sgAllCss = () => SG_CSS + STF_CSS + (typeof SGE_CSS === 'string' ? SGE_CSS : '') + (typeof MN_CSS === 'string' ? MN_CSS : '');
 
 // جلب التواقيع (تُستبدل في صفحة إدارة الوحدات بدخول المديرة)
 let sgSigFetch = items => api('getSigs', { items }).then(o => o.data || {});
@@ -41,6 +41,7 @@ function sgDocHtml(rec, sigs, lhUrl) {
   if (rec && rec.kind === 'sum') return sgsDocHtml(rec, sigs, lhUrl);
   if (rec && rec.kind === 'eval') return sgeDocHtml(rec, sigs, lhUrl);
   if (rec && rec.kind === 'min') return mnDocHtml(rec, sigs, lhUrl);
+  if (rec && rec.kind === 'stf') return stfDocHtml(rec, sigs, lhUrl);
   sigs = sigs || {};
   const d = rec.data || {};
   const per = String(rec.period || '');
@@ -96,11 +97,11 @@ function sgsDocHtml(rec, sigs, lhUrl) {
 // تواقيع التقرير المحفوظ (من ورقة «التواقيع»)
 async function sgLoadSigs(rec) {
   const has = (rec.data && rec.data.sigs) || {};
-  const items = ['sup', 'tch', 'mgr'].filter(k => has[k]).map(k => ({ id: rec.id + '|' + k }));
+  const items = ['sup', 'tch', 'mgr', 'emp'].filter(k => has[k]).map(k => ({ id: rec.id + '|' + k }));
   if (!items.length) return {};
   const map = await sgSigFetch(items);
   const out = {};
-  ['sup', 'tch', 'mgr'].forEach(k => { if (map[rec.id + '|' + k]) out[k] = map[rec.id + '|' + k]; });
+  ['sup', 'tch', 'mgr', 'emp'].forEach(k => { if (map[rec.id + '|' + k]) out[k] = map[rec.id + '|' + k]; });
   return out;
 }
 
@@ -236,3 +237,75 @@ function sgFitBox(box) {
 }
 window.addEventListener('resize', () => document.querySelectorAll('.sg-fit').forEach(sgFitBox));
 function sgCloseModal() { const m = document.getElementById('sgModal'); if (m) m.classList.add('hidden'); }
+
+
+/* ===================== إجراءات الموظفات (تحفيظ الصغار): إنذار شفوي، إنذار خطي، تعهد، ملاحظات =====================
+   صفحة A4 طولية بالكليشة الحمراء، بنفس نص النماذج الورقية وبدون نقاط التعبئة. */
+const STF_TYPES = { shafawi: 'إنذار شفوي لموظفة', khatti: 'إنذار خطي لموظفة', taahud: 'تعهد موظفة مقصرة', notes: 'ملاحظات على موظفة' };
+const STF_ORDER = ['shafawi', 'khatti', 'taahud', 'notes'];
+const STF_ACTIONS = { shafawi: 'تنبيه شفوي', khatti: 'تنبيه خطي', taahud: 'تعهد' };
+const STF_CSS = `
+.idoc.stf{width:794px;font-size:18px}
+.idoc.stf .idc-body{padding:0 44px 20px}
+.idoc.stf .idc-title{font-size:27px;margin:22px 0 18px}
+.idoc.stf .stf-meta{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-weight:700;margin:0 0 18px}
+.idoc.stf p{margin:0 0 8px;line-height:1.95;font-weight:600}
+.idoc.stf .stf-h{font-weight:800;margin:14px 0 6px;line-height:1.9}
+.idoc.stf .stf-h small{font-size:12px;font-weight:600;color:#555}
+.idoc.stf .stf-ol{border:1.5px solid #c9b8bc;border-radius:10px;padding:6px 14px;margin:0 0 10px}
+.idoc.stf .stf-li{display:flex;gap:8px;line-height:1.85;font-weight:600;padding:4px 0;border-bottom:1px solid #eee3e5}
+.idoc.stf .stf-li:last-child{border-bottom:0}
+.idoc.stf .stf-li b{color:#7a1f2b;min-width:24px;flex:none}
+.idoc.stf .stf-close{text-align:center;font-weight:800;margin:18px 0 8px}
+.idoc.stf .stf-sigs{display:flex;justify-content:space-between;gap:30px;margin-top:22px}
+.idoc.stf .stf-sigs>div{flex:1;line-height:2.1;font-weight:700}
+.idoc.stf .stf-sigs .stf-sh{color:#7a1f2b;font-weight:800;font-size:19px}
+.idoc.stf .stf-sigs img{max-height:60px;max-width:190px;vertical-align:middle}
+.idoc.stf .stf-acts{display:flex;justify-content:center;gap:46px;font-weight:800;margin:4px 0 14px}
+.idoc.stf .stf-sub{text-align:center;color:#7a1f2b;font-weight:800;font-size:20px;text-decoration:underline;text-underline-offset:6px;margin:10px 0 10px}
+.idoc.stf .stf-cut{border-top:2px dashed #7a1f2b;margin:22px 0 16px}
+.idoc.stf .stf-r3{display:grid;grid-template-columns:1.8fr 1.2fr 1fr;gap:14px}
+.idoc.stf .stf-row{display:flex;justify-content:space-between;gap:12px;font-weight:700;margin:0 0 6px}
+`;
+function stfDocHtml(rec, sigs, lhUrl) {
+  sigs = sigs || {};
+  const d = rec.data || {}, f = d.form || rec.form;
+  const m = x => '<span class="idc-m">' + x + '</span>';
+  const head = '<img class="idc-lh" src="' + esc(lhUrl || SG_BG) + '" width="2000" height="351" alt="">';
+  const hd = o => o && o.y ? '<span class="idc-date"><bdi>' + idDigits(o.d) + '</bdi> / <bdi>' + idDigits(o.m) + '</bdi> / <bdi>' + idDigits(o.y) + 'هـ</bdi></span>' : '';
+  const date = hd({ d: d.hd, m: d.hm, y: d.hy });
+  const ol = L => '<div class="stf-ol">' + ((L && L.length ? L : [''])).map((x, i) => '<div class="stf-li"><b>' + idDigits(i + 1) + '-</b><span>' + esc(x) + '</span></div>').join('') + '</div>';
+  const name = esc(rec.teacher || ''), mgr = esc(rec.mgrName || '');
+  const sigImg = k => sigs[k] ? '<img src="' + sigs[k] + '" alt="">' : '';
+  const meta = '<div class="stf-meta"><span>اسم المركز: ' + m(esc(rec.center || '')) + '</span><span>اليوم: ' + m(esc(d.dayName || '')) + '</span><span>التاريخ: ' + m(date) +
+    '</span><span>الفصل الدراسي: ' + m(esc(rec.sem || '')) + '</span></div>';
+  const prev = (o, lead) => '<p>' + lead + ' يوم ' + m(esc((o && o.day) || '')) + ' بتاريخ ' + m(hd(o)) + '</p>';
+  const foot = '<div class="stf-sigs idc-avoid"><div>اسم الموظفة: ' + m(name) + '<br>التاريخ: ' + m(date) + '<br>التوقيع: ' + sigImg('emp') + '</div>' +
+    '<div><span class="stf-sh">مديرة المركز</span><br>الاسم: ' + m(mgr) + '<br>التاريخ: ' + m(date) + '<br>التوقيع: ' + sigImg('mgr') + '</div></div>';
+  let body = '';
+  if (f === 'shafawi' || f === 'khatti') {
+    body = meta +
+      '<div class="stf-h">' + (f === 'khatti' ? 'نظراً لتكرار' : 'نظراً لرصد') + ' الملاحظات التالية على الموظفة <small>(الاسم وفق الهوية)</small> / ' + m(name) + ' :</div>' + ol(d.obs) +
+      (f === 'khatti' ? prev(d.oral, 'والتي تم إنذارها بشأنها شفوياً') : '') +
+      '<div class="stf-h">فإنه قد تم إنذارها ' + (f === 'khatti' ? 'خطياً' : 'شفوياً') + ' وتوجيهها إلى:</div>' + ol(d.req) +
+      '<div class="stf-close">وضرورة عدم تكرار ذلك، وإلا سيُتّخذ بحقها الإجراء المناسب.</div>' + foot;
+  } else if (f === 'taahud') {
+    body = meta +
+      '<div class="stf-h">أتعهد أنا الموقّعة أدناه على عدم تكرار المخالفات التالية:</div>' + ol(d.obs) +
+      prev(d.oral, 'والتي تم إنذاري بشأنها شفوياً') + prev(d.written, 'وخطياً') +
+      '<p>وفي حال تكرار المخالفة وعدم التزامي بعدم تكرارها، فإنه يحق لإدارة المركز الرفع بالأمر إلى الجهة الأعلى اختصاصاً، وعلى هذا أتعهد...</p>' + foot;
+  } else {
+    body = '<div class="stf-row"><span>اسم المركز: ' + m(esc(rec.center || '')) + '</span><span>المسمى الوظيفي: ' + m(esc(d.job || '')) + '</span><span>عدد سنوات الخبرة: ' + m(esc(idDigits(d.years || ''))) + '</span></div>' +
+      '<div class="stf-sub">نوع الإجراء المتخذ</div>' +
+      '<div class="stf-acts">' + ['shafawi', 'khatti', 'taahud'].map(k => '<span>' + idBox(d.action === k) + STF_ACTIONS[k] + '</span>').join('') + '</div>' +
+      '<p>المكرمة الأخت / ' + m(name) + ' &nbsp; وفقها الله</p><p style="text-align:center">السلام عليكم ورحمة الله وبركاته... وبعد:</p>' +
+      '<div class="stf-h">رُصدت حولكِ الملاحظات التالية:</div>' + ol(d.obs) +
+      '<div class="stf-h">وعليه مطلوب منكِ التالي:</div>' + ol(d.req) +
+      '<div class="stf-sigs stf-r3 idc-avoid" style="margin-top:12px"><div>مديرة المركز / ' + m(mgr) + '</div><div>التاريخ: ' + m(date) + '</div><div>التوقيع: ' + sigImg('mgr') + '</div></div>' +
+      '<div class="stf-cut"></div>' +
+      '<div class="idc-avoid"><p>المكرمة مديرة المركز / ' + m(mgr) + ' &nbsp; سلمها الله</p><p style="text-align:center">السلام عليكم ورحمة الله وبركاته... وبعد:</p>' +
+      '<p>لقد اطّلعتُ على الملاحظات المذكورة، وبإذن الله لن تتكرر، وإذا تكرر ذلك مني فللجمعية أن تتخذ ما تراه مناسباً في حقي، وعلى هذا أوقّع.. والله المستعان.</p>' +
+      '<div class="stf-sigs stf-r3" style="margin-top:8px"><div>اسم الموظفة / ' + m(name) + '</div><div>التاريخ: ' + m(date) + '</div><div>التوقيع: ' + sigImg('emp') + '</div></div></div>';
+  }
+  return '<div class="idoc sg stf">' + head + '<div class="idc-body"><div class="idc-title">' + esc(STF_TYPES[f] || 'نموذج') + '</div>' + body + '</div></div>';
+}

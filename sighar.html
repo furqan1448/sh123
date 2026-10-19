@@ -28,6 +28,12 @@
   #sgListView .act,#ssListView .act,#seListView .act{flex-wrap:wrap;justify-content:center}
   .se-types .tile{padding:16px 8px}
   .se-types .tile b{font-size:15px}
+  .sf-line{display:flex;gap:8px;align-items:flex-start;margin-bottom:8px}
+  .sf-line b{color:var(--primary);min-width:22px;padding-top:12px}
+  .sf-line textarea{flex:1;min-height:52px}
+  .sf-line .btn{padding:8px 12px;flex:none;margin-top:4px}
+  .sf-prev{display:grid;grid-template-columns:minmax(110px,1fr) 2fr;gap:8px;align-items:center}
+  #sfListView .act{flex-wrap:wrap;justify-content:center}
   .se-tbl{width:100%;min-width:0;border-collapse:collapse;font-size:14px;table-layout:fixed}
   .se-tbl th{background:var(--primary);color:#fff;padding:6px 4px;font-size:13px;white-space:normal}
   .se-tbl td{border:1px solid var(--line);padding:4px;vertical-align:middle;background:#fff}
@@ -80,6 +86,7 @@
       <button class="tile" onclick="sgOpenList()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M8.5 8h7"/><path d="M8.5 11.5h7"/><path d="M8.5 15h4"/><path d="M14.5 17.5l1.3 1.3 2.7-2.8"/></svg><b>تقرير زيارة مشرفة تحفيظ صغار</b></button>
       <button class="tile" onclick="ssOpenList()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M3.5 9h17"/><path d="M3.5 14.5h17"/><path d="M9 9v11"/><path d="M15 9v11"/></svg><b>خلاصة التقارير التعليمية</b></button>
       <button class="tile" onclick="seOpenList()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M9 3.5V3h6v.5"/><path d="M8.5 9.5l1.2 1.2 2.3-2.4"/><path d="M13.5 9.5h2.5"/><path d="M8.5 14.5l1.2 1.2 2.3-2.4"/><path d="M13.5 14.5h2.5"/></svg><b>استمارات التقييم</b></button>
+      <button class="tile" onclick="sfOpenList()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M12 7.5v5"/><circle cx="12" cy="15.6" r=".6" fill="currentColor"/><path d="M8.5 18.5h7"/></svg><b>إجراءات الموظفات</b></button>
       <button class="tile" onclick="mnOpenList()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="2.5"/><circle cx="16" cy="8" r="2.5"/><path d="M3.5 18c0-2.8 2-4.5 4.5-4.5s4.5 1.7 4.5 4.5"/><path d="M11.5 18c0-2.8 2-4.5 4.5-4.5s4.5 1.7 4.5 4.5"/><path d="M3 21h18"/></svg><b>محاضر الاجتماعات</b></button>
       <button class="tile" onclick="atOpen()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5l-8 8a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L9.7 17.2a1.7 1.7 0 0 1-2.4-2.4L15 7"/></svg><b>المرفقات</b></button>
     </div>
@@ -315,6 +322,83 @@
     <div class="ev-bar" id="seBar"><span>المجموع: <b id="seSum">٠</b> من <b id="seMax">٠</b></span><span>التقدير: <b id="seGrade">—</b></span></div>
   </div>
 
+  <!-- إجراءات الموظفات: السجل -->
+  <div id="sfListView" class="hidden">
+    <button class="back" onclick="show('homeView')">← رجوع</button>
+    <div class="card">
+      <h2>إجراءات الموظفات</h2>
+      <p class="rp-hint">الإنذار الشفوي والخطي والتعهد والملاحظات على موظفات المراكز. توقّع الموظفة على الجهاز، وتوقّع مديرة المركز من حساب المركز بعد «📤 إرسال للمركز» (اطلاع وتوقيع).</p>
+      <div class="grid se-types" id="sfTypes"></div>
+    </div>
+    <div class="card">
+      <h2>النماذج المحفوظة</h2>
+      <div class="row2">
+        <div><label for="sfFType" style="margin-top:0">نوع النموذج</label><select id="sfFType" onchange="renderStf()"></select></div>
+        <div><label for="sfFQ" style="margin-top:0">بحث باسم الموظفة أو المركز</label><input id="sfFQ" autocomplete="off" oninput="renderStf()" placeholder="اكتبي للبحث..."></div>
+      </div>
+      <div class="tbl-wrap" style="margin-top:12px">
+        <table style="min-width:720px">
+          <thead><tr><th>م</th><th>النموذج</th><th>الموظفة</th><th>المركز</th><th>التاريخ</th><th>توقيع الموظفة</th><th>توقيع المديرة</th><th></th></tr></thead>
+          <tbody id="sfBody"><tr><td colspan="8" class="empty">جارِ التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- إجراءات الموظفات: النموذج -->
+  <div id="sfForm" class="hidden">
+    <button class="back" onclick="sfBack()">← رجوع</button>
+    <div class="edit-note hidden" data-edit>وضع التعديل: يُحفظ التعديل على نفس النموذج.</div>
+    <div class="card">
+      <h2 id="sfTitle"></h2>
+      <div class="row2">
+        <div><label for="sfCenter">اسم المركز</label><select id="sfCenter" onchange="sfCenterChanged()"></select></div>
+        <div><label>الفترة</label>
+          <div class="chips" id="sfPeriod"><label class="chip"><input type="checkbox" value="صباحي"><span>صباحي</span></label><label class="chip"><input type="checkbox" value="مسائي"><span>مسائي</span></label></div>
+        </div>
+      </div>
+      <div class="row2">
+        <div><label for="sfEmp">اسم الموظفة <span style="font-weight:400;color:var(--muted);font-size:14px">(الاسم وفق الهوية)</span></label><input id="sfEmp" autocomplete="off"></div>
+        <div id="sfSemBox"><label for="sfSem">الفصل الدراسي</label><select id="sfSem"><option value="">اختاري</option><option>الأول</option><option>الثاني</option><option>الثالث</option></select></div>
+      </div>
+      <div class="row2" id="sfJobBox">
+        <div><label for="sfJob">المسمى الوظيفي</label><input id="sfJob"></div>
+        <div><label for="sfYears">عدد سنوات الخبرة</label><input id="sfYears" inputmode="numeric" maxlength="3"></div>
+      </div>
+      <div id="sfActBox">
+        <label>نوع الإجراء المتخذ</label>
+        <div class="chips" id="sfAction"><label class="chip"><input type="radio" name="sfAct" value="shafawi"><span>تنبيه شفوي</span></label><label class="chip"><input type="radio" name="sfAct" value="khatti"><span>تنبيه خطي</span></label><label class="chip"><input type="radio" name="sfAct" value="taahud"><span>تعهد</span></label></div>
+      </div>
+      <div id="sfDateBox"></div>
+    </div>
+    <div class="card">
+      <h2 id="sfObsLbl"></h2>
+      <div id="sfObs"></div>
+      <button type="button" class="btn light block" onclick="sfAddLine('sfObs')">＋ إضافة بند</button>
+    </div>
+    <div class="card" id="sfPrevCard">
+      <h2 id="sfPrevLbl"></h2>
+      <div id="sfOralBox"><label id="sfOralLbl"></label><div class="sf-prev"><select id="sfOralDay"></select><div id="sfOdBox"></div></div></div>
+      <div id="sfWrBox"><label>وخطياً</label><div class="sf-prev"><select id="sfWrDay"></select><div id="sfWdBox"></div></div></div>
+    </div>
+    <div class="card" id="sfReqCard">
+      <h2 id="sfReqLbl"></h2>
+      <div id="sfReq"></div>
+      <button type="button" class="btn light block" onclick="sfAddLine('sfReq')">＋ إضافة بند</button>
+    </div>
+    <div class="card">
+      <h2>التواقيع</h2>
+      <label for="sfMgr" style="margin-top:0">اسم مديرة المركز</label><input id="sfMgr">
+      <div class="id-hint" id="sfMgrHint"></div>
+      <label>توقيع الموظفة <span style="font-weight:400;color:var(--muted);font-size:14px">(اختياري — إن كانت حاضرة، أو توقّع عند المديرة في المركز)</span></label>
+      <div id="sfEmpW"></div>
+      <p class="rp-hint" style="margin-top:0">توقيع مديرة المركز: بعد الحفظ أرسلي النموذج بـ «📤 إرسال للمركز» (اطلاع وتوقيع)، فتوقّع المديرة من حساب المركز ويُكتب توقيعها في النموذج.</p>
+      <label for="sfSupName">اسم المشرفة</label><input id="sfSupName">
+      <button id="sfSaveBtn" class="btn block" onclick="sfSave(this)">حفظ النموذج</button>
+      <button class="btn block light" style="margin-top:10px" onclick="sfSave(this, true)">📤 حفظ وإرسال للمركز للتوقيع</button>
+    </div>
+  </div>
+
   <!-- عرض تقرير -->
   <div id="sgModal" class="modal hidden" onclick="if (event.target === this) sgCloseModal()">
     <div class="modal-box" style="max-width:860px">
@@ -336,5 +420,6 @@
 <script src="minutes.js"></script>
 <script src="attach.js"></script>
 <script src="sighar.js"></script>
+<script src="sighar-staff.js"></script>
 </body>
 </html>

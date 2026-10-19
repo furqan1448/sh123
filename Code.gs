@@ -23,6 +23,7 @@ const SHEET = {
   MINACK: 'اطلاع المحاضر',   // من اطّلعت على كل محضر ومتى
   FILEACK: 'اطلاع المرفقات',
   RPT: 'خلاصة التقارير',   // «خلاصة التقارير» في الإشراف التربوي (reports.js)، تُنشأ تلقائياً   // من اطّلعت على كل مرفق مشارك ومتى
+  STF: 'إجراءات الموظفات',   // نماذج الإنذار والتعهد والملاحظات على موظفات المراكز (تحفيظ الصغار)، تُنشأ تلقائياً
   SGE: 'استمارات تحفيظ الصغار'   // استمارات تقييم الأداء الوظيفي لتحفيظ الصغار (7 استمارات)، تُنشأ تلقائياً   // خلاصة التقارير التعليمية – متابعة المشرفة للمعلمة (تحفيظ الصغار)، تُنشأ تلقائياً
 };
 
@@ -233,6 +234,9 @@ function route_(r) {
     case 'getSgs': return { ok: true, data: getSgsFor_(r.username) };
     case 'saveSgs': return withLock_(() => saveSgs_(r));
     case 'deleteSgs': return withLock_(() => deleteSgs_(r));
+    case 'getStf': return { ok: true, data: getStfFor_(r.username) };   // إجراءات الموظفات (تحفيظ الصغار)
+    case 'saveStf': return withLock_(() => saveStf_(r));
+    case 'deleteStf': return withLock_(() => deleteStf_(r));
     case 'scCenters': return { ok: true, data: outCenters_() };   // «📤 إرسال للمركز»
     case 'sendCenter': return withLock_(() => sendCenter_(r));
     case 'getSent': return { ok: true, data: getSent_(r) };
@@ -860,7 +864,7 @@ function getManage_(me) {
   const mAcks = minAcks_();
   const minutes = getMinutes_().filter(m => inScope(m.unit)).map(m => Object.assign({}, m, { unit: U(m.unit), acks: mAcks.filter(a => a.mid === m.id) }));
   const idari = getIdari_().filter(x => inScope(x.unit)).map(x => Object.assign({}, x, { unit: U(x.unit) }));
-  const sgh = getSgh_().concat(getSgs_(), getSge_()).filter(x => inScope(x.unit)).map(x => Object.assign({}, x, { unit: U(x.unit) }));
+  const sgh = getSgh_().concat(getSgs_(), getSge_(), getStf_()).filter(x => inScope(x.unit)).map(x => Object.assign({}, x, { unit: U(x.unit) }));
 
   const seen = {};
   users.concat(visits, evals, files, idari, sgh, minutes).forEach(x => { seen[x.unit] = 1; });
@@ -1009,7 +1013,7 @@ function saPhone_(v) {
 
 function getDirectors_(r) {
   const me = profileOf_(r.username);
-  if (me.unit !== IDARI_UNIT) return { ok: true, data: [] };
+  if (me.unit !== IDARI_UNIT && me.unit !== SGH_UNIT) return { ok: true, data: [] };   // أسماء المديرات للإشراف الإداري وتحفيظ الصغار
   const ss = ss_();
   let sh = ss.getSheetByName(DIRECTORS_SHEET);
   if (!sh) {
@@ -2015,5 +2019,121 @@ function centerDone_(acc, r) {
       }
     } catch (e) {}
   }
+  if (x.src === 'stf' && x.srcId && x.mode === 'sign') {
+    const emp = String(r.empSig || '');
+    try { stfCenterSign_(x.srcId, sig, signer, emp.indexOf('data:image/') === 0 && emp.length < 49000 ? emp : '', at); } catch (e) {}
+  }
   return { ok: true, at };
+}
+
+
+/* ============ وحدة تحفيظ الصغار: إجراءات الموظفات ============
+   أربعة نماذج: إنذار شفوي، إنذار خطي، تعهد موظفة مقصرة، ملاحظات على موظفة.
+   تعبّئها المشرفة، وتوقّع الموظفة على جهازها (اختياري)، وتوقّع مديرة المركز من حساب المركز بعد «📤 إرسال للمركز» (اطلاع وتوقيع)
+   فيُكتب توقيعها في النموذج نفسه. التواقيع في ورقة «التواقيع» بالمعرّف: الرقم|emp (الموظفة) و الرقم|mgr (المديرة) */
+const STF_TYPES = { shafawi: 'إنذار شفوي لموظفة', khatti: 'إنذار خطي لموظفة', taahud: 'تعهد موظفة مقصرة', notes: 'ملاحظات على موظفة' };
+const STF_HEADERS = ['الرقم', 'النموذج', 'اسم المركز', 'الفترة', 'الفصل الدراسي', 'اسم الموظفة', 'اليوم', 'التاريخ الهجري',
+  'اسم المديرة', 'اسم المشرفة', 'البيانات', 'وقت التسجيل', 'المسجِّلة', 'الوحدة'];
+const STF_DATA_COL = 11;
+
+function stfSheet_() {
+  const ss = ss_();
+  let sh = ss.getSheetByName(SHEET.STF);
+  if (!sh) {
+    sh = ss.insertSheet(SHEET.STF);
+    sh.getRange(1, 1, 1, STF_HEADERS.length).setValues([STF_HEADERS]);
+    styleHeader_(sh, STF_HEADERS.length);
+    sh.setRightToLeft(true);
+    sh.setFrozenRows(1);
+    sh.setColumnWidths(1, STF_HEADERS.length, 140);
+    sh.setColumnWidth(STF_DATA_COL, 380);
+  }
+  return sh;
+}
+const stfKey_ = label => { for (const k in STF_TYPES) if (STF_TYPES[k] === label) return k; return ''; };
+function getStf_() {
+  const sh = ss_().getSheetByName(SHEET.STF);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, STF_HEADERS.length).getDisplayValues().filter(r => r[0]).map(r => {
+    let data = {};
+    try { data = JSON.parse(r[10] || '{}'); } catch (e) {}
+    const form = data.form || stfKey_(r[1]);
+    return { id: r[0], kind: 'stf', form: form, formName: STF_TYPES[form] || r[1], center: r[2], period: r[3], sem: r[4], teacher: r[5], day: r[6], hijri: r[7],
+      mgrName: r[8], supName: r[9], data: data, at: r[11], owner: r[12] || '', unit: r[13] || '', date: data.greg || '' };
+  }).reverse();
+}
+function getStfFor_(username) {
+  const u = norm_(username).toLowerCase();
+  return getStf_().filter(x => x.owner === u);
+}
+function stfRow_(sh, id) {
+  const last = sh.getLastRow();
+  if (last < 2) return 0;
+  const ids = sh.getRange(2, 1, last - 1, 1).getValues();
+  for (let i = 0; i < ids.length; i++) if (String(ids[i][0]) === id) return i + 2;
+  return 0;
+}
+function saveStf_(r) {
+  const s = (v, n) => String(v == null ? '' : v).trim().slice(0, n || 300);
+  const me = profileOf_(r.username);
+  if (me.unit !== SGH_UNIT) throw new Error('هذا الحساب ليس من ' + SGH_UNIT);
+  const d = r.data && typeof r.data === 'object' ? r.data : {};
+  const form = STF_TYPES[d.form] ? d.form : '';
+  if (!form) throw new Error('نوع النموذج غير معروف');
+  const list = (a, n) => (Array.isArray(a) ? a : []).map(x => s(x, 600)).filter(Boolean).slice(0, n || 20);
+  const dd = o => (o && typeof o === 'object') ? { day: s(o.day, 10), d: s(o.d, 2), m: s(o.m, 2), y: s(o.y, 4) } : {};
+  const data = {
+    form: form, obs: list(d.obs), req: list(d.req), oral: dd(d.oral), written: dd(d.written),
+    job: s(d.job, 120), years: s(d.years, 10), action: ['shafawi', 'khatti', 'taahud'].indexOf(d.action) > -1 ? d.action : '',
+    hd: s(d.hd, 2), hm: s(d.hm, 2), hy: s(d.hy, 4), dayName: s(d.dayName, 10), greg: s(r.date, 10)
+  };
+  if (!data.obs.length) throw new Error(form === 'taahud' ? 'اكتبي المخالفات' : 'اكتبي الملاحظات');
+  const sigs = r.sigs && typeof r.sigs === 'object' ? r.sigs : {};
+  const sh = stfSheet_();
+  let id = s(r.id, 60), row = 0, old = null;
+  if (id) {
+    row = stfRow_(sh, id);
+    if (!row) throw new Error('السجل غير موجود');
+    old = sh.getRange(row, 1, 1, STF_HEADERS.length).getDisplayValues()[0];
+    if (String(old[12]) !== me.username) throw new Error('لا يمكن تعديل نموذج سجّلته مشرفة أخرى');
+  } else { id = Utilities.getUuid(); row = sh.getLastRow() + 1; }
+  let oldData = {};
+  if (old) { try { oldData = JSON.parse(old[10] || '{}'); } catch (e) {} }
+  const os = oldData.sigs || {}, has = {};
+  const v = String(sigs.emp || '');
+  if (v === 'keep') { if (os.emp) { has.emp = '1'; if (oldData.empAt) data.empAt = oldData.empAt; } }
+  else if (v.indexOf('data:image/') === 0) { if (v.length > 49000) throw new Error('صورة توقيع الموظفة كبيرة'); sigPut_(id + '|emp', v); has.emp = '1'; }
+  else if (old && os.emp) sigDel_(id + '|emp');
+  if (os.mgr) { has.mgr = '1'; data.mgrAt = oldData.mgrAt || ''; }   // توقيع المديرة من حساب المركز يبقى كما هو
+  data.sigs = has;
+  const json = JSON.stringify(data);
+  if (json.length > 45000) throw new Error('النموذج طويل جداً، اختصري النص');
+  const hTxt = data.hy ? data.hd + '/' + data.hm + '/' + data.hy + 'هـ' : '';
+  const mgrName = os.mgr && old ? String(old[8] || '') : s(r.mgrName, 120);
+  const vals = [[id, STF_TYPES[form], s(r.center, 200), s(r.period, 20), s(r.sem, 20), s(r.teacher, 200), data.dayName, hTxt,
+    mgrName, s(r.supName, 120), json, old ? String(old[11] || nowStr_()) : nowStr_(), me.username, me.unit]];
+  sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
+  return { ok: true, id: id, sigs: has, mgrName: mgrName };
+}
+function deleteStf_(r) {
+  const id = String(r.id || ''), me = profileOf_(r.username);
+  const sh = ss_().getSheetByName(SHEET.STF);
+  const row = sh && id ? stfRow_(sh, id) : 0;
+  if (!row) throw new Error('السجل غير موجود');
+  if (String(sh.getRange(row, 13).getDisplayValue()) !== me.username) throw new Error('لا يمكن حذف نموذج سجّلته مشرفة أخرى');
+  sh.deleteRow(row);
+  sigDel_(id + '|emp'); sigDel_(id + '|mgr');
+  return { ok: true };
+}
+// توقيع مديرة المركز (وتوقيع الموظفة إن وقّعت عندها) من صفحة المراكز يُكتب في النموذج نفسه
+function stfCenterSign_(id, sig, signer, empSig, at) {
+  const sh = ss_().getSheetByName(SHEET.STF);
+  const row = sh ? stfRow_(sh, id) : 0;
+  if (!row) return;
+  let data = {};
+  try { data = JSON.parse(sh.getRange(row, STF_DATA_COL).getValue() || '{}'); } catch (e) {}
+  data.sigs = data.sigs || {};
+  if (sig) { sigPut_(id + '|mgr', sig); data.sigs.mgr = '1'; data.mgrAt = at; if (signer) sh.getRange(row, 9).setNumberFormat('@').setValue(signer); }
+  if (empSig) { sigPut_(id + '|emp', empSig); data.sigs.emp = '1'; data.empAt = at; }
+  sh.getRange(row, STF_DATA_COL).setNumberFormat('@').setValue(JSON.stringify(data));
 }

@@ -171,6 +171,7 @@ async function cSign(btn) {
 
 /* ---------- نموذج وارد: عرض الملف ثم «تم الاطلاع» أو التوقيع ---------- */
 const inSig = makeSigWidget('inSigW', {});
+const inEmp = makeSigWidget('inEmpW', {});   // توقيع الموظفة في «إجراءات الموظفات» (تحفيظ الصغار)
 const IN_PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
 let inPdfLoading = null;
 function inLoadPdfJs() {
@@ -225,6 +226,7 @@ async function inOpen(id) {
     const sign = x.mode === 'sign';
     $('inActTitle').textContent = sign ? 'اعتماد وتوقيع مديرة المركز' : 'تأكيد الاطلاع';
     $('inSigBox').classList.toggle('hidden', !sign);
+    $('inEmpBox').classList.toggle('hidden', !(sign && x.src === 'stf')); inEmp.reset();
     $('inBtn').textContent = sign ? 'اعتماد وتوقيع' : 'تم الاطلاع';
     $('inAgree').checked = false; inSig.reset();
     $('inSigner').value = localStorage.getItem(C_SIGNER) || '';
@@ -260,7 +262,8 @@ async function inDone(btn) {
   if (sign && !sig) return toast('وقّعي داخل المربع أو أرفقي صورة التوقيع', false);
   setBtnBusy(btn, true, 'جارِ الحفظ...');
   try {
-    const out = await cApi('c_done', { id: inCur.id, signature: sig, signer });
+    const emp = sign && inCur.src === 'stf' ? inEmp.get() : '';
+    const out = await cApi('c_done', { id: inCur.id, signature: sig, signer, empSig: emp || '' });
     try { localStorage.setItem(C_SIGNER, signer); } catch (e) {}
     Object.assign(inCur, { status: sign ? 'sign' : 'ack', doneAt: out.at, signer });
     toast(sign ? 'تم التوقيع، شكراً لكم' : 'تم تأكيد الاطلاع، شكراً لكم');

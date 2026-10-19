@@ -945,5 +945,10 @@ adWrap('seNew', () => AD.offer('seForm')); adWrap('seEditRec', () => AD.offer('s
   else if (last === 'ssListView' || last === 'ssForm') ssOpenList();
   else if (last === 'seListView' || last === 'seForm') seOpenList();
   else if (last === 'mnListView' || last === 'mnForm') mnOpenList();
+  else if (last === 'sfListView' || last === 'sfForm') document.addEventListener('DOMContentLoaded', () => {   // إجراءات الموظفات (sighar-staff.js يُحمَّل بعد هذا الملف)
+    sfOpenList();
+    const a = AD.last();
+    if (last === 'sfForm' && a && a.view === 'sfForm' && /^new-/.test(a.id)) sfNew(a.id.slice(4));
+  });
   else { show('homeView'); loadSgh(true); }
 })();
