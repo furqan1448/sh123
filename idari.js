@@ -321,10 +321,9 @@ scRegister('idari', {
 function idAfterSave(rec) {
   const m = $('idModal'), b = $('idModalBody'), visit = rec.kind === 'visit', id = esc(rec.id);
   b.innerHTML = '<div class="id-send"><div><b>✅ تم حفظ ' + (visit ? 'التقرير' : 'النموذج') + '.</b></div>' +
-    '<div><b>المديرة:</b> يمكنكِ إرساله للمركز للاطلاع فقط، أو للاطلاع والتوقيع' + (visit ? ' (فيُكتب توقيعها في خانة «مديرة المركز» بالتقرير)' : '') + '.</div>' +
-    '<button class="btn" onclick="idToMgr(\'' + id + '\', ' + (visit ? 1 : 0) + ')">📤 إرسال للمديرة</button> ' +
-    (visit ? '<button class="btn id-wa" onclick="idCloseModal(); idDo(\'' + id + '\', this, \'send\')">💬 تنبيهها في واتساب</button> ' : '') +
-    '<button class="btn light" onclick="idCloseModal()">إغلاق</button></div>';
+    scMgrBox('idari', rec.id, visit ? 'التقرير (وعند التوقيع يُكتب توقيعها في خانة «مديرة المركز»)' : 'النموذج') +
+    '<div style="margin-top:10px">' + (visit ? '<button class="btn id-wa" onclick="idCloseModal(); idDo(\'' + id + '\', this, \'send\')">💬 تنبيهها في واتساب</button> ' : '') +
+    '<button class="btn light" onclick="idCloseModal()">إغلاق</button></div></div>';
   m.classList.remove('hidden');
 }
 function idToMgr(id, sign) {

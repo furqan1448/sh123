@@ -79,6 +79,8 @@ function scModal() {
     '.sc-it .act .btn{padding:5px 10px;font-size:13px}.sc-sig{max-width:220px;max-height:90px;display:block;margin-top:6px;border:1px dashed var(--gold);border-radius:8px;background:#fff}' +
     '.sc-to{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}.sc-to label{display:flex;justify-content:center;align-items:center;gap:8px;border:1.5px solid var(--line);border-radius:12px;padding:10px;margin:0;cursor:pointer;font-weight:700}' +
     '.sc-to label:has(input:checked){border-color:var(--primary);background:#f6f0f2;color:var(--primary)}.sc-to input{width:auto;margin:0;accent-color:var(--primary)}' +
+    '.sc-auto{background:#eef7f1;border:1.5px solid #bfe3cd;border-radius:12px;padding:10px 12px;margin:8px 0 0;line-height:1.8}.sc-auto a{cursor:pointer;font-size:13px;margin-inline-start:6px}' +
+    '.sc-q .btn{margin:6px 0 0 6px}.sc-q a.lnk{cursor:pointer;font-size:13px}' +
     '.sc-hint.ok{color:#1f7a45;font-weight:700}.sc-done{background:#e4f4ec;border-radius:12px;padding:12px 14px;line-height:1.9;margin-top:12px}.sc-done .btn{margin-top:8px}';
   document.head.appendChild(st);
   m = document.createElement('div');
@@ -86,8 +88,8 @@ function scModal() {
   m.innerHTML = '<div class="modal-box"><h2>📤 إرسال النموذج</h2><p class="sc-sub" id="scTitle"></p>' +
     '<div id="scFormBox"><label>إرسال إلى</label><div class="sc-to" id="scTo">' +
     '<label><input type="radio" name="scTo" value="c" checked><span>🏫 المركز</span></label><label><input type="radio" name="scTo" value="t"><span>👩‍🏫 المعلمة</span></label></div>' +
-    '<div id="scCBox"><label for="scCenter">المركز</label><select id="scCenter"></select><p class="sc-hint" id="scHint"></p></div>' +
-    '<div id="scTBox" class="hidden"><label for="scTeacher">المعلمة</label><input id="scTeacher" list="scTList" autocomplete="off" placeholder="اكتبي أو اختاري اسم المعلمة من القائمة"><datalist id="scTList"></datalist><p class="sc-hint" id="scTHint"></p></div>' +
+    '<div id="scCBox"><p class="sc-auto hidden" id="scCAuto"></p><div id="scCPick"><label for="scCenter">المركز</label><select id="scCenter"></select><p class="sc-hint" id="scHint"></p></div></div>' +
+    '<div id="scTBox" class="hidden"><p class="sc-auto hidden" id="scTAuto"></p><div id="scTPick"><label for="scTeacher">المعلمة</label><input id="scTeacher" list="scTList" autocomplete="off" placeholder="اكتبي أو اختاري اسم المعلمة من القائمة"><datalist id="scTList"></datalist><p class="sc-hint" id="scTHint"></p></div></div>' +
     '<label>طريقة الإرسال</label><div class="sc-modes">' +
     '<label><input type="radio" name="scMode" value="ack" checked><span>اطلاع فقط<small id="scMAck"></small></span></label>' +
     '<label><input type="radio" name="scMode" value="sign"><span>اطلاع وتوقيع<small id="scMSign"></small></span></label></div>' +
@@ -115,7 +117,11 @@ async function scCentersLoad() {
 // اختيار المركز تلقائياً من اسم مركز النموذج وفترته
 function scGuess(center, period) {
   const k = scKey(center); if (!k) return '';
-  const L = (SC_CENTERS || []).filter(c => scKey(c.name) === k);
+  let L = (SC_CENTERS || []).filter(c => scKey(c.name) === k);
+  if (!L.length) {   // اختلاف بسيط في كتابة الاسم: يُقبل إن كان أحد الاسمين جزءاً من الآخر ولا يحتمل غير مركز واحد
+    L = (SC_CENTERS || []).filter(c => { const ck = scKey(c.name); return ck && (ck.indexOf(k) > -1 || k.indexOf(ck) > -1); });
+    if (new Set(L.map(c => scKey(c.name))).size > 1) return '';
+  }
   if (L.length < 2) return L[0] ? L[0].name : '';
   const p = String(period || ''), want = /صباح/.test(p) ? /صباح/ : /مسائ/.test(p) ? /مسائ/ : null;
   return ((want && L.find(c => want.test(c.name))) || L[0]).name;
@@ -131,7 +137,8 @@ async function scOpen(src, id) {
   const toC = document.querySelector('#scModal input[name="scTo"][value="c"]'); if (toC) toC.checked = true;
   document.getElementById('scFormBox').classList.remove('hidden');
   document.getElementById('scDone').classList.add('hidden');
-  if (document.getElementById('scTeacher')) { document.getElementById('scTeacher').value = ''; document.getElementById('scTHint').textContent = ''; }
+  if (document.getElementById('scTeacher')) { document.getElementById('scTeacher').value = ''; document.getElementById('scTHint').textContent = ''; scAutoShow('T', ''); }
+  scAutoShow('C', '');
   scToChanged();
   const sel = document.getElementById('scCenter'), hint = document.getElementById('scHint');
   sel.innerHTML = '<option value="">جارِ تحميل المراكز...</option>'; hint.textContent = '';
@@ -143,8 +150,16 @@ async function scOpen(src, id) {
   sel.innerHTML = '<option value="">اختاري المركز</option>' + SC_CENTERS.map(c => '<option value="' + esc(c.name) + '">' + esc(c.display || c.name) + '</option>').join('');
   const g = scGuess(def.center ? def.center(rec) : '', def.period ? def.period(rec) : '');
   sel.value = g;
-  hint.textContent = g ? '✔ تم اختيار المركز تلقائياً من النموذج، ويمكنك تغييره.' : (def.center && def.center(rec) ? 'لم يُعثر على حساب لمركز «' + def.center(rec) + '»، اختاريه من القائمة.' : '');
+  hint.textContent = g ? '' : (def.center && def.center(rec) ? 'لم يُعثر على حساب لمركز «' + def.center(rec) + '»، اختاريه من القائمة.' : '');
+  scAutoShow('C', g ? '🏫 يُرسَل إلى: <b>' + esc(scCenterName(g)) + '</b> <small>(من اسم المركز في النموذج)</small>' : '');
   scPrev();
+}
+// المُرسَل إليه محدَّد تلقائياً من النموذج: يظهر نصاً ثابتاً مع «تغيير»، والقائمة لا تظهر إلا عند الحاجة
+function scAutoShow(w, html) {
+  const a = document.getElementById('sc' + w + 'Auto'), p = document.getElementById('sc' + w + 'Pick');
+  if (!a || !p) return;
+  a.innerHTML = html ? html + ' <a class="lnk" onclick="scAutoShow(\'' + w + '\', \'\')">تغيير</a>' : '';
+  a.classList.toggle('hidden', !html); p.classList.toggle('hidden', !!html);
 }
 /* ---------- الإرسال للمعلمة: اختيار الاسم من سجل المعلمات (الأسماء المكررة مرقّمة) ---------- */
 function scToChanged() {
@@ -183,8 +198,9 @@ function scTGuess() {
   if (!scCur || document.getElementById('scTeacher').value.trim()) return;
   const r = scCur.rec, d = r.data || {};
   let lbl = d.tid && SC_TLBL[d.tid];
+  if (!lbl && r.teacher && typeof tdFind === 'function' && typeof T_DIR !== 'undefined' && T_DIR) { const x = tdFind(r.teacher, r.center, d.tid); if (x.why === 'ok') lbl = SC_TLBL[x.t.id]; }
   if (!lbl && r.teacher) { const L = (SC_TDIR || []).filter(t => scNorm(t.name) === scNorm(r.teacher)); if (L.length === 1) lbl = SC_TLBL[L[0].id]; }
-  if (lbl) { document.getElementById('scTeacher').value = lbl; scTPicked(); document.getElementById('scTHint').innerHTML += ' <span style="color:var(--muted);font-weight:400">(من النموذج)</span>'; }
+  if (lbl) { document.getElementById('scTeacher').value = lbl; scTPicked(); const t = scTSel(); if (t) scAutoShow('T', '👩‍🏫 يُرسَل إلى: <b>' + esc(t.name) + '</b> <small>(من اسم المعلمة في النموذج)</small>'); }
 }
 const scTSel = () => SC_TBY[scNorm(document.getElementById('scTeacher').value)] || null;
 function scTPicked() {
@@ -258,6 +274,49 @@ async function scSend(btn) {
     done.classList.remove('hidden');
   } catch (e) { toast(e.message || 'تعذّر الإرسال', false); }
   finally { setBtnBusy(btn, false); }
+}
+/* ---------- إرسال مباشر للمديرة بضغطة واحدة: المركز من النموذج نفسه ---------- */
+async function scQuick(src, id, mode, btn) {
+  const def = SC_SRC[src], rec = def && def.rec(id);
+  if (!rec) { toast('النموذج غير موجود، حدّثي القائمة', false); return null; }
+  setBtnBusy(btn, true, 'جارِ الإرسال...');
+  try {
+    await scCentersLoad();
+    const center = scGuess(def.center ? def.center(rec) : '', def.period ? def.period(rec) : '');
+    if (!center) {
+      toast('لم يُعثر على حساب لمركز النموذج، اختاريه من القائمة', false);
+      scOpen(src, id).then(() => { const x = document.querySelector('#scModal input[name="scMode"][value="' + mode + '"]'); if (x) x.checked = true; });
+      return null;
+    }
+    await scLoad();
+    const dup = scFor(src, id).find(x => x.to !== 't' && x.center === center);
+    if (dup && dup.status !== 'new' && !confirm('سبق إرسال هذا النموذج لهذا المركز واطّلعت عليه المديرة. هل تريدين إرساله مرة أخرى؟')) return null;
+    const f = await def.file(rec, 'c', null);
+    const out = await api('sendCenter', { src, srcId: id, title: def.title(rec), to: 'c', center, tid: '', mode, note: '', name: f.name, mime: f.mime, data: await scB64(f.blob) });
+    SC_SENT = (SC_SENT || []).filter(x => x.id !== out.item.id); SC_SENT.unshift(out.item);
+    if (typeof cacheSet === 'function') cacheSet('sc_sent', SC_SENT);
+    scPaint();
+    out.centerName = scCenterName(center);
+    return out;
+  } catch (e) { toast(e.message || 'تعذّر الإرسال', false); return null; }
+  finally { setBtnBusy(btn, false); }
+}
+// صندوق «المديرة» في نافذة ما بعد الحفظ: زران للإرسال المباشر (اطلاع / اطلاع وتوقيع) وخيارات أخرى
+function scMgrBox(src, id, what) {
+  const a = '\'' + src + '\', \'' + esc(id) + '\'';
+  return '<div class="sa-mgr sc-q"><b>المديرة:</b> يُرسَل ' + what + ' لمركز النموذج مباشرة.<br>' +
+    '<button class="btn" onclick="scQuickIn(this, ' + a + ', \'ack\')">📤 للاطلاع فقط</button>' +
+    '<button class="btn" onclick="scQuickIn(this, ' + a + ', \'sign\')">📤 للاطلاع والتوقيع</button><br>' +
+    '<a class="lnk" onclick="scMore(' + a + ')">خيارات أخرى (ملاحظة، أو مركز آخر)</a></div>';
+}
+async function scQuickIn(btn, src, id, mode) {
+  const box = btn.closest('.sc-q');
+  const out = await scQuick(src, id, mode, btn);
+  if (out && box) box.innerHTML = '<b>المديرة:</b> ✔ ' + (out.replaced ? 'حُدّثت النسخة المرسلة لـ' : 'أُرسل إلى ') + '<b>' + esc(out.centerName) + '</b> ' + (mode === 'sign' ? 'للاطلاع والتوقيع' : 'للاطلاع فقط') + '، ويظهر لهم في «الوارد من المشرفات».';
+}
+function scMore(src, id) {
+  ['sgModal', 'idModal'].forEach(k => { const m = document.getElementById(k); if (m) m.classList.add('hidden'); });
+  scOpen(src, id);
 }
 async function scShowSig(id, btn) {
   setBtnBusy(btn, true, '...');

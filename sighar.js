@@ -1066,9 +1066,7 @@ function sgAfterSave(o) {
   o.skipped.forEach(x => { h += '<div class="sa-it">ℹ️ <b>' + esc(x.name) + '</b>: ' + esc(x.st) + '</div>'; });
   o.failed.forEach(x => { h += '<div class="sa-it" style="color:#a12a2a">✖ تعذّر الإرسال للمعلمة <b>' + esc(x.name) + '</b>: ' + esc(x.err) + ' — أعيدي المحاولة من زر «📤 إرسال».</div>'; });
   if (o.none.length) h += '<div class="sa-it" style="color:#a15c00">⚠ لم يُرسَل لـ: <b>' + o.none.map(esc).join('، ') + '</b> — الاسم غير موجود في سجل المعلمات (اختاريه من القائمة ثم احفظي).</div>';
-  h += '<div class="sa-mgr"><b>المديرة:</b> يمكنكِ إرسال ' + o.what + ' للمركز للاطلاع فقط، أو للاطلاع والتوقيع.<br>' +
-    '<button class="btn" onclick="sgToMgr(\'' + o.src + '\', \'' + esc(o.id) + '\', ' + (o.mgrSign ? 1 : 0) + ')">📤 إرسال للمديرة</button> ' +
-    '<button class="btn light" onclick="sgCloseModal()">إغلاق</button></div></div>';
+  h += scMgrBox(o.src, o.id, o.what) + '<div style="margin-top:10px"><button class="btn light" onclick="sgCloseModal()">إغلاق</button></div></div>';
   b.innerHTML = h;
   m.classList.remove('hidden');
 }
