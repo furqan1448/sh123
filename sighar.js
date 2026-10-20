@@ -140,7 +140,6 @@ function hdGet(p) {
   return { hd, hm, hy, dayName: $(p + 'DayN').value, greg: idHToG(hy, hm, hd) };
 }
 hdBuild('sg');
-vtBuild('sgVType');
 
 /* ======================= كشف الخروج (نفس فكرة الوحدات الأخرى) ======================= */
 const V_STATUS = ['تمت الزيارة', 'تمت الزيارة والمديرة متغيبة', 'تمت الزيارة وتعذر التوثيق لتعليق الموقع أو الشبكة', 'تمت الزيارة قبل توفر موقع النظام', 'لم تتم الزيارة'];
@@ -156,13 +155,22 @@ function fillVStatus() {
 }
 // أنواع زيارة تحفيظ الصغار (العمود E في «القوائم»)، وإن كان فارغاً تُستخدم الأنواع العامة
 const vTypes = () => (LISTS.typesSgh && LISTS.typesSgh.length) ? LISTS.typesSgh : (LISTS.types || []);
+// أنواع الزيارة في كشف الخروج: توجيهية / تقييمية / أخرى (عند «أخرى» تُكتب في خانة وتُحفظ «أخرى: النص»)
+const VT_LIST = ['توجيهية', 'تقييمية', 'أخرى'];
 function fillTypes() {
   const box = $('vTypeList'); if (!box) return;
-  const cur = getVTypes();
-  box.innerHTML = vTypes().map(t => '<label class="chip"><input type="checkbox" value="' + esc(t) + '"' + (cur.indexOf(t) > -1 ? ' checked' : '') + '><span>' + esc(t) + '</span></label>').join('') || '<span class="empty">لا توجد أنواع زيارة</span>';
+  if (box.dataset.built) return;
+  box.dataset.built = '1';
+  box.innerHTML = VT_LIST.map(t => '<label class="chip"><input type="checkbox" value="' + t + '"><span>' + t + '</span></label>').join('') +
+    '<input id="vTypeOther" class="hidden" style="margin-top:8px;flex-basis:100%" placeholder="اكتبي نوع الزيارة" autocomplete="off" maxlength="80">';
+  box.addEventListener('change', e => {
+    if (e.target.value !== 'أخرى') return;
+    $('vTypeOther').classList.toggle('hidden', !e.target.checked);
+    if (e.target.checked) $('vTypeOther').focus();
+  });
 }
-const getVTypes = () => [...document.querySelectorAll('#vTypeList input:checked')].map(i => i.value);
-const clearVTypes = () => document.querySelectorAll('#vTypeList input').forEach(i => i.checked = false);
+const getVTypes = () => [...document.querySelectorAll('#vTypeList input[type=checkbox]:checked')].map(i => i.value === 'أخرى' ? ($('vTypeOther').value.trim() ? 'أخرى: ' + $('vTypeOther').value.trim().replace(/[،,]/g, ' ') : 'أخرى') : i.value);
+const clearVTypes = () => { document.querySelectorAll('#vTypeList input[type=checkbox]').forEach(i => i.checked = false); const o = $('vTypeOther'); if (o) { o.value = ''; o.classList.add('hidden'); } };
 
 function onDateChange() {
   const v = $('vDate').value;
@@ -492,7 +500,6 @@ function sgFill(r) {
   hdSet('sg', edit ? r : null);
   $('sgVisitNo').value = r.visitNo || '';
   $('sgLesson').value = r.lesson || '';
-  vtSet('sgVType', r.data && r.data.vtype);
   sgRecsSet(r.recs);
   $('sgSupName').value = edit ? (r.supName || '') : myName();
   $('sgVisitNoHint').textContent = '';
@@ -515,12 +522,11 @@ async function sgSave(btn) {
     visitNo: $('sgVisitNo').value.trim().replace(/[٠-٩]/g, x => '٠١٢٣٤٥٦٧٨٩'.indexOf(x)),
     date: hd.greg, lesson: $('sgLesson').value.trim(), recs: sgRecsGet(),
     supName: $('sgSupName').value.trim(),
-    data: { hd: hd.hd, hm: hd.hm, hy: hd.hy, dayName: hd.dayName, vtype: vtGet('sgVType') }
+    data: { hd: hd.hd, hm: hd.hm, hy: hd.hy, dayName: hd.dayName }
   };
   if (!req.teacher) return toast('اكتبي اسم المعلمة', false);
   if (!req.center) return toast('اختاري المركز', false);
   if (!req.period) return toast('اختاري الفترة (صباحي أو مسائي)', false);
-  if (!req.data.vtype) return toast('اختاري نوع الزيارة', false);
   if (!req.lesson) return toast('اكتبي موضوع الدرس', false);
   if (!req.recs) return toast('اكتبي توصية واحدة على الأقل', false);
   const sgT = await tdConfirm($('sgTeacher'), $('sgCenter'), 'المعلمة');   // المعلمة من اسمها في التقرير نفسه
@@ -1087,7 +1093,7 @@ const adWrap = (name, after) => { const o = window[name]; window[name] = functio
 AD.register('sgForm', {
   key: () => sgEdit ? sgEdit.id : 'new',
   collect: () => ({ teacher: $('sgTeacher').value, center: $('sgCenter').value, period: periodGet('sgPeriod'), visitNo: $('sgVisitNo').value, lesson: $('sgLesson').value,
-    recs: sgRecsGet(), supName: $('sgSupName').value, data: Object.assign(adHd('sg'), { tid: $('sgTeacher').dataset.tid || '', vtype: vtGet('sgVType') }) }),
+    recs: sgRecsGet(), supName: $('sgSupName').value, data: Object.assign(adHd('sg'), { tid: $('sgTeacher').dataset.tid || '' }) }),
   apply: d => { sgFill(Object.assign({}, sgEdit || {}, d, { data: Object.assign({}, (sgEdit && sgEdit.data) || {}, d.data) })); hdSet('sg', d); },
   reset: () => sgFill(sgEdit)
 });

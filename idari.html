@@ -121,7 +121,7 @@
       </div>
       <div id="vTypeBox">
         <label>نوع الزيارة <span style="font-weight:400;color:var(--muted);font-size:14px">(يمكن اختيار أكثر من نوع)</span></label>
-        <div id="vTypeList" class="chips"><span class="empty">جارِ التحميل...</span></div>
+        <div id="vTypeList" class="chips" style="flex-wrap:wrap"></div>
       </div>
       <div class="row2">
         <div><label for="vDate">التاريخ</label><input id="vDate" type="date" onchange="onDateChange()"></div>
@@ -184,8 +184,8 @@
       <div id="ivDateBox"></div>
       <div class="row2">
         <div><label for="ivVisitNo">رقم الزيارة</label><input id="ivVisitNo" inputmode="numeric"><div class="id-hint" id="ivVisitNoHint"></div></div>
+        <div><label for="ivType">نوع الزيارة</label><input id="ivType" value="إداري"></div>
       </div>
-      <label>نوع الزيارة</label><div id="ivType"></div>
       <label for="ivAbout">بشأن</label>
       <input id="ivAbout" autocomplete="off" placeholder="مثال: الأداء الإداري للمركز">
     </div>
@@ -279,7 +279,7 @@
         <div><label for="imVisitNo">رقم الزيارة</label><input id="imVisitNo" inputmode="numeric"></div>
         <div class="wide"><label for="imMgrName">اسم المديرة</label><input id="imMgrName"></div>
         <div class="wide"><label>نوع الزيارة</label>
-          <div id="imVType"></div></div>
+          <div class="chips" id="imVType"><label class="chip"><input type="radio" name="imVType" value="توجيهية"><span>توجيهية</span></label><label class="chip"><input type="radio" name="imVType" value="تقييمية"><span>تقييمية</span></label></div></div>
       </div>
       <div class="id-hint" id="imMgrStatus"></div>
       <div class="id-hint" id="imVisitNoHint"></div>

@@ -112,7 +112,7 @@
       </div>
       <div id="vTypeBox">
         <label>نوع الزيارة <span style="font-weight:400;color:var(--muted);font-size:14px">(يمكن اختيار أكثر من نوع)</span></label>
-        <div id="vTypeList" class="chips"><span class="empty">جارِ التحميل...</span></div>
+        <div id="vTypeList" class="chips" style="flex-wrap:wrap"></div>
       </div>
       <div class="row2">
         <div><label for="vDate">التاريخ</label><input id="vDate" type="date" onchange="onDateChange()"></div>
@@ -180,7 +180,6 @@
         <div class="se-fld wide sg-lesson"><label for="sgLesson">موضوع الدرس</label>
           <input id="sgLesson" autocomplete="off"></div>
       </div>
-      <label>نوع الزيارة</label><div id="sgVType"></div>
       <div class="id-hint" id="sgTHint"></div>
       <div class="id-hint" id="sgAutoHint"></div>
       <div class="id-hint" id="sgVisitNoHint"></div>

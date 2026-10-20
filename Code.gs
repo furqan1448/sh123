@@ -337,6 +337,7 @@ function getVisits_() {
   }).reverse();
 }
 
+const VT_FIXED = ['توجيهية', 'تقييمية'];
 function addVisit_(r) {
   const center = String(r.center || '').trim();
   const type = String(r.type || '').trim();   // قد تحوي أكثر من نوع مفصولة بـ «،»
@@ -357,7 +358,10 @@ function addVisit_(r) {
   const meU = profileOf_(r.username).unit;
   const typesOf = l => (meU === IDARI_UNIT && l.typesIdari && l.typesIdari.length) ? l.typesIdari
     : (meU === SGH_UNIT && l.typesSgh && l.typesSgh.length) ? l.typesSgh : l.types;
-  const badType = l => typeList.some(t => typesOf(l).indexOf(t) < 0);
+  // كشف الخروج في الإشراف الإداري وتحفيظ الصغار: أنواع ثابتة (توجيهية، تقييمية، أخرى: نص تكتبه المشرفة)
+  const fixedT = meU === IDARI_UNIT || meU === SGH_UNIT;
+  const okFixed = t => VT_FIXED.indexOf(t) > -1 || /^أخرى(\s*:\s*.{1,80})?$/.test(t);
+  const badType = l => typeList.some(t => fixedT ? !okFixed(t) : typesOf(l).indexOf(t) < 0);
   if ((center && lists.centers.indexOf(center) < 0) || (!notVisited && badType(lists))) lists = getLists_(true);
   if (center && lists.centers.indexOf(center) < 0) throw new Error('اسم المركز غير موجود في القائمة');
   if (!notVisited && badType(lists)) throw new Error('نوع الزيارة غير موجود في القائمة');
@@ -1102,7 +1106,7 @@ function saveSgh_(r) {
   const date = s(r.date, 10);
   if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('التاريخ غير صحيح');
   const d = r.data && typeof r.data === 'object' ? r.data : {};
-  const data = { hd: s(d.hd, 2), hm: s(d.hm, 2), hy: s(d.hy, 4), dayName: s(d.dayName, 10), vtype: s(d.vtype, 60) };   // vtype: نوع الزيارة
+  const data = { hd: s(d.hd, 2), hm: s(d.hm, 2), hy: s(d.hy, 4), dayName: s(d.dayName, 10) };
   if (!/^\d{4}$/.test(data.hy)) throw new Error('اكتبي سنة التاريخ الهجري');
   const hijri = data.hd + '/' + data.hm + '/' + data.hy + 'هـ';
   const recs = s(r.recs, 6000);

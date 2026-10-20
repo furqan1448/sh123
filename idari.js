@@ -156,13 +156,22 @@ function fillVStatus() {
 }
 // أنواع زيارة الإشراف الإداري (العمود D في «القوائم»)، وإن كان فارغاً تُستخدم الأنواع العامة
 const vTypes = () => (LISTS.typesIdari && LISTS.typesIdari.length) ? LISTS.typesIdari : (LISTS.types || []);
+// أنواع الزيارة في كشف الخروج: توجيهية / تقييمية / أخرى (عند «أخرى» تُكتب في خانة وتُحفظ «أخرى: النص»)
+const VT_LIST = ['توجيهية', 'تقييمية', 'أخرى'];
 function fillTypes() {
   const box = $('vTypeList'); if (!box) return;
-  const cur = getVTypes();
-  box.innerHTML = vTypes().map(t => '<label class="chip"><input type="checkbox" value="' + esc(t) + '"' + (cur.indexOf(t) > -1 ? ' checked' : '') + '><span>' + esc(t) + '</span></label>').join('') || '<span class="empty">لا توجد أنواع زيارة</span>';
+  if (box.dataset.built) return;
+  box.dataset.built = '1';
+  box.innerHTML = VT_LIST.map(t => '<label class="chip"><input type="checkbox" value="' + t + '"><span>' + t + '</span></label>').join('') +
+    '<input id="vTypeOther" class="hidden" style="margin-top:8px;flex-basis:100%" placeholder="اكتبي نوع الزيارة" autocomplete="off" maxlength="80">';
+  box.addEventListener('change', e => {
+    if (e.target.value !== 'أخرى') return;
+    $('vTypeOther').classList.toggle('hidden', !e.target.checked);
+    if (e.target.checked) $('vTypeOther').focus();
+  });
 }
-const getVTypes = () => [...document.querySelectorAll('#vTypeList input:checked')].map(i => i.value);
-const clearVTypes = () => document.querySelectorAll('#vTypeList input').forEach(i => i.checked = false);
+const getVTypes = () => [...document.querySelectorAll('#vTypeList input[type=checkbox]:checked')].map(i => i.value === 'أخرى' ? ($('vTypeOther').value.trim() ? 'أخرى: ' + $('vTypeOther').value.trim().replace(/[،,]/g, ' ') : 'أخرى') : i.value);
+const clearVTypes = () => { document.querySelectorAll('#vTypeList input[type=checkbox]').forEach(i => i.checked = false); const o = $('vTypeOther'); if (o) { o.value = ''; o.classList.add('hidden'); } };
 
 function onDateChange() {
   const v = $('vDate').value;
@@ -330,7 +339,6 @@ function idToMgr(id, sign) {
   idCloseModal();
   scOpen('idari', id).then(() => { if (sign) { const x = document.querySelector('#scModal input[name="scMode"][value="sign"]'); if (x) x.checked = true; } });
 }
-vtBuild('ivType'); vtBuild('imVType');
 function idOpen(id) { const r = recById(id); if (r) idView(r); }
 function idDo(id, btn, what) { const r = recById(id); if (!r) return; what === 'pdf' ? idPdf(r, btn) : what === 'share' ? idShare(r, btn) : what === 'send' ? idSendMgr(r, btn) : idPrint(r, btn); }
 async function idDel(id) {
@@ -483,7 +491,7 @@ function idFill(kind, r) {
     $('ivSem').value = r.sem || ''; $('ivYear').value = r.year || hijriYear();
     periodSet('ivPeriod', r.period);
     hdSet('iv', edit ? r : null); $('ivVisitNo').value = r.visitNo || '';
-    vtSet('ivType', d.vtype);
+    $('ivType').value = d.vtype || 'إداري';
     $('ivAckCol').checked = d.ackCol === '1';
     $('ivMgrName').value = r.mgrName || ''; $('ivSupName').value = r.supName || myName();
     $('ivMgrPhone').value = d.mgrPhone || '';
@@ -542,11 +550,10 @@ async function idSave(kind, btn, sendAfter) {
   if (kind === 'visit') {
     Object.assign(req, { center: $('ivCenter').value, sem: $('ivSem').value, year: $('ivYear').value.trim(), period: periodGet('ivPeriod'),
       visitNo: $('ivVisitNo').value.trim(), mgrName: $('ivMgrName').value.trim(), supName: $('ivSupName').value.trim(),
-      data: Object.assign({ vtype: vtGet('ivType'), ackCol: $('ivAckCol').checked ? '1' : '',
+      data: Object.assign({ vtype: $('ivType').value.trim() || 'إداري', ackCol: $('ivAckCol').checked ? '1' : '',
         about: $('ivAbout').value.trim(), notes: ivNotesGet(), recText: $('ivRec').value.trim(), mgrPhone: $('ivMgrPhone').value.trim() }, dateData) });
     if (!req.center) return toast('اختاري اسم المركز', false);
     if (!req.period) return toast('اختاري الفترة (صباحي أو مسائي)', false);
-    if (!req.data.vtype) return toast('اختاري نوع الزيارة', false);
     if (!req.data.notes.length) return toast('اكتبي ملاحظة واحدة على الأقل', false);
   } else if (kind === 'mgreval') {
     Object.assign(req, meCollect(true));
@@ -796,7 +803,7 @@ function imFill(r, edit) {
   $('imSem').value = r.sem || ''; $('imYear').value = r.year || hijriYear();
   hdSet('im', edit ? r : null);
   $('imVisitNo').value = r.visitNo || '';
-  vtSet('imVType', d.vtype);
+  document.querySelectorAll('#imVType input').forEach(i => { i.checked = i.value === (d.vtype || ''); });
   $('imMgrName').value = r.mgrName || ''; delete $('imMgrName').dataset.auto;
   $('imMgrStatus').textContent = ''; $('imVisitNoHint').textContent = '';
   $('imStaffHint').textContent = 'تُنسخ الأسماء تلقائياً من آخر استمارة لهذا المركز، ويمكن تعديلها.';
@@ -811,11 +818,11 @@ function imFill(r, edit) {
 }
 function imCollect(trim) {
   const v = id => trim ? $(id).value.trim() : $(id).value;
-  const vt = vtGet('imVType');
+  const vt = document.querySelector('#imVType input:checked');
   const dev = $('imSecs').querySelector('.im-dev');
   return { center: $('imCenter').value, sem: $('imSem').value, year: v('imYear'), period: periodGet('imPeriod'), visitNo: v('imVisitNo'),
     mgrName: v('imMgrName'), supName: v('imSupName'),
-    data: { vtype: vt, gen: { halls: v('imHalls'), used: v('imUsed'), cap: v('imCap'), notes: v('imGenNotes') },
+    data: { vtype: vt ? vt.value : '', gen: { halls: v('imHalls'), used: v('imUsed'), cap: v('imCap'), notes: v('imGenNotes') },
       staff: imStaffGet(), ev: imEvGet(), devices: dev ? (trim ? dev.value.trim() : dev.value) : '', other: v('imOther') } };
 }
 
@@ -1004,7 +1011,7 @@ function idCollect(kind) {
   if (kind === 'monthly' || kind === 'mgreval' || kind === 'halls') { const o = (kind === 'monthly' ? imCollect : kind === 'mgreval' ? meCollect : hlCollect)(false); o.data = Object.assign(o.data, dateData); return o; }
   if (kind === 'visit') return { center: $('ivCenter').value, sem: $('ivSem').value, year: $('ivYear').value, period: periodGet('ivPeriod'), visitNo: $('ivVisitNo').value,
     mgrName: $('ivMgrName').value, supName: $('ivSupName').value,
-    data: Object.assign({ vtype: vtGet('ivType'), ackCol: $('ivAckCol').checked ? '1' : '', about: $('ivAbout').value, notes: ivNotesGet(), recText: $('ivRec').value, mgrPhone: $('ivMgrPhone').value }, dateData) };
+    data: Object.assign({ vtype: $('ivType').value, ackCol: $('ivAckCol').checked ? '1' : '', about: $('ivAbout').value, notes: ivNotesGet(), recText: $('ivRec').value, mgrPhone: $('ivMgrPhone').value }, dateData) };
   if (kind === 'program') {
     const data = Object.assign({}, dateData);
     ['content', 'plan', 'method', 'tools', 'results', 'ratio'].forEach(k => { data[k] = $('ip' + k[0].toUpperCase() + k.slice(1)).value; });
