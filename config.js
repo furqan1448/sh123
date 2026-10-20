@@ -1,6 +1,6 @@
 // ===== الإعدادات =====
 // الصقي هنا رابط الـ Web App بعد النشر (ينتهي بـ /exec)
-const API_URL = "https://script.google.com/macros/s/AKfycbxMSgkCjd87ByzViV1-pFHGwZX9DrfM0cimAiMNSYSyhO4_M6Oq_akPb5bjUFzUrjTpbA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbx-QpouhtCfp571uJDWW9X9QnQ8oFT-3DXTh4iTKq70bJBMVZJj6r7L5IPKDgeGw5w6Ng/exec";
 
 const PW_KEY = 'mush_pw';
 const USER_KEY = 'mush_user';
@@ -337,3 +337,23 @@ document.addEventListener('input', e => {
 document.addEventListener('wheel', e => {
   if (e.target && e.target.closest && e.target.closest('.ev-sc')) e.target.blur();
 }, { passive: true });
+
+/* ===== نوع الزيارة: توجيهية / تقييمية / أخرى (مع خانة كتابة عند «أخرى») — الإشراف الإداري وتحفيظ الصغار ===== */
+const VT_OPTS = ['توجيهية', 'تقييمية'];
+function vtBuild(id) {
+  const el = document.getElementById(id); if (!el) return;
+  el.innerHTML = '<div class="chips">' + VT_OPTS.concat('أخرى').map(v => '<label class="chip"><input type="radio" name="' + id + '_r" value="' + v + '"><span>' + v + '</span></label>').join('') + '</div>' +
+    '<input id="' + id + '_o" class="hidden" style="margin-top:8px" placeholder="اكتبي نوع الزيارة" autocomplete="off">';
+  el.addEventListener('change', e => { if (e.target.name === id + '_r') { const o = document.getElementById(id + '_o'); o.classList.toggle('hidden', e.target.value !== 'أخرى'); if (e.target.value === 'أخرى') o.focus(); } });
+}
+function vtGet(id) {
+  const r = document.querySelector('input[name="' + id + '_r"]:checked'); if (!r) return '';
+  return r.value === 'أخرى' ? (document.getElementById(id + '_o').value.trim() || 'أخرى') : r.value;
+}
+function vtSet(id, v) {
+  v = String(v || '').trim();
+  const known = VT_OPTS.indexOf(v) > -1, o = document.getElementById(id + '_o'); if (!o) return;
+  document.querySelectorAll('input[name="' + id + '_r"]').forEach(i => { i.checked = v ? (known ? i.value === v : i.value === 'أخرى') : false; });
+  o.value = v && !known && v !== 'أخرى' ? v : '';
+  o.classList.toggle('hidden', !v || known);
+}

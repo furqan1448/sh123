@@ -59,6 +59,7 @@ function sgDocHtml(rec, sigs, lhUrl) {
     '<div class="idc-meta"><span><span>المركز: ' + m(esc(rec.center)) + '</span>' + periodBoxes + '</span><span>اسم المعلمة: ' + m(esc(rec.teacher)) + '</span></div>' +
     '<table><colgroup><col style="width:60px"><col style="width:17%"><col style="width:22%"><col style="width:14%"><col></colgroup>' +
     '<tr class="idc-info"><td colspan="2">اليوم: ' + m(esc(d.dayName || rec.day || '')) + '</td><td>التاريخ: ' + m(date) + '</td><td>رقم الزيارة: ' + m(esc(idDigits(rec.visitNo))) + '</td><td>موضوع الدرس: ' + m(esc(rec.lesson)) + '</td></tr>' +
+    (d.vtype ? '<tr class="idc-info"><td colspan="5">نوع الزيارة: ' + m(esc(d.vtype)) + '</td></tr>' : '') +
     '<tr><th>م</th><th colspan="4">التوصيات العامة</th></tr>' + body + '</table>' +
     '<div class="idc-foot idc-avoid">' + sigCol('توقيع المعلمة بالاطلاع', rec.teacher, sigs.tch) + sigCol('المشرفة', rec.supName, sigs.sup) + '</div>' +
   '</div></div>';

@@ -612,7 +612,7 @@ function imDocPages(rec, sigs, lhUrl) {
   const vt = String(d.vtype || '');
   const band = '<div class="im-band"><span>المركز: ' + m(esc(rec.center)) + '</span><span>الزيارة رقم: ' + m(esc(idDigits(rec.visitNo || '—'))) + '</span>' +
     '<span>تاريخ الزيارة: ' + m(esc(idDayName(rec))) + ' ' + m(idHDate(rec)) + '</span>' +
-    '<span>نوعها: ' + idBox(vt === 'توجيهية') + 'توجيهية &nbsp; ' + idBox(vt === 'تقييمية') + 'تقييمية</span></div>';
+    '<span>نوعها: ' + idBox(vt === 'توجيهية') + 'توجيهية &nbsp; ' + idBox(vt === 'تقييمية') + 'تقييمية &nbsp; ' + idBox(vt && vt !== 'توجيهية' && vt !== 'تقييمية') + 'أخرى' + (vt && vt !== 'توجيهية' && vt !== 'تقييمية' && vt !== 'أخرى' ? ': ' + m(esc(vt)) : '') + '</span></div>';
   const pages = [];
   // الصفحة الأولى: الرأس والبيانات العامة والهيئة الإدارية والعاملات
   const per = String(rec.period || '');

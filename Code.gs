@@ -1102,7 +1102,7 @@ function saveSgh_(r) {
   const date = s(r.date, 10);
   if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('التاريخ غير صحيح');
   const d = r.data && typeof r.data === 'object' ? r.data : {};
-  const data = { hd: s(d.hd, 2), hm: s(d.hm, 2), hy: s(d.hy, 4), dayName: s(d.dayName, 10) };
+  const data = { hd: s(d.hd, 2), hm: s(d.hm, 2), hy: s(d.hy, 4), dayName: s(d.dayName, 10), vtype: s(d.vtype, 60) };   // vtype: نوع الزيارة
   if (!/^\d{4}$/.test(data.hy)) throw new Error('اكتبي سنة التاريخ الهجري');
   const hijri = data.hd + '/' + data.hm + '/' + data.hy + 'هـ';
   const recs = s(r.recs, 6000);

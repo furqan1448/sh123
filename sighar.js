@@ -140,6 +140,7 @@ function hdGet(p) {
   return { hd, hm, hy, dayName: $(p + 'DayN').value, greg: idHToG(hy, hm, hd) };
 }
 hdBuild('sg');
+vtBuild('sgVType');
 
 /* ======================= كشف الخروج (نفس فكرة الوحدات الأخرى) ======================= */
 const V_STATUS = ['تمت الزيارة', 'تمت الزيارة والمديرة متغيبة', 'تمت الزيارة وتعذر التوثيق لتعليق الموقع أو الشبكة', 'تمت الزيارة قبل توفر موقع النظام', 'لم تتم الزيارة'];
@@ -491,6 +492,7 @@ function sgFill(r) {
   hdSet('sg', edit ? r : null);
   $('sgVisitNo').value = r.visitNo || '';
   $('sgLesson').value = r.lesson || '';
+  vtSet('sgVType', r.data && r.data.vtype);
   sgRecsSet(r.recs);
   $('sgSupName').value = edit ? (r.supName || '') : myName();
   $('sgVisitNoHint').textContent = '';
@@ -513,11 +515,12 @@ async function sgSave(btn) {
     visitNo: $('sgVisitNo').value.trim().replace(/[٠-٩]/g, x => '٠١٢٣٤٥٦٧٨٩'.indexOf(x)),
     date: hd.greg, lesson: $('sgLesson').value.trim(), recs: sgRecsGet(),
     supName: $('sgSupName').value.trim(),
-    data: { hd: hd.hd, hm: hd.hm, hy: hd.hy, dayName: hd.dayName }
+    data: { hd: hd.hd, hm: hd.hm, hy: hd.hy, dayName: hd.dayName, vtype: vtGet('sgVType') }
   };
   if (!req.teacher) return toast('اكتبي اسم المعلمة', false);
   if (!req.center) return toast('اختاري المركز', false);
   if (!req.period) return toast('اختاري الفترة (صباحي أو مسائي)', false);
+  if (!req.data.vtype) return toast('اختاري نوع الزيارة', false);
   if (!req.lesson) return toast('اكتبي موضوع الدرس', false);
   if (!req.recs) return toast('اكتبي توصية واحدة على الأقل', false);
   const sgT = await tdConfirm($('sgTeacher'), $('sgCenter'), 'المعلمة');   // المعلمة من اسمها في التقرير نفسه
@@ -1084,7 +1087,7 @@ const adWrap = (name, after) => { const o = window[name]; window[name] = functio
 AD.register('sgForm', {
   key: () => sgEdit ? sgEdit.id : 'new',
   collect: () => ({ teacher: $('sgTeacher').value, center: $('sgCenter').value, period: periodGet('sgPeriod'), visitNo: $('sgVisitNo').value, lesson: $('sgLesson').value,
-    recs: sgRecsGet(), supName: $('sgSupName').value, data: Object.assign(adHd('sg'), { tid: $('sgTeacher').dataset.tid || '' }) }),
+    recs: sgRecsGet(), supName: $('sgSupName').value, data: Object.assign(adHd('sg'), { tid: $('sgTeacher').dataset.tid || '', vtype: vtGet('sgVType') }) }),
   apply: d => { sgFill(Object.assign({}, sgEdit || {}, d, { data: Object.assign({}, (sgEdit && sgEdit.data) || {}, d.data) })); hdSet('sg', d); },
   reset: () => sgFill(sgEdit)
 });
