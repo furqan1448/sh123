@@ -420,6 +420,7 @@ function getFilesFor_(r) {
 // مشاركة مرفق مع المعلمات (الكل أو محددات) أو إلغاء المشاركة
 function shareFile_(r) {
   const me = profileOf_(r.username), id = String(r.id || '');
+  if (me.unit === IDARI_UNIT && r.target) throw new Error('مشاركة المرفقات مع المعلمات غير متاحة في ' + IDARI_UNIT);
   const sh = ss_().getSheetByName(SHEET.FILES);
   ensureExtraHeaders_(sh, FILE_HEADERS);
   const last = sh.getLastRow();
@@ -1964,6 +1965,7 @@ function sendCenter_(r) {
   const me = profileOf_(r.username);
   const toT = r.to === 't';
   let acc = null, tch = null;
+  if (toT && me.unit === IDARI_UNIT) throw new Error('الإرسال للمعلمات غير متاح في ' + IDARI_UNIT + '، الإرسال للمراكز فقط');
   if (toT) {   // إرسال لمعلمة من سجل المعلمات
     const tid = String(r.tid || '').trim();
     tch = tid ? certFind_(t => t.id === tid) : null;

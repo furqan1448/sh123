@@ -2,6 +2,7 @@
    رفع ملف أو إرفاق رابط، وتظهر مرفقات الوحدة فقط. ويمكن مشاركة أي مرفق مع المعلمات (الكل أو محددات)
    فيصلهن في أيقونة «المعلمات» ← «المرفقات» ويضغطن «تم الاطلاع»، مثل محاضر الاجتماعات. */
 const AT_LINK = 'رابط';
+const atNoTeacher = () => !!(document.body && document.body.id === 'idariPage');   // الإشراف الإداري: المرفقات بلا مشاركة مع المعلمات
 let ATF = [], AT_DIR = null, atPicked = [], atCur = null;
 const at$ = id => document.getElementById(id);
 
@@ -91,7 +92,7 @@ function atRender() {
       '<a class="lnk" target="_blank" rel="noopener noreferrer" href="' + esc(atHref(f.url)) + '">' + esc(f.title) + '</a>' +
       '<div style="font-size:13px;color:var(--muted);margin:4px 0 8px">' + (f.name === AT_LINK ? 'رابط' : esc(f.name)) + ' — ' + esc(String(f.at || '').split(' ')[0]) + '</div>' +
       (f.target ? '<div style="margin-bottom:8px">' + atStatus(f) + '</div>' : '') +
-      '<div style="display:flex;flex-wrap:wrap;gap:6px">' + b(f.target ? 'المشاركة ومن اطّلعت' : 'مشاركة مع المعلمات', 'atShareOpen(\'' + id + '\')') + b('حذف', 'atDel(\'' + id + '\')', 'danger') + '</div></div>';
+      '<div style="display:flex;flex-wrap:wrap;gap:6px">' + (atNoTeacher() ? '' : b(f.target ? 'المشاركة ومن اطّلعت' : 'مشاركة مع المعلمات', 'atShareOpen(\'' + id + '\')')) + b('حذف', 'atDel(\'' + id + '\')', 'danger') + '</div></div>';
   }).join('');
 }
 

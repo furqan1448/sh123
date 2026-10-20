@@ -8,6 +8,8 @@ const SC_SRC = {};
 let SC_CENTERS = null, SC_SENT = null, scLoading = null, scCur = null, scAt = 0;
 let SC_TDIR = null, SC_TBY = {}, SC_TLBL = {}, scTLoading = null;
 function scRegister(src, def) { SC_SRC[src] = def; }
+const scNoTeacher = () => !!(document.body && document.body.id === 'idariPage');   // الإشراف الإداري: لا ربط مع المعلمات (الإرسال للمركز فقط)
+
 
 // مطابقة اسم المركز بين النموذج وحسابات المراكز (نفس طريقة الخادم)
 const scKey = t => String(t || '').replace(/[-–—]\s*الفتر[ةه].*$/, '').replace(/[ً-ْـ]/g, '').replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
@@ -25,7 +27,7 @@ const scDig = s => typeof idDigits === 'function' ? idDigits(s) : String(s);
 /* ---------- زر الإرسال وحالته (يُضاف في صف كل نموذج) ---------- */
 function scBtn(src, id) {
   id = esc(id);
-  return '<button class="btn light sc-btn" style="padding:6px 10px;font-size:13px" onclick="scOpen(\'' + src + '\', \'' + id + '\')">📤 إرسال للمركز أو المعلمة</button>' +
+  return '<button class="btn light sc-btn" style="padding:6px 10px;font-size:13px" onclick="scOpen(\'' + src + '\', \'' + id + '\')">📤 إرسال للمركز' + (scNoTeacher() ? '' : ' أو المعلمة') + '</button>' +
     '<span class="sc-st" data-sc="' + src + '|' + id + '" onclick="scOpen(\'' + src + '\', \'' + id + '\')"></span>';
 }
 // للبطاقات: زر الإرسال وحالته منفصلين
@@ -96,6 +98,7 @@ function scModal() {
   m.addEventListener('click', e => { if (e.target === m) scClose(); });
   m.querySelectorAll('#scTo input').forEach(i => i.addEventListener('change', scToChanged));
   m.querySelector('#scTeacher').addEventListener('input', scTPicked);
+  if (scNoTeacher()) { const to = m.querySelector('#scTo'); to.previousElementSibling.remove(); to.remove(); m.querySelector('#scTBox').remove(); }
   document.body.appendChild(m);
   return m;
 }
@@ -125,10 +128,10 @@ async function scOpen(src, id) {
   document.getElementById('scTitle').textContent = def.title(rec);
   document.getElementById('scNote').value = '';
   document.querySelector('#scModal input[value="ack"]').checked = true;
-  document.querySelector('#scModal input[name="scTo"][value="c"]').checked = true;
+  const toC = document.querySelector('#scModal input[name="scTo"][value="c"]'); if (toC) toC.checked = true;
   document.getElementById('scFormBox').classList.remove('hidden');
   document.getElementById('scDone').classList.add('hidden');
-  document.getElementById('scTeacher').value = ''; document.getElementById('scTHint').textContent = '';
+  if (document.getElementById('scTeacher')) { document.getElementById('scTeacher').value = ''; document.getElementById('scTHint').textContent = ''; }
   scToChanged();
   const sel = document.getElementById('scCenter'), hint = document.getElementById('scHint');
   sel.innerHTML = '<option value="">جارِ تحميل المراكز...</option>'; hint.textContent = '';
@@ -146,6 +149,7 @@ async function scOpen(src, id) {
 /* ---------- الإرسال للمعلمة: اختيار الاسم من سجل المعلمات (الأسماء المكررة مرقّمة) ---------- */
 function scToChanged() {
   const t = (document.querySelector('#scModal input[name="scTo"]:checked') || {}).value === 't';
+  if (!document.getElementById('scTBox')) { document.getElementById('scMAck').textContent = 'تطّلع المديرة على النموذج وتضغط «تم الاطلاع».'; document.getElementById('scMSign').textContent = 'تطّلع المديرة على النموذج وتوقّع عليه من حساب المركز.'; return; }
   document.getElementById('scCBox').classList.toggle('hidden', t);
   document.getElementById('scTBox').classList.toggle('hidden', !t);
   const who = t ? 'المعلمة' : 'المديرة';
