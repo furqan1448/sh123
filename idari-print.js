@@ -416,7 +416,7 @@ async function idSendMgr(rec, btn, sigs) {
     const msg = 'السلام عليكم ورحمة الله وبركاته\n' +
       'سعادة ' + (rec.mgrName ? 'الأستاذة/ ' + rec.mgrName + ' — مديرة ' : 'مديرة ') + (/^مركز/.test(rec.center || '') ? '' : 'مركز ') + (rec.center || '') + ' المحترمة\n' +
       'نرفق لكم تقرير زيارة المشرفة' + (d.vtype ? ' (' + d.vtype + ')' : '') + (idPlainHDate(rec) ? ' بتاريخ ' + idPlainHDate(rec) : '') + '.\n' +
-      'ويمكنكم الاطلاع عليه واعتماده وتوقيعه من حساب المركز في منظومة مشرفات ← أيقونة «المراكز»:\n' + new URL('centers.html', location.href).href + '\n' +
+      'ويمكنكم الاطلاع عليه من حساب المركز في منظومة مشرفات ← أيقونة «المراكز» ← «الوارد من المشرفات»:\n' + new URL('centers.html', location.href).href + '\n' +
       'شاكرين لكم تعاونكم.\n' +
       (rec.supName ? 'المشرفة: ' + rec.supName + '\n' : '') +
       ID_UNIT + ' — جمعية فرقان';

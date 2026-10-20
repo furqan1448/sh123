@@ -970,6 +970,8 @@ function saveIdari_(r) {
     else if (old) sigDel_(id + '|' + k);
   });
   data.sigs = has;
+  // النماذج الجديدة تصل للمديرة بزر «📤 إرسال للمديرة» فقط (اطلاع أو اطلاع وتوقيع)؛ القديمة تبقى ظاهرة في صفحة المركز كما كانت
+  data.viaSend = old ? String(oldData.viaSend || '') : '1';
   const json = JSON.stringify(data);
   if (json.length > 45000) throw new Error('النموذج طويل جداً، اختصري النصوص');
 
@@ -1860,7 +1862,7 @@ function centerAuth_(r) {
 // تقارير زيارة الإشراف الإداري الخاصة بهذا المركز (وفترته)
 function centerReports_(acc) {
   const k = cKey_(acc.name), per = cPeriods_(acc.name);
-  return getIdari_().filter(x => x.kind === 'visit' && cKey_(x.center) === k && (() => {
+  return getIdari_().filter(x => x.kind === 'visit' && !(x.data && x.data.viaSend === '1') && cKey_(x.center) === k && (() => {
     const p = String(x.period || '');
     if (!p) return true;
     return (p.indexOf('صباح') > -1 && per.m) || (p.indexOf('مسائ') > -1 && per.e);
@@ -2036,7 +2038,7 @@ function centerDone_(acc, r) {
       const ids = n > 0 ? sh.getRange(2, 1, n, 2).getValues() : [];
       for (let i = 0; i < ids.length; i++) {
         if (String(ids[i][0]) !== x.srcId) continue;
-        if (['visit', 'program'].indexOf(idariKey_(ids[i][1])) < 0) break;
+        if (idariKey_(ids[i][1]) !== 'visit') break;   // تقرير الزيارة فقط فيه خانة توقيع المديرة؛ باقي النماذج توقيع المشرفة فقط
         const row = i + 2;
         let data = {};
         try { data = JSON.parse(sh.getRange(row, 12).getValue() || '{}'); } catch (e) {}

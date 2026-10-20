@@ -317,6 +317,20 @@ scRegister('idari', {
   center: r => r.center, period: r => r.period,
   file: async r => ({ blob: await idPdfBlob(r), name: idFileName(r) + '.pdf', mime: 'application/pdf' })
 });
+/* ---------- بعد الحفظ: الإرسال للمديرة (اطلاع فقط، أو اطلاع وتوقيع) مثل وحدة تحفيظ الصغار ---------- */
+function idAfterSave(rec) {
+  const m = $('idModal'), b = $('idModalBody'), visit = rec.kind === 'visit', id = esc(rec.id);
+  b.innerHTML = '<div class="id-send"><div><b>✅ تم حفظ ' + (visit ? 'التقرير' : 'النموذج') + '.</b></div>' +
+    '<div><b>المديرة:</b> يمكنكِ إرساله للمركز للاطلاع فقط، أو للاطلاع والتوقيع' + (visit ? ' (فيُكتب توقيعها في خانة «مديرة المركز» بالتقرير)' : '') + '.</div>' +
+    '<button class="btn" onclick="idToMgr(\'' + id + '\', ' + (visit ? 1 : 0) + ')">📤 إرسال للمديرة</button> ' +
+    (visit ? '<button class="btn id-wa" onclick="idCloseModal(); idDo(\'' + id + '\', this, \'send\')">💬 تنبيهها في واتساب</button> ' : '') +
+    '<button class="btn light" onclick="idCloseModal()">إغلاق</button></div>';
+  m.classList.remove('hidden');
+}
+function idToMgr(id, sign) {
+  idCloseModal();
+  scOpen('idari', id).then(() => { if (sign) { const x = document.querySelector('#scModal input[name="scMode"][value="sign"]'); if (x) x.checked = true; } });
+}
 function idOpen(id) { const r = recById(id); if (r) idView(r); }
 function idDo(id, btn, what) { const r = recById(id); if (!r) return; what === 'pdf' ? idPdf(r, btn) : what === 'share' ? idShare(r, btn) : what === 'send' ? idSendMgr(r, btn) : idPrint(r, btn); }
 async function idDel(id) {
@@ -533,7 +547,6 @@ async function idSave(kind, btn, sendAfter) {
     if (!req.center) return toast('اختاري اسم المركز', false);
     if (!req.period) return toast('اختاري الفترة (صباحي أو مسائي)', false);
     if (!req.data.notes.length) return toast('اكتبي ملاحظة واحدة على الأقل', false);
-    if (sendAfter && !idWaPhone(req.data.mgrPhone)) return toast('اكتبي جوال المديرة بصيغة صحيحة (05xxxxxxxx) للإرسال', false);
   } else if (kind === 'mgreval') {
     Object.assign(req, meCollect(true));
     req.data = Object.assign(req.data, dateData);
@@ -585,7 +598,7 @@ async function idSave(kind, btn, sendAfter) {
     idEdit = null; idKind = kind;
     show('idListView'); renderIdari();
     loadIdari(true);
-    if (sendAfter) idSendMgr(rec);
+    idAfterSave(rec);
   } catch (e) { toast(e.message, false); }
   finally { setBtnBusy(btn, false); }
 }

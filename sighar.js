@@ -36,6 +36,7 @@ async function doLogin() {
     if (wrongUnit(out.profile)) return;
     applyLists(out.data, out.profile);
     loadMySig();
+    loadTDir();
     show('homeView');
     loadSgh(true);
   } catch (e) {
@@ -86,6 +87,7 @@ async function preload() {
     const out = await api('getLists');
     if (wrongUnit(out.profile)) return;
     applyLists(out.data, out.profile);
+    loadTDir();
   } catch (e) {
     if (e.auth) { toast('انتهت صلاحية الدخول، سجّلي الدخول من جديد', false); logout(); }
     else if (!c) toast(e.message, false);
@@ -288,7 +290,7 @@ function sgTStatus(r) {
 /* ---------- المعلمة المُرسَل إليها = اسم المعلمة المكتوب في النموذج نفسه (من سجل المعلمات) ----------
    خانة اسم المعلمة قائمة منسدلة بأسماء سجل المعلمات (مع إمكانية الكتابة للبحث). الأسماء المكررة تظهر مرقّمة «الاسم (٢)»،
    وإن كُتب اسم مكرر دون رقم تُحدَّد المعلمة من سجلاتكِ السابقة لنفس الاسم في نفس المركز. */
-let T_DIR = null, T_BY_LABEL = {}, T_LABEL_BY_ID = {}, tDirLoading = null;
+let T_DIR = null, T_BY_LABEL = {}, T_LABEL_BY_ID = {}, tDirLoading = null, TD_ERR = '';
 const tdKey = s => sgNorm(s);
 const tdClean = s => String(s || '').replace(/\s*\(\s*[٠-٩0-9]+\s*\)\s*$/, '').trim();
 function tdBuild(list) {
@@ -304,15 +306,21 @@ function tdBuild(list) {
   });
   $('tDirList').innerHTML = rows.map(l => '<option value="' + esc(l) + '">').join('');
 }
-function loadTDir() {
-  if (T_DIR) return Promise.resolve(T_DIR);
+function loadTDir(force) {
+  if (T_DIR && !force) return Promise.resolve(T_DIR);
   if (tDirLoading) return tDirLoading;
-  const c = cacheGet('tdir'); if (c) { tdBuild(c); tdRefreshAll(); }
-  tDirLoading = api('teacherDir').then(out => { tdBuild(out.data || []); cacheSet('tdir', T_DIR); tdRefreshAll(); return T_DIR; })
-    .catch(e => { if (!T_DIR) toast('تعذّر تحميل أسماء المعلمات: ' + e.message, false); return T_DIR || []; })
-    .finally(() => { tDirLoading = null; });
+  const c = cacheGet('tdir'); if (c && c.length && !T_DIR) { tdBuild(c); tdRefreshAll(); }
+  TD_ERR = '';
+  tdRefreshAll();
+  tDirLoading = api('teacherDir').then(out => {
+    const L = out.data || [];
+    if (!L.length) throw new Error('سجل المعلمات فارغ أو لم يُقرأ من شيت الشهادات');
+    tdBuild(L); cacheSet('tdir', T_DIR); return T_DIR;
+  }).catch(e => { TD_ERR = e.message || 'تعذّر الاتصال بالخادم'; if (!T_DIR) toast('تعذّر تحميل أسماء المعلمات: ' + TD_ERR, false); return T_DIR || []; })
+    .finally(() => { tDirLoading = null; tdRefreshAll(); });
   return T_DIR ? Promise.resolve(T_DIR) : tDirLoading;
 }
+function tdRetry() { T_DIR = null; loadTDir(true); }
 // السجلات السابقة المرتبطة بمعلمة (لتمييز الأسماء المكررة حسب المركز)
 function tdHist() {
   const out = [], add = (name, center, tid) => { if (tid) out.push({ k: sgNorm(name), c: center, tid }); };
@@ -343,7 +351,9 @@ function tdHintHtml(res) {
   if (res.why === 'ok') return '<span style="color:#1f7a45">✔ يُرسَل بعد الحفظ إلى: <b>' + esc(res.t.name) + '</b>' + (res.byCenter ? ' <small>(حُدّدت من سجلاتكِ السابقة في هذا المركز)</small>' : '') + '</span>';
   if (res.why === 'dup') return '<span style="color:#a15c00">⚠ يوجد ' + arD(res.n) + ' بهذا الاسم في سجل المعلمات، اختاري الاسم المرقّم الصحيح من القائمة.</span>';
   if (res.why === 'none') return '<span style="color:#a12a2a">✖ الاسم غير موجود في سجل المعلمات، فلن يُرسَل لها. اختاريه من القائمة.</span>';
-  if (res.why === 'loading') return 'جارِ تحميل سجل المعلمات...';
+  if (res.why === 'loading') return TD_ERR && !tDirLoading
+    ? '<span style="color:#a12a2a">✖ تعذّر تحميل سجل المعلمات: ' + esc(TD_ERR) + '</span> <button type="button" class="btn light" style="padding:3px 10px;font-size:13px" onclick="tdRetry()">إعادة المحاولة</button>'
+    : 'جارِ تحميل سجل المعلمات...';
   return '';
 }
 // خانات كل نموذج: [اسم المعلمة، المركز، التلميح]
@@ -362,7 +372,7 @@ function tdPin(input) {
   const pin = input.dataset.tid && T_DIR.find(x => x.id === input.dataset.tid);
   if (pin && tdKey(pin.name) !== tdKey(tdClean(input.value))) delete input.dataset.tid;
 }
-const tdShow = (input, centerEl, hint) => { if (hint) hint.innerHTML = tdHintHtml(tdOf(input, centerEl)); };
+const tdShow = (input, centerEl, hint) => { if (!hint) return; const h = tdHintHtml(tdOf(input, centerEl)); if (hint._h !== h) { hint._h = h; hint.innerHTML = h; } };
 function tdRefresh(p) { const [i, c, h] = tdEls(p); if (i) tdShow(i, c, h); }
 function ssRowHint(row) { tdShow(row.querySelector('[data-k="teacher"]'), row.querySelector('[data-k="center"]'), row.querySelector('.ss-th')); }
 function tdRefreshAll() { ['sg', 'se', 'sf'].forEach(tdRefresh); document.querySelectorAll('#ssRows .id-row').forEach(ssRowHint); }
