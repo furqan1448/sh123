@@ -127,9 +127,8 @@ async function tvView(r) {
   m.classList.remove('hidden');
   const sigs = await tvLoadSigs(r);
   const rec = tvRec(r);
-  b.innerHTML = '<div class="ex-bar"><button class="btn light" id="tvVPrint">طباعة</button><button class="btn light" id="tvVPdf">تحميل PDF</button><button class="btn light" id="tvVShare">مشاركة (واتساب)</button></div>' +
+  b.innerHTML = '<div class="ex-bar"><button class="btn light" id="tvVPdf">تحميل PDF</button><button class="btn light" id="tvVShare">مشاركة (واتساب)</button></div>' +
     '<style>' + sgAllCss() + '</style><div class="id-scroll sg-fit">' + tvDocHtml(r, sigs) + '</div>';
-  document.getElementById('tvVPrint').onclick = e => sgPrint(rec, e.currentTarget, sigs);
   document.getElementById('tvVPdf').onclick = e => sgPdf(rec, e.currentTarget, sigs);
   document.getElementById('tvVShare').onclick = e => sgShare(rec, e.currentTarget, sigs);
   sgFitBox(b.querySelector('.sg-fit'));

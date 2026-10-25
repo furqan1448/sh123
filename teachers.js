@@ -123,8 +123,7 @@ async function tOpen(id) {
   $('tDoc').innerHTML = '<p class="empty">جارِ التحميل...</p>';
   $('tSignCard').classList.toggle('hidden', !!r.signed);
   $('tAgree').checked = false; tSig.reset();
-  $('tBar').innerHTML = '<button class="btn light" id="tVPrint">طباعة</button><button class="btn light" id="tVPdf">تحميل PDF</button>';
-  $('tVPrint').onclick = e => sgPrint(r, e.currentTarget, tSigsCur);
+  $('tBar').innerHTML = '<button class="btn light" id="tVPdf">تحميل PDF</button>';
   $('tVPdf').onclick = e => sgPdf(r, e.currentTarget, tSigsCur);
   tShow('signView');
   try { tSigsCur = await sgLoadSigs(r); } catch (e) {}

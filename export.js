@@ -464,7 +464,6 @@ async function kfPages(rows, lhUrl) {
     list.push('<tr class="kf-c"><td colspan="6">المركز: ' + esc(c) + '</td></tr>');
     L.forEach((v, i) => list.push('<tr><td class="idc-n">' + idDigits(i + 1) + '</td><td>' + kfHijri(v.date) + '</td><td>' + esc(v.day || '') + '</td><td>' + esc(v.type || '—') + '</td><td>' + esc(vStatusOf(v)) + '</td><td>' +
       (VSIG[v.id] ? '<img class="kf-sig" src="' + VSIG[v.id] + '" alt="">' : '') + '</td></tr>'));
-    list.push('<tr class="kf-f"><td colspan="3">إجمالي أيام الحضور: ' + idDigits(a1) + '</td><td colspan="3">إجمالي أيام الغياب: ' + idDigits(a2) + '</td></tr>');
   });
   list.push('<tr class="kf-t"><td colspan="3">الإجمالي العام لأيام الحضور: ' + idDigits(att) + '</td><td colspan="3">الإجمالي العام لأيام الغياب: ' + idDigits(abs) + '</td></tr>');
   // القياس
@@ -477,11 +476,14 @@ async function kfPages(rows, lhUrl) {
   const limit = 1123 - 40;
   const pages = []; let cur = [];
   const table = () => page.querySelector('table');
+  let curCenter = '';
   for (const tr of list) {
+    if (tr.indexOf('kf-c') > -1) curCenter = tr;
     table().insertAdjacentHTML('beforeend', tr);
     if (page.querySelector('.idc-body').getBoundingClientRect().bottom - page.getBoundingClientRect().top > limit && cur.length) {
       // عنوان المركز لا يبقى وحده أسفل الصفحة: ينتقل مع أول زيارة إلى الصفحة التالية
-      const carry = cur[cur.length - 1].indexOf('kf-c') > -1 ? [cur.pop()] : [];
+      const carry = cur[cur.length - 1].indexOf('kf-c') > -1 ? [cur.pop()]
+        : (tr.indexOf('kf-c') < 0 && tr.indexOf('kf-t') < 0 && curCenter ? [curCenter.replace('المركز: ', 'تابع المركز: ')] : []);   // نكرر اسم المركز أعلى الصفحة التالية
       pages.push(cur); cur = carry;
       table().innerHTML = thead.replace(/^<table>/, '') + carry.join('');
       table().insertAdjacentHTML('beforeend', tr);

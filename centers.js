@@ -140,8 +140,7 @@ async function cOpen(id) {
   $('cSignCard').classList.toggle('hidden', !!r.signed);
   $('cAgree').checked = false; cSig.reset();
   $('cSigner').value = localStorage.getItem(C_SIGNER) || r.mgrName || '';
-  $('cBar').innerHTML = '<button class="btn light" id="cVPrint">طباعة</button><button class="btn light" id="cVPdf">تحميل PDF</button>';
-  $('cVPrint').onclick = e => idPrint(r, e.currentTarget, cSigsCur);
+  $('cBar').innerHTML = '<button class="btn light" id="cVPdf">تحميل PDF</button>';
   $('cVPdf').onclick = e => idPdf(r, e.currentTarget, cSigsCur);
   cShow('signView');
   try { cSigsCur = await idLoadSigs(r); } catch (e) {}

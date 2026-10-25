@@ -38,7 +38,7 @@ function renderStf() {
       tags: (sg.emp ? '<span class="tag ok">✔ وقّعت الموظفة</span>' : '<span class="tag warn">⏳ توقيع الموظفة</span>') +
         (sg.mgr ? '<span class="tag ok">✔ وقّعت المديرة</span>' : '<span class="tag warn">⏳ توقيع المديرة</span>') + scTag('stf', r.id),
       main: [['عرض', 'sfOpen(\'' + id + '\')'], ['PDF', 'sfDo(\'' + id + '\', this, \'pdf\')'], scAct('stf', r.id)],
-      more: [['🖨️ طباعة', 'sfDo(\'' + id + '\', this, \'print\')'], ['🔗 مشاركة', 'sfDo(\'' + id + '\', this, \'share\')'], '-', ['✏️ تعديل', 'sfEditRec(\'' + id + '\')'], ['🗑️ حذف', 'sfDel(\'' + id + '\')', 'danger']] });
+      more: [['🔗 مشاركة', 'sfDo(\'' + id + '\', this, \'share\')'], '-', ['✏️ تعديل', 'sfEditRec(\'' + id + '\')'], ['🗑️ حذف', 'sfDel(\'' + id + '\')', 'danger']] });
   }).join('');
 }
 const sfById = id => STF.find(r => r.id === id);

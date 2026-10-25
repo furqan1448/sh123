@@ -254,7 +254,7 @@ function mgRender() {
     head = '<tr><th>المشرفة</th><th>النموذج</th><th>المركز / الفصل</th><th>التاريخ</th><th></th></tr>';
     body = L.slice(0, MG_LIMIT).map(x => '<tr><td>' + who(x) + '</td><td>' + esc(ID_KINDS[x.kind] || '') + '</td><td>' + esc(x.center || [x.sem, x.year].filter(Boolean).join(' ') || '—') +
       '</td><td>' + esc(idDayName(x)) + ' ' + idHDate(x) + '</td><td style="white-space:nowrap">' + b('عرض', 'mgIdOpen(\'' + esc(x.id) + '\')') +
-      b('طباعة', 'mgIdDo(\'' + esc(x.id) + '\', this, \'print\')') + b('PDF', 'mgIdDo(\'' + esc(x.id) + '\', this, \'pdf\')') + b('مشاركة', 'mgIdDo(\'' + esc(x.id) + '\', this, \'share\')') + '</td></tr>').join('');
+      b('PDF', 'mgIdDo(\'' + esc(x.id) + '\', this, \'pdf\')') + b('مشاركة', 'mgIdDo(\'' + esc(x.id) + '\', this, \'share\')') + '</td></tr>').join('');
   } else if (mgTab === 'rpt') {
     const L = rpts.filter(mine); n = L.length;
     head = '<tr><th>المشرفة</th><th>الخلاصة</th><th>الفترة</th><th>الفصل</th><th>العام</th><th>عدد المعلمات</th><th>آخر حفظ</th></tr>';
@@ -276,7 +276,7 @@ function mgRender() {
     body = L.slice(0, MG_LIMIT).map(x => '<tr><td>' + who(x) + '</td><td>' + (isSum(x) ? 'خلاصة التقارير التعليمية' : x.kind === 'stf' ? esc(x.formName || 'إجراء موظفة') : x.kind === 'eval' ? 'استمارة ' + esc(x.formName || '') + (x.grade ? ' — ' + esc(x.grade) : '') : 'تقرير زيارة') + '</td><td>' +
       (isSum(x) ? arDigitsN((x.data && x.data.rows || []).length) + ' معلمات' : esc(x.teacher)) + '</td><td>' + (isSum(x) ? esc([x.sem, x.year].filter(Boolean).join(' ')) : esc(x.center)) + '</td><td>' + esc(x.period) + '</td><td>' + esc(x.lesson || '—') +
       '</td><td>' + esc((x.data && x.data.dayName) || x.day) + ' ' + idHDate(x) + '</td><td>' + esc(idDigits(x.visitNo)) + '</td><td>' + tSt(x) + '</td><td style="white-space:nowrap">' + b('عرض', 'mgSgOpen(\'' + esc(x.id) + '\')') +
-      b('طباعة', 'mgSgDo(\'' + esc(x.id) + '\', this, \'print\')') + b('PDF', 'mgSgDo(\'' + esc(x.id) + '\', this, \'pdf\')') + b('مشاركة', 'mgSgDo(\'' + esc(x.id) + '\', this, \'share\')') + '</td></tr>').join('');
+      b('PDF', 'mgSgDo(\'' + esc(x.id) + '\', this, \'pdf\')') + b('مشاركة', 'mgSgDo(\'' + esc(x.id) + '\', this, \'share\')') + '</td></tr>').join('');
   } else {
     const L = fs.filter(mine); n = L.length;
     head = '<tr><th>المشرفة</th><th>العنوان</th><th>الملف</th><th>وقت الرفع</th><th>المشاركة مع المعلمات</th></tr>';

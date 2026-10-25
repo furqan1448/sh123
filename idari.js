@@ -317,7 +317,7 @@ function renderIdari() {
     return rcCard({ no: arD(i + 1), title, sub, meta, tags: tags + scTag('idari', r.id),
       main: [['عرض', 'idOpen(\'' + id + '\')'], ['PDF', 'idDo(\'' + id + '\', this, \'pdf\')'], scAct('idari', r.id),
         idKind === 'visit' ? ['📲 للمديرة', 'idDo(\'' + id + '\', this, \'send\')', 'id-wa'] : null],
-      more: [['🖨️ طباعة', 'idDo(\'' + id + '\', this, \'print\')'], ['🔗 مشاركة', 'idDo(\'' + id + '\', this, \'share\')'], '-', ['✏️ تعديل', 'idEditRec(\'' + id + '\')'], ['🗑️ حذف', 'idDel(\'' + id + '\')', 'danger']] });
+      more: [['🔗 مشاركة', 'idDo(\'' + id + '\', this, \'share\')'], '-', ['✏️ تعديل', 'idEditRec(\'' + id + '\')'], ['🗑️ حذف', 'idDel(\'' + id + '\')', 'danger']] });
   }).join('');
 }
 const recById = id => IDR.find(r => r.id === id);

@@ -96,7 +96,7 @@
       <label for="fCenter" style="margin-top:0">تصفية حسب المركز</label>
       <select id="fCenter" onchange="renderVisits()"><option value="">كل المراكز</option></select>
       <div class="ex-bar">
-        <button class="btn light" onclick="exVisits(this)">تحميل كشف الخروج Excel</button><button class="btn light" onclick="kfPrint(this)">طباعة كشف الخروج</button><button class="btn light" onclick="kfPdf(this)">تحميل كشف الخروج PDF</button>
+        <button class="btn light" onclick="exVisits(this)">تحميل كشف الخروج Excel</button><button class="btn light" onclick="kfPdf(this)">تحميل كشف الخروج PDF</button>
       </div>
       <div class="tbl-wrap">
         <table>
@@ -593,7 +593,6 @@
       <div class="rp-actions">
         <button id="rpSaveBtn" class="btn" onclick="saveReport()">💾 حفظ الخلاصة</button>
         <button id="rpXlsBtn" class="btn light" onclick="exportReport()">⬇ تصدير Excel</button>
-        <button class="btn light" onclick="printReport()">🖨 طباعة / PDF</button>
       </div>
     </div>
 

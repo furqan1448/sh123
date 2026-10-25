@@ -285,7 +285,7 @@ function renderSgh() {
       meta: [rcM('التاريخ', (esc((r.data && r.data.dayName) || r.day) + ' ' + idHDate(r)).trim()), rcM('رقم الزيارة', esc(arD(r.visitNo))), r.lesson ? rcM('الدرس', esc(r.lesson)) : ''],
       tags: (r.data && r.data.tid ? sgTStatus(r) : '') + scTag('sgh', r.id),
       main: [['عرض', 'sgOpen(\'' + id + '\')'], ['PDF', 'sgDo(\'' + id + '\', this, \'pdf\')'], scAct('sgh', r.id)],
-      more: [['🖨️ طباعة', 'sgDo(\'' + id + '\', this, \'print\')'], ['🔗 مشاركة', 'sgDo(\'' + id + '\', this, \'share\')'],
+      more: [['🔗 مشاركة', 'sgDo(\'' + id + '\', this, \'share\')'],
         r.data && r.data.tid && !(r.data.sigs && r.data.sigs.tch) ? ['📲 تنبيه المعلمة', 'sgNotifyRec(\'' + id + '\', this)'] : null,
         '-', ['✏️ تعديل', 'sgEditRec(\'' + id + '\')'], ['🗑️ حذف', 'sgDel(\'' + id + '\')', 'danger']].filter(Boolean) });
   }).join('');
@@ -599,7 +599,7 @@ function renderSgs() {
       meta: [rcM('خلال الفترة', range), rcM('رقم الزيارة', esc(arD(r.visitNo))), rcM('عدد المعلمات', arD((d.rows || []).length))],
       tags: scTag('sgs', r.id),
       main: [['عرض', 'ssOpen(\'' + id + '\')'], ['PDF', 'ssDo(\'' + id + '\', this, \'pdf\')'], scAct('sgs', r.id)],
-      more: [['🖨️ طباعة', 'ssDo(\'' + id + '\', this, \'print\')'], ['🔗 مشاركة', 'ssDo(\'' + id + '\', this, \'share\')'], '-', ['✏️ تعديل', 'ssEditRec(\'' + id + '\')'], ['🗑️ حذف', 'ssDel(\'' + id + '\')', 'danger']] });
+      more: [['🔗 مشاركة', 'ssDo(\'' + id + '\', this, \'share\')'], '-', ['✏️ تعديل', 'ssEditRec(\'' + id + '\')'], ['🗑️ حذف', 'ssDel(\'' + id + '\')', 'danger']] });
   }).join('');
 }
 const ssById = id => SGS.find(r => r.id === id);
