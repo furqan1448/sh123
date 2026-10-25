@@ -233,8 +233,8 @@ async function idPrint(rec, btn, sigs) {
     w.document.open();
     w.document.write('<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>' + esc(idFileName(rec)) + '</title>' +
       '<link rel="stylesheet" href="' + ID_FONT_CSS + '">' +
-      '<style>@page{size:A4 ' + (ID_PORTRAIT[rec.kind] ? 'portrait' : 'landscape') + ';margin:7mm}html,body{margin:0;background:#fff}' + ID_CSS +
-      '.idoc{width:100%}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body>' +
+      '<style>@page{size:A4 ' + (ID_PORTRAIT[rec.kind] ? 'portrait' : 'landscape') + ';margin:8mm 0}@page:first{margin-top:0}html,body{margin:0;background:#fff}' + ID_CSS +
+      '.idoc{width:100%;padding:0}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body>' +
       idDocHtml(rec, sigs, lh) + '</body></html>');
     w.document.close();
     const go = () => setTimeout(() => { w.focus(); w.print(); }, 250);
@@ -290,14 +290,22 @@ function idFontEmbedCss() {
   return idFontPromise;
 }
 // إذا زاد النموذج قليلاً عن صفحة A4 عرضية نصغّره ليكفي صفحة واحدة؛ وإن كان طويلاً جداً يُقسَّم على صفحات
-function idFitPage(cv) {
-  const maxH = cv.width * 210 / 297;
-  if (cv.height <= maxH || cv.height > maxH * 1.8) return cv;
+function idFitPage(cv) { return idFitBleed(cv, false); }
+/* صفحة واحدة والكليشة من الطرف إلى الطرف (بلا هوامش بيضاء على الجانبين):
+   إن زاد النموذج قليلاً عن الصفحة نصغّر ما تحت الكليشة فقط، وتبقى الكليشة بعرض الصفحة كاملاً.
+   وإن كان أقصر نكمل الصفحة بالأبيض من الأسفل حتى لا تظهر صفحة ثانية فارغة. */
+function idFitBleed(cv, portrait) {
+  const pageH = Math.floor(cv.width * (portrait ? 297 / 210 : 210 / 297)) - 2;
+  if (cv.height > pageH * (portrait ? 1.6 : 1.8)) return cv;   // نموذج طويل فعلاً: يُقسَّم على أكثر من صفحة كما هو
   const out = document.createElement('canvas');
-  out.width = Math.round(cv.height * 297 / 210); out.height = cv.height;
+  out.width = cv.width; out.height = pageH;
   const g = out.getContext('2d');
   g.fillStyle = '#ffffff'; g.fillRect(0, 0, out.width, out.height);
-  g.drawImage(cv, Math.round((out.width - cv.width) / 2), 0);
+  if (cv.height <= pageH) { g.drawImage(cv, 0, 0); return out; }
+  const hh = Math.round(cv.width * 351 / 2000);   // ارتفاع الكليشة (بعرض الصفحة)
+  g.drawImage(cv, 0, 0, cv.width, hh, 0, 0, cv.width, hh);
+  const k = (pageH - hh) / (cv.height - hh), bw = Math.round(cv.width * k);
+  g.drawImage(cv, 0, hh, cv.width, cv.height - hh, Math.round((cv.width - bw) / 2), hh, bw, pageH - hh);
   return out;
 }
 // مكتبة الرسم (html2canvas) تعكس النقطتين والأرقام بجانب الكلمات العربية، فنلف كل نص عربي بعلامة اتجاه داخل النسخة المؤقتة فقط

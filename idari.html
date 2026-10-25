@@ -142,7 +142,7 @@
       <h2>سجل الزيارات</h2>
       <label for="fCenter" style="margin-top:0">تصفية حسب المركز</label>
       <select id="fCenter" onchange="renderVisits()"><option value="">كل المراكز</option></select>
-      <div class="ex-bar"><button class="btn light" onclick="exVisits(this)">تحميل كشف الخروج Excel</button></div>
+      <div class="ex-bar"><button class="btn light" onclick="exVisits(this)">تحميل كشف الخروج Excel</button><button class="btn light" onclick="kfPrint(this)">طباعة كشف الخروج</button><button class="btn light" onclick="kfPdf(this)">تحميل كشف الخروج PDF</button></div>
       <div class="tbl-wrap">
         <table>
           <thead><tr><th>م</th><th>المركز</th><th>نوع الزيارة</th><th>التاريخ</th><th>اليوم</th><th>الحالة</th><th>التوقيع</th><th></th></tr></thead>

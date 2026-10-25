@@ -12,7 +12,7 @@ const ID_PFX = { visit: 'iv', program: 'ip', suggest: 'is', monthly: 'im', mgrev
 function show(id) {
   ALL_VIEWS.forEach(v => { const el = $(v); if (el) el.classList.add('hidden'); });
   $(id).classList.remove('hidden');
-  if (id !== 'loginView') localStorage.setItem(VIEW_KEY, id);
+  if (id !== 'loginView') try { sessionStorage.setItem(VIEW_KEY, id); } catch (e) {}   // آخر صفحة لهذه النافذة فقط: تُنسى عند إغلاق الموقع
   window.scrollTo(0, 0);
   setTimeout(() => SIG_WIDGETS.forEach(w => w.resize()), 60);
 }
@@ -50,6 +50,7 @@ async function doLogin() {
 
 function logout() {
   [PW_KEY, USER_KEY, VIEW_KEY, NAME_KEY].forEach(k => localStorage.removeItem(k));
+  try { sessionStorage.removeItem(VIEW_KEY); } catch (e) {}
   cacheClear(); clearMySigLocal(); sigRefreshAll();
   VISITS = []; IDR = [];
   $('un').value = ''; $('pw').value = '';
@@ -220,8 +221,9 @@ function renderVisits() {
   if (!rows.length) { body.innerHTML = '<tr><td colspan="8" class="empty">لا توجد زيارات</td></tr>'; return; }
   body.innerHTML = rows.map((v, i) => '<tr><td>' + (i + 1) + '</td><td>' + (esc(v.center) || '—') + '</td><td>' + (esc(v.type) || '—') + '</td><td>' +
     esc(v.date) + '</td><td>' + esc(v.day) + '</td><td>' + statusTag(v) + '</td><td>' +
-    (v.signature ? '<a class="lnk" target="_blank" rel="noopener" href="' + esc(v.signature) + '">عرض</a>' : '—') + '</td>' +
+    vSigCell(v) + '</td>' +
     '<td><button class="btn danger" onclick="delVisit(\'' + esc(v.id) + '\')">حذف</button></td></tr>').join('');
+  vSigLoad(rows, renderVisits);
 }
 async function saveVisit() {
   const status = $('vStatus').value, none = status === V_NONE;
@@ -1041,7 +1043,7 @@ function idCollect(kind) {
   loadLoginNames('users', 'un', { unit: ID_UNIT });
   idKind = localStorage.getItem(KIND_KEY) || 'visit';
   if (!getPw() || !getUser()) return;
-  const last = localStorage.getItem(VIEW_KEY);
+  let last = null; try { last = sessionStorage.getItem(VIEW_KEY); } catch (e) {}   // عند فتح الموقع من جديد (بعد إغلاقه) تظهر الرئيسية
   preload();
   if (last === 'visitsView') { show('visitsView'); loadVisits(); }
   else if (last && FORM_OF[idKind] === last && AD.has(last)) { idOpenList(idKind); idNew(); }

@@ -96,7 +96,7 @@
       <label for="fCenter" style="margin-top:0">تصفية حسب المركز</label>
       <select id="fCenter" onchange="renderVisits()"><option value="">كل المراكز</option></select>
       <div class="ex-bar">
-        <button class="btn light" onclick="exVisits(this)">تحميل كشف الخروج Excel</button>
+        <button class="btn light" onclick="exVisits(this)">تحميل كشف الخروج Excel</button><button class="btn light" onclick="kfPrint(this)">طباعة كشف الخروج</button><button class="btn light" onclick="kfPdf(this)">تحميل كشف الخروج PDF</button>
       </div>
       <div class="tbl-wrap">
         <table>
@@ -626,6 +626,7 @@
 <script src="reports.js"></script>
 <script src="idari-print.js"></script>
 <script src="sighar-print.js"></script>
+<script src="tarbawi-print.js"></script>
 <script src="minutes.js"></script>
 <script src="attach.js"></script>
 <script>
@@ -655,7 +656,7 @@ const vIsAbsent = v => vStatusOf(v) === V_NONE;
 function show(id) {
   ['loginView','homeView','visitsView','filesView','evalsView','evalFormView','tbFormView','tjFormView','evalsFinalView','evfFormView','reportsView','reportEditView','mnListView','mnForm','atView'].forEach(v => document.getElementById(v).classList.add('hidden'));
   document.getElementById(id).classList.remove('hidden');
-  if (id !== 'loginView') localStorage.setItem('mush_view', id);
+  if (id !== 'loginView') try { sessionStorage.setItem('mush_view', id); } catch (e) {}   // آخر صفحة لهذه النافذة فقط: تُنسى عند إغلاق الموقع
   window.scrollTo(0, 0);
   if (['evalFormView', 'tbFormView', 'tjFormView', 'evfFormView'].indexOf(id) < 0) clearEdit();   // الخروج من نموذج الاستمارة يُنهي وضع التعديل
 }
@@ -688,7 +689,7 @@ async function doLogin() {
 function logout() {
   localStorage.removeItem(PW_KEY);
   localStorage.removeItem(USER_KEY);
-  localStorage.removeItem('mush_view');
+  try { sessionStorage.removeItem('mush_view'); } catch (e) {}
   cacheClear(); clearMySigLocal(); sigRefreshAll();
   VISITS = []; FILES = []; evRows = [];
   document.getElementById('un').value = '';
@@ -816,9 +817,10 @@ function renderVisits() {
     '<td>' + esc(v.date) + '</td>' +
     '<td>' + esc(v.day) + '</td>' +
     '<td>' + statusTag(v) + '</td>' +
-    '<td>' + (v.signature ? '<a class="lnk" target="_blank" rel="noopener" href="' + esc(v.signature) + '">عرض</a>' : '—') + '</td>' +
+    '<td>' + vSigCell(v) + '</td>' +
     '<td><button class="btn danger" onclick="delVisit(\'' + esc(v.id) + '\')">حذف</button></td>' +
     '</tr>').join('');
+  vSigLoad(rows, renderVisits);
 }
 
 async function saveVisit() {
@@ -956,8 +958,8 @@ async function delFile(id) {
   loadLoginNames('users', 'un', { exclude: IDARI_UNIT + '|' + SGH_UNIT });
   if (!getPw() || !getUser()) return;
   // نعرض آخر صفحة فوراً دون انتظار الخادم
-  const last = localStorage.getItem('mush_view');
-  const view = last === 'evfFormView' ? 'evalsFinalView' : (last === 'tbFormView' || last === 'tjFormView') ? (localStorage.getItem('mush_fin') ? 'evalsFinalView' : 'evalsView') : (last === 'evalFormView') ? 'evalsView' : (last === 'reportEditView') ? 'reportsView' : (['homeView', 'visitsView', 'filesView', 'evalsView', 'evalsFinalView', 'reportsView'].indexOf(last) > -1 ? last : 'homeView');
+  let last = null; try { last = sessionStorage.getItem('mush_view'); } catch (e) {}   // عند فتح الموقع من جديد (بعد إغلاقه) تظهر الرئيسية
+  const view = last === 'evfFormView' ? 'evalsFinalView' : (last === 'tbFormView' || last === 'tjFormView') ? ((function () { try { return sessionStorage.getItem('mush_fin'); } catch (e) { return ''; } })() ? 'evalsFinalView' : 'evalsView') : (last === 'evalFormView') ? 'evalsView' : (last === 'reportEditView') ? 'reportsView' : (['homeView', 'visitsView', 'filesView', 'evalsView', 'evalsFinalView', 'reportsView'].indexOf(last) > -1 ? last : 'homeView');
   show(view);
   if (last === 'mnForm' && typeof AD !== 'undefined' && AD.has('mnForm')) { mnOpenList(); mnNew(); }   // محضر لم يُنشر: نعيد فتحه بما كُتب فيه
   preload();   // يتحقق من الدخول أيضاً (طلب getLists) فلا حاجة لطلب login منفصل

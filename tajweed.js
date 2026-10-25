@@ -115,7 +115,7 @@ function tjBack() { show(tjFin ? 'evalsFinalView' : 'evalsView'); evLoadList(); 
 function tjOpenForm(type, fin) {
   type = type === 'single' ? 'single' : 'multi';
   tjFin = !!fin;
-  try { localStorage.setItem('mush_fin', tjFin ? '1' : ''); } catch (e) {}
+  try { sessionStorage.setItem('mush_fin', tjFin ? '1' : ''); } catch (e) {}
   show('tjFormView');
   if (!tjBuilt || type !== tjType) {
     tjType = type; TJ_ITEMS = TJ_V[type].items;

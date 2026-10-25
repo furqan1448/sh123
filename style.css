@@ -335,3 +335,11 @@ table{font-size:15px}
 .id-note-row .num{font-weight:800;color:var(--primary);min-width:22px;text-align:center;margin-top:10px}
 .id-note-row textarea,.id-note-row input{flex:1;margin:0;resize:vertical}
 .id-note-row .x{flex:none;width:auto;padding:6px 10px;margin-top:4px;background:transparent;border:1px solid #ddd;border-radius:8px;color:#888;cursor:pointer}
+
+/* كشف الخروج: صورة توقيع المديرة داخل الجدول */
+img.vsig{display:block;margin:0 auto;max-height:44px;max-width:120px}
+.vsig-wait{color:var(--muted)}
+
+/* معاينة النماذج: الكليشة من الطرف إلى الطرف دون هوامش بيضاء */
+.id-scroll.sg-fit{padding:0;overflow:hidden}
+.id-scroll .idoc{padding:0}

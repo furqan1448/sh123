@@ -5,10 +5,10 @@ const SG_BG = 'letterhead.jpg';   // الكليشة الحمراء الموحّ�
 const SG_UNIT = 'وحدة تحفيظ الصغار';
 const SG_TITLE = 'تقرير زيارة مشرفة وحدة تحفيظ الصغار';
 const SGS_TITLE = 'خلاصة التقارير التعليمية – متابعة المشرفة للمعلمة';
-const sgTitleOf = rec => rec && rec.kind === 'stf' ? (STF_TYPES[(rec.data && rec.data.form) || rec.form] || 'نموذج موظفة') : rec && rec.kind === 'min' ? 'محضر اجتماع رقم ' + (rec.no || '') : rec && rec.kind === 'sum' ? SGS_TITLE : rec && rec.kind === 'eval' && typeof sgeFormOf === 'function' && sgeFormOf(rec) ? sgeFormOf(rec).title : SG_TITLE;
+const sgTitleOf = rec => rec && rec.kind === 'tv' && typeof tvForm === 'function' ? tvForm(rec).title : rec && rec.kind === 'stf' ? (STF_TYPES[(rec.data && rec.data.form) || rec.form] || 'نموذج موظفة') : rec && rec.kind === 'min' ? 'محضر اجتماع رقم ' + (rec.no || '') : rec && rec.kind === 'sum' ? SGS_TITLE : rec && rec.kind === 'eval' && typeof sgeFormOf === 'function' && sgeFormOf(rec) ? sgeFormOf(rec).title : SG_TITLE;
 // استمارات التقييم صفحة طولية، وباقي النماذج عرضية
-const sgPortrait = rec => !!(rec && (rec.kind === 'eval' || rec.kind === 'min' || rec.kind === 'stf'));
-const sgAllCss = () => SG_CSS + STF_CSS + (typeof SGE_CSS === 'string' ? SGE_CSS : '') + (typeof MN_CSS === 'string' ? MN_CSS : '');
+const sgPortrait = rec => !!(rec && (rec.kind === 'eval' || rec.kind === 'min' || rec.kind === 'stf' || rec.kind === 'tv'));
+const sgAllCss = () => SG_CSS + STF_CSS + (typeof SGE_CSS === 'string' ? SGE_CSS : '') + (typeof MN_CSS === 'string' ? MN_CSS : '') + (typeof TV_CSS === 'string' ? TV_CSS : '');
 
 // جلب التواقيع (تُستبدل في صفحة إدارة الوحدات بدخول المديرة)
 let sgSigFetch = items => api('getSigs', { items }).then(o => o.data || {});
@@ -42,6 +42,7 @@ function sgDocHtml(rec, sigs, lhUrl) {
   if (rec && rec.kind === 'eval') return sgeDocHtml(rec, sigs, lhUrl);
   if (rec && rec.kind === 'min') return mnDocHtml(rec, sigs, lhUrl);
   if (rec && rec.kind === 'stf') return stfDocHtml(rec, sigs, lhUrl);
+  if (rec && rec.kind === 'tv') return tvDocHtml(rec._tv || rec, sigs, lhUrl);   // استمارات الإشراف التربوي (tarbawi-print.js)
   sigs = sigs || {};
   const d = rec.data || {};
   const per = String(rec.period || '');
@@ -124,8 +125,8 @@ async function sgPrint(rec, btn, sigs) {
     w.document.open();
     w.document.write('<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>' + esc(sgFileName(rec)) + '</title>' +
       '<link rel="stylesheet" href="' + ID_FONT_CSS + '">' +
-      '<style>@page{size:A4 ' + (sgPortrait(rec) ? 'portrait' : 'landscape') + ';margin:7mm}html,body{margin:0;background:#fff}' + sgAllCss() +
-      '.idoc{width:100%}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body>' +
+      '<style>@page{size:A4 ' + (sgPortrait(rec) ? 'portrait' : 'landscape') + ';margin:8mm 0}@page:first{margin-top:0}html,body{margin:0;background:#fff}' + sgAllCss() +
+      '.idoc{width:100%;padding:0}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body>' +
       sgDocHtml(rec, sigs, lh) + '</body></html>');
     w.document.close();
     const go = () => setTimeout(() => { w.focus(); w.print(); }, 250);
@@ -166,16 +167,7 @@ async function sgPdfBlob(rec, sigs) {
   } finally { box.remove(); }
 }
 // صفحة A4 طولية: إن زادت الاستمارة قليلاً عن الصفحة نصغّرها لتكفي صفحة واحدة
-function sgFitPortrait(cv) {
-  const maxH = cv.width * 297 / 210;
-  if (cv.height <= maxH || cv.height > maxH * 1.6) return cv;
-  const out = document.createElement('canvas');
-  out.width = Math.round(cv.height * 210 / 297); out.height = cv.height;
-  const g = out.getContext('2d');
-  g.fillStyle = '#ffffff'; g.fillRect(0, 0, out.width, out.height);
-  g.drawImage(cv, Math.round((out.width - cv.width) / 2), 0);
-  return out;
-}
+function sgFitPortrait(cv) { return idFitBleed(cv, true); }   // الكليشة من الطرف إلى الطرف (idari-print.js)
 async function sgPdf(rec, btn, sigs) {
   if (btn) setBtnBusy(btn, true, 'جارِ التجهيز...');
   try { idSaveBlob(await sgPdfBlob(rec, sigs), sgFileName(rec) + '.pdf'); toast('تم التحميل'); }

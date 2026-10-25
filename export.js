@@ -408,3 +408,124 @@ function exPrefetch() {
   const go = () => { exLoad().catch(() => {}); fetch(EX_LETTERHEAD).then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (b) exLetterBuf = b; }).catch(() => {}); };
   (window.requestIdleCallback || (f => setTimeout(f, 2500)))(go);
 }
+
+/* ===================== كشف الخروج: طباعة وتحميل PDF بتنسيق الاستمارات =====================
+   الكليشة الحمراء من الطرف إلى الطرف، والعنوان العنابي، وجدول لكل مركز فيه صورة توقيع المديرة،
+   مع إجمالي أيام الحضور والغياب. يُقسَّم تلقائياً على صفحات A4 طولية (الكليشة أعلى كل صفحة). */
+const KF_CSS = `
+.im-page.kf{width:794px;height:1123px;overflow:hidden;position:relative;background:#fff;font-size:15px}
+.im-page.kf .idc-body{padding:0 26px}
+.im-page.kf .idc-title{font-size:21px;margin:12px 0 8px}
+.im-page.kf .kf-meta{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px 18px;font-weight:700;margin:0 0 8px}
+.im-page.kf table{font-size:14.5px;table-layout:fixed}
+.im-page.kf th{padding:5px 6px;font-size:14.5px}
+.im-page.kf td{padding:4px 6px;height:34px}
+.im-page.kf tr.kf-c td{background:#faf6f6;color:#7a1f2b;font-weight:800;text-align:right;font-size:15.5px}
+.im-page.kf tr.kf-f td{background:#f2f2f2;font-weight:800}
+.im-page.kf tr.kf-t td{background:#f2f2f2;font-weight:800;color:#7a1f2b;font-size:15.5px}
+.im-page.kf img.kf-sig{max-height:40px;max-width:130px;display:block;margin:auto}
+.im-page.kf .kf-pg{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:12px;color:#777}
+`;
+function kfHijri(dateStr) {
+  const p = String(dateStr || '').split(' ')[0].split('-');
+  if (p.length !== 3) return idDigits(dateStr || '');
+  try {
+    const parts = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura-nu-latn', { day: 'numeric', month: 'numeric', year: 'numeric' }).formatToParts(new Date(+p[0], +p[1] - 1, +p[2]));
+    const g = t => ((parts.find(x => x.type === t) || {}).value || '').replace(/\D/g, '');
+    return '<span class="idc-date"><bdi>' + idDigits(g('day')) + '</bdi>/<bdi>' + idDigits(g('month')) + '</bdi>/<bdi>' + idDigits(g('year')) + 'هـ</bdi></span>';
+  } catch (e) { return idDigits(dateStr); }
+}
+async function kfSigs(rows) {
+  const need = rows.filter(v => v.signature && v.id && !VSIG[v.id]).map(v => ({ id: v.id }));
+  for (let i = 0; i < need.length; i += 100) {
+    const part = need.slice(i, i + 100);
+    try { const o = await api('getSigs', { items: part }); const m = (o && o.data) || {}; part.forEach(x => { VSIG[x.id] = m[x.id] || ''; }); } catch (e) {}
+  }
+}
+// صفحات الكشف: نقيس ارتفاع كل صف فعلياً ونبدأ صفحة جديدة عند امتلاء الصفحة
+async function kfPages(rows, lhUrl) {
+  await kfSigs(rows);
+  const m = exVisitsModel(rows);
+  const lh = esc(lhUrl || ID_LETTERHEAD);
+  const today = new Date(); const td = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+  const val = x => '<span class="idc-m">' + x + '</span>';
+  const centersN = (m.info.find(x => x[0] === 'المراكز') || [])[1] || '';
+  const top = '<img class="idc-lh" src="' + lh + '" width="2000" height="351" alt=""><div class="idc-body"><div class="idc-title">كشف خروج المشرفة</div>' +
+    '<div class="kf-meta"><span>المشرفة: ' + val(esc(getUser())) + '</span><span>المراكز: ' + val(idDigits(centersN)) + '</span><span>تاريخ الكشف: ' + val(kfHijri(td)) + '</span></div>';
+  const thead = '<table><colgroup><col style="width:44px"><col style="width:16%"><col style="width:12%"><col><col style="width:17%"><col style="width:150px"></colgroup>' +
+    '<tr><th>م</th><th>التاريخ</th><th>اليوم</th><th>نوع الزيارة</th><th>الحالة</th><th>توقيع المديرة</th></tr>';
+  const list = [];
+  let att = 0, abs = 0;
+  const byCenter = {};
+  rows.forEach(v => { const k = v.center || V_NOC; (byCenter[k] = byCenter[k] || []).push(v); });
+  Object.keys(byCenter).sort((a, b) => a.localeCompare(b, 'ar')).forEach(c => {
+    const L = byCenter[c].slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    const a1 = L.filter(v => !vIsAbsent(v)).length, a2 = L.length - a1; att += a1; abs += a2;
+    list.push('<tr class="kf-c"><td colspan="6">المركز: ' + esc(c) + '</td></tr>');
+    L.forEach((v, i) => list.push('<tr><td class="idc-n">' + idDigits(i + 1) + '</td><td>' + kfHijri(v.date) + '</td><td>' + esc(v.day || '') + '</td><td>' + esc(v.type || '—') + '</td><td>' + esc(vStatusOf(v)) + '</td><td>' +
+      (VSIG[v.id] ? '<img class="kf-sig" src="' + VSIG[v.id] + '" alt="">' : '') + '</td></tr>'));
+    list.push('<tr class="kf-f"><td colspan="3">إجمالي أيام الحضور: ' + idDigits(a1) + '</td><td colspan="3">إجمالي أيام الغياب: ' + idDigits(a2) + '</td></tr>');
+  });
+  list.push('<tr class="kf-t"><td colspan="3">الإجمالي العام لأيام الحضور: ' + idDigits(att) + '</td><td colspan="3">الإجمالي العام لأيام الغياب: ' + idDigits(abs) + '</td></tr>');
+  // القياس
+  const box = document.createElement('div');
+  box.style.cssText = 'position:absolute;top:0;left:-3000px;width:794px;visibility:hidden;direction:rtl';
+  box.innerHTML = '<style>' + ID_CSS + KF_CSS + '.idoc{width:794px;padding:0}</style><div class="idoc ptdoc"><div class="im-page kf">' + top + thead + '</table></div></div></div>';
+  document.body.appendChild(box);
+  const page = box.querySelector('.im-page');
+  await Promise.all([...box.querySelectorAll('img')].map(x => x.complete ? 0 : new Promise(r => { x.onload = x.onerror = r; })));
+  const limit = 1123 - 40;
+  const pages = []; let cur = [];
+  const table = () => page.querySelector('table');
+  for (const tr of list) {
+    table().insertAdjacentHTML('beforeend', tr);
+    if (page.querySelector('.idc-body').getBoundingClientRect().bottom - page.getBoundingClientRect().top > limit && cur.length) {
+      // عنوان المركز لا يبقى وحده أسفل الصفحة: ينتقل مع أول زيارة إلى الصفحة التالية
+      const carry = cur[cur.length - 1].indexOf('kf-c') > -1 ? [cur.pop()] : [];
+      pages.push(cur); cur = carry;
+      table().innerHTML = thead.replace(/^<table>/, '') + carry.join('');
+      table().insertAdjacentHTML('beforeend', tr);
+    }
+    cur.push(tr);
+  }
+  if (cur.length) pages.push(cur);
+  box.remove();
+  return pages.map((p, i) => '<div class="im-page kf">' + top + thead + p.join('') + '</table></div>' +
+    (pages.length > 1 ? '<div class="kf-pg">صفحة ' + idDigits(i + 1) + ' من ' + idDigits(pages.length) + '</div>' : '') + '</div>');
+}
+function kfRows() {
+  const f = document.getElementById('fCenter').value;
+  return VISITS.filter(v => !f || v.center === f);
+}
+async function kfPdf(btn) {
+  const rows = kfRows();
+  if (!rows.length) return toast('لا توجد زيارات للتحميل', false);
+  if (btn) setBtnBusy(btn, true, 'جارِ التجهيز...');
+  try {
+    const pages = await kfPages(rows);
+    idSaveBlob(await idPagesPdf(pages, KF_CSS, true), 'كشف_الخروج_' + getUser().replace(/\s+/g, '_') + '.pdf');
+    toast('تم التحميل');
+  } catch (e) { toast(e.message || 'تعذّر تحميل PDF', false); }
+  finally { if (btn) setBtnBusy(btn, false); }
+}
+async function kfPrint(btn) {
+  const rows = kfRows();
+  if (!rows.length) return toast('لا توجد زيارات للطباعة', false);
+  const w = window.open('', '_blank');
+  if (!w) return toast('اسمحي بالنوافذ المنبثقة لهذا الموقع ثم أعيدي المحاولة', false);
+  w.document.write('<p style="font-family:Tahoma;text-align:center;margin-top:40px">جارِ التجهيز...</p>');
+  if (btn) setBtnBusy(btn, true, '...');
+  try {
+    const pages = await kfPages(rows, new URL(ID_LETTERHEAD, location.href).href);
+    w.document.open();
+    w.document.write('<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>كشف الخروج</title><link rel="stylesheet" href="' + ID_FONT_CSS + '">' +
+      '<style>@page{size:A4 portrait;margin:0}html,body{margin:0;background:#fff}' + ID_CSS + KF_CSS +
+      '.idoc{width:794px;padding:0}.im-page.kf{page-break-after:always;break-after:page}.im-page.kf:last-child{page-break-after:auto;break-after:auto}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body><div class="idoc ptdoc">' +
+      pages.join('') + '</div></body></html>');
+    w.document.close();
+    const go = () => setTimeout(() => { w.focus(); w.print(); }, 300);
+    const img = w.document.querySelector('.idc-lh');
+    if (img && !img.complete) { img.onload = go; img.onerror = go; } else go();
+  } catch (e) { w.close(); toast(e.message || 'تعذّرت الطباعة', false); }
+  finally { if (btn) setBtnBusy(btn, false); }
+}

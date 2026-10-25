@@ -548,6 +548,7 @@ async function evLoadList(bgOnly, quiet) {
 
 function evView(i) {
   const r = evRows[i];
+  if (typeof tvView === 'function') return tvView(r);   // عرض بتنسيق الاستمارة الرسمية مع الطباعة وPDF (tarbawi-print.js)
   if (r.formType === 'f_single' || r.formType === 'f_multi') return efView(r);
   if (r.formType === 'tabyan' || r.formType === 'f_tabyan') return tbView(r);
   if (String(r.formType).indexOf('tj_') === 0 || String(r.formType).indexOf('f_tj_') === 0) return tjView(r);

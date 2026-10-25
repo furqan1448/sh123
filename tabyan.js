@@ -93,7 +93,7 @@ function tbBack() { show(tbFin ? 'evalsFinalView' : 'evalsView'); evLoadList(); 
 
 function tbOpenForm(fin) {
   tbFin = !!fin;
-  try { localStorage.setItem('mush_fin', tbFin ? '1' : ''); } catch (e) {}
+  try { sessionStorage.setItem('mush_fin', tbFin ? '1' : ''); } catch (e) {}
   show('tbFormView');
   document.getElementById('tbTitle').textContent = 'استمارة تقييم أداء معلمة التبيان ' + (tbFin ? '(النهائي)' : '(الأسبوعي)');
   if (!tbBuilt) {

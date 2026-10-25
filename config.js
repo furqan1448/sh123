@@ -337,3 +337,26 @@ document.addEventListener('input', e => {
 document.addEventListener('wheel', e => {
   if (e.target && e.target.closest && e.target.closest('.ev-sc')) e.target.blur();
 }, { passive: true });
+
+/* ===== كشف الخروج: صورة توقيع المديرة بجانب الزيارة (بدل رابط «عرض») =====
+   التواقيع تُجلب مرة واحدة لكل زيارة من ورقة «التواقيع» وتبقى في الذاكرة أثناء فتح الصفحة. */
+const VSIG = {};
+let vSigBusy_ = false;
+function vSigCell(v) {
+  if (!v || !v.signature) return '—';
+  const d = VSIG[v.id];
+  if (d) return '<img class="vsig" src="' + d + '" alt="توقيع المديرة">';
+  if (d === '') return '<a class="lnk" target="_blank" rel="noopener" href="' + esc(v.signature) + '">عرض</a>';   // زيارة قديمة: التوقيع محفوظ رابطاً فقط
+  return '<span class="vsig-wait">…</span>';
+}
+function vSigLoad(rows, rerender) {
+  const need = (rows || []).filter(v => v && v.signature && v.id && !(v.id in VSIG)).slice(0, 120).map(v => ({ id: v.id }));
+  if (!need.length || vSigBusy_) return;
+  vSigBusy_ = true;
+  api('getSigs', { items: need }).then(o => {
+    const m = (o && o.data) || {};
+    need.forEach(x => { VSIG[x.id] = m[x.id] || ''; });
+    vSigBusy_ = false;
+    if (rerender) rerender();
+  }).catch(() => { vSigBusy_ = false; });
+}
