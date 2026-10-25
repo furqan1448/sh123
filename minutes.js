@@ -196,7 +196,7 @@ function mnRender() {
         meta: [rcM('التاريخ', esc((r.dayName || '') + ' ' + idDigits(r.hijri || '')).trim()), rcM('يصل إلى', tg.all ? 'كل المعلمات' : idDigits(n) + ' معلمة')],
         tags: '<span class="tag ' + (n != null && a >= n ? 'ok' : 'warn') + '">اطّلعت: ' + idDigits(a) + (n != null ? ' من ' + idDigits(n) : '') + '</span>' + (typeof scTag === 'function' ? scTag('min', r.id) : ''),
         main: [['عرض', 'mnView(\'' + id + '\')'], ['PDF', 'mnDo(\'' + id + '\', this, \'pdf\')'], typeof scAct === 'function' ? scAct('min', r.id) : null, ['من اطّلعت', 'mnAcks(\'' + id + '\')']],
-        more: [['🔗 مشاركة', 'mnDo(\'' + id + '\', this, \'share\')'], '-', ['✏️ تعديل', 'mnEditRec(\'' + id + '\')'], ['🗑️ حذف', 'mnDel(\'' + id + '\')', 'danger']] });
+        more: [['🔗 مشاركة', 'mnDo(\'' + id + '\', this, \'share\')'], '-', ['✏️ تعديل', 'mnEditRec(\'' + id + '\')'], ['✕ حذف', 'mnDel(\'' + id + '\')', 'danger']] });
     }).join('');
     return;
   }

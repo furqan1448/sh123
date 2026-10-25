@@ -817,7 +817,7 @@ function renderVisits() {
     '<td>' + esc(v.day) + '</td>' +
     '<td>' + statusTag(v) + '</td>' +
     '<td>' + vSigCell(v) + '</td>' +
-    '<td><button class="btn danger" onclick="delVisit(\'' + esc(v.id) + '\')">حذف</button></td>' +
+    '<td><button class="btn danger vdel" title="حذف" aria-label="حذف" onclick="delVisit(\'' + esc(v.id) + '\')">✕</button></td>' +
     '</tr>').join('');
   vSigLoad(rows, renderVisits);
 }
@@ -884,7 +884,7 @@ function renderFiles() {
     '<td><a class="lnk" target="_blank" rel="noopener noreferrer" href="' + esc(safeHref(f.url)) + '">' + esc(f.title) + '</a></td>' +
     '<td>' + (f.name === LINK_MARK ? '<span class="tag warn">رابط</span>' : esc(f.name)) + '</td>' +
     '<td>' + esc(String(f.at || '').split(' ')[0]) + '</td>' +
-    '<td><button class="btn danger" onclick="delFile(\'' + esc(f.id) + '\')">حذف</button></td>' +
+    '<td><button class="btn danger vdel" title="حذف" aria-label="حذف" onclick="delFile(\'' + esc(f.id) + '\')">✕</button></td>' +
     '</tr>').join('');
 }
 async function loadFiles() {

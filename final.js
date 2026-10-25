@@ -266,5 +266,5 @@ function efRender() {
     (r.formType === 'f_multi' || r.formType === 'f_tj_multi' ? ' <span class="tag">تعدد المجموعات</span>' : '') + '</td>' +
     '<td>' + esc(r.raw) + '</td>' + (sub.weighted ? '<td>' + esc(r.weighted) + '</td>' : '') +
     '<td>' + gradeTag(r.grade) + '</td><td><div class="act">' + btnView(i) + btnDl(i) + (typeof scBtn === 'function' ? scBtn('ev', r.id) : '') + '</div></td>' +
-    '<td><div class="act">' + btnEdit(i) + '<button class="btn danger" onclick="evDelete(\'' + esc(r.id) + '\')">حذف</button></div></td></tr>').join('');
+    '<td><div class="act">' + btnEdit(i) + '<button class="btn danger vdel" title="حذف" aria-label="حذف" onclick="evDelete(\'' + esc(r.id) + '\')">✕</button></div></td></tr>').join('');
 }

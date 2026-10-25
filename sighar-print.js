@@ -209,7 +209,7 @@ async function sgView(rec) {
   m.classList.remove('hidden');
   let sigs = {};
   try { sigs = await sgLoadSigs(rec); } catch (e) {}
-  b.innerHTML = '<div class="ex-bar"><button class="btn light" id="sgVPdf">تحميل PDF</button><button class="btn light" id="sgVShare">مشاركة (واتساب)</button></div>' +
+  b.innerHTML = '<div class="ex-bar"><button class="btn light" id="sgVPdf">تحميل PDF</button><button class="btn light" id="sgVShare">مشاركة</button></div>' +
     '<style>' + sgAllCss() + '</style><div class="id-scroll sg-fit">' + sgDocHtml(rec, sigs) + '</div>';
   document.getElementById('sgVPdf').onclick = e => sgPdf(rec, e.currentTarget, sigs);
   document.getElementById('sgVShare').onclick = e => sgShare(rec, e.currentTarget, sigs);

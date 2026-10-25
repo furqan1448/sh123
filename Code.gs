@@ -208,6 +208,8 @@ function route_(r) {
     case 'updateEval': return withLock_(() => updateEval_(r));
     case 'deleteEval': return withLock_(() => { const o = deleteById_(SHEET.EVALS, r.id, true, EVAL_URL_COL); sigDel_(r.id); evalsBump_(); return o; });
     case 'getSigs': return { ok: true, data: getSigs_(r.items) };
+    case 'getMyCenters': return { ok: true, data: myCentersGet_(r.username) };
+    case 'saveMyCenters': return withLock_(() => myCentersSave_(r));
     case 'getMySig': return { ok: true, data: sigGet_('u:' + norm_(r.username).toLowerCase()) };
     case 'saveMySig': return withLock_(() => { sigPut_('u:' + norm_(r.username).toLowerCase(), r.data); return { ok: true }; });
     case 'deleteMySig': return withLock_(() => { sigDel_('u:' + norm_(r.username).toLowerCase()); return { ok: true }; });
@@ -2266,4 +2268,42 @@ function hasrSeen_(r) {
   const at = nowStr_();
   hasrSheet_().getRange(x.row, 12, 1, 2).setNumberFormat('@').setValues([['تم الاطلاع', at]]);
   return { ok: true, at: at };
+}
+
+
+/* ============ المراكز المشرفة عليها (لكل مشرفة) ============
+   ورقة «مراكز المشرفات»: صف لكل مشرفة فيه قائمة المراكز التي تشرف عليها (JSON).
+   تُستخدم في إحصائية تقارير الزيارة: المراكز التي تمت زيارتها والتي لم تتم زيارتها. */
+const MYC_SHEET_ = 'مراكز المشرفات';
+function mycSheet_() {
+  const ss = ss_();
+  let sh = ss.getSheetByName(MYC_SHEET_);
+  if (!sh) {
+    sh = ss.insertSheet(MYC_SHEET_);
+    sh.getRange(1, 1, 1, 3).setValues([['المستخدم', 'المراكز', 'آخر تحديث']])
+      .setBackground('#7a1f2b').setFontColor('#ffffff').setFontWeight('bold').setHorizontalAlignment('center');
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+function mycRow_(sh, u) {
+  const last = sh.getLastRow();
+  if (last < 2) return 0;
+  const ids = sh.getRange(2, 1, last - 1, 1).getValues();
+  for (let i = 0; i < ids.length; i++) if (String(ids[i][0]).trim().toLowerCase() === u) return i + 2;
+  return 0;
+}
+function myCentersGet_(username) {
+  const sh = ss_().getSheetByName(MYC_SHEET_);
+  if (!sh) return [];
+  const row = mycRow_(sh, norm_(username).toLowerCase());
+  if (!row) return [];
+  try { const a = JSON.parse(sh.getRange(row, 2).getValue() || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; }
+}
+function myCentersSave_(r) {
+  const list = (Array.isArray(r.centers) ? r.centers : []).map(c => String(c || '').trim().slice(0, 200)).filter(Boolean).slice(0, 500);
+  const sh = mycSheet_(), u = norm_(r.username).toLowerCase();
+  const row = mycRow_(sh, u) || sh.getLastRow() + 1;
+  sh.getRange(row, 1, 1, 3).setNumberFormat('@').setValues([[u, JSON.stringify(list), Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm')]]);
+  return { ok: true, data: list };
 }

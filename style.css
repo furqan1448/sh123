@@ -343,3 +343,20 @@ img.vsig{display:block;margin:0 auto;max-height:44px;max-width:120px}
 /* معاينة النماذج: الكليشة من الطرف إلى الطرف دون هوامش بيضاء */
 .id-scroll.sg-fit{padding:0;overflow:hidden}
 .id-scroll .idoc{padding:0}
+
+/* المراكز المشرفة عليها */
+.mc-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 14px;max-height:420px;overflow-y:auto;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.mc-item{margin:0;padding:6px 2px}
+.mc-fold{border:1px solid var(--line);border-radius:12px;margin-top:10px;overflow:hidden}
+.mc-fold>summary{list-style:none;display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;font-weight:800}
+.mc-fold>summary::-webkit-details-marker{display:none}
+.mc-ft{flex:1;color:#7a1f2b}
+.mc-cnt{border-radius:999px;padding:2px 12px;font-size:13px;font-weight:800}
+.mc-cnt.ok{background:#e4f4ec;color:#1f6b40}
+.mc-cnt.no{background:#fbeef0;color:#8a1f2b}
+.mc-arr{color:#7a1f2b;transition:transform .2s}
+.mc-fold[open] .mc-arr{transform:rotate(180deg)}
+.mc-fold .tbl-wrap{margin:0 12px 12px}
+.mc-tbl{min-width:0}
+.mc-item.check{background:none;border:0;padding:6px 2px;margin:0;border-radius:0}
+.btn.vdel{padding:4px 12px;font-size:16px;line-height:1.2;font-weight:800}

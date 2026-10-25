@@ -165,7 +165,7 @@ async function loadReports() {
         '</div>' +
         '<div class="rp-item-btns">' +
           '<button class="btn light" onclick="openReport(\'' + esc(r.id) + '\')">فتح</button>' +
-          '<button class="btn danger" onclick="deleteReport(\'' + esc(r.id) + '\')">حذف</button>' +
+          '<button class="btn danger vdel" title="حذف" aria-label="حذف" onclick="deleteReport(\'' + esc(r.id) + '\')">✕</button>' +
         '</div>' +
       '</div>').join('');
   } catch (e) { box.innerHTML = '<p class="empty">تعذّر التحميل</p>'; toast(e.message, false); }

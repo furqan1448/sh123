@@ -28,7 +28,7 @@ function hsRender() {
       meta: [rcM('المشرفة', esc(r.supName)), rcM('عدد الموظفات', idDigits(r.count)), rcM('أُرسل', esc(idDigits(r.at)))],
       tags: r.seen ? '<span class="tag ok">✔ اطّلعت المشرفة' + (r.seenAt ? ' <small>' + esc(idDigits(r.seenAt)) + '</small>' : '') + '</span>' : '<span class="tag warn">⏳ لم تطّلع المشرفة بعد</span>',
       main: [['عرض', 'hsView(\'' + id + '\')'], ['PDF', 'hsDo(\'' + id + '\', this, \'pdf\')'], ['Excel', 'hsDo(\'' + id + '\', this, \'xlsx\')']],
-      more: [['✏️ تعديل وإعادة إرسال', 'hsEditRec(\'' + id + '\')'], r.seen ? null : '-', r.seen ? null : ['🗑️ حذف', 'hsDel(\'' + id + '\')', 'danger']].filter(Boolean) });
+      more: [['✏️ تعديل وإعادة إرسال', 'hsEditRec(\'' + id + '\')'], r.seen ? null : '-', r.seen ? null : ['✕ حذف', 'hsDel(\'' + id + '\')', 'danger']].filter(Boolean) });
   }).join('');
 }
 const hsSigCache = {};

@@ -221,7 +221,7 @@ function renderVisits() {
   body.innerHTML = rows.map((v, i) => '<tr><td>' + (i + 1) + '</td><td>' + (esc(v.center) || '—') + '</td><td>' + (esc(v.type) || '—') + '</td><td>' +
     esc(v.date) + '</td><td>' + esc(v.day) + '</td><td>' + statusTag(v) + '</td><td>' +
     vSigCell(v) + '</td>' +
-    '<td><button class="btn danger" onclick="delVisit(\'' + esc(v.id) + '\')">حذف</button></td></tr>').join('');
+    '<td><button class="btn danger vdel" title="حذف" aria-label="حذف" onclick="delVisit(\'' + esc(v.id) + '\')">✕</button></td></tr>').join('');
   vSigLoad(rows, renderVisits);
 }
 async function saveVisit() {
@@ -287,7 +287,7 @@ function renderSgh() {
       main: [['عرض', 'sgOpen(\'' + id + '\')'], ['PDF', 'sgDo(\'' + id + '\', this, \'pdf\')'], scAct('sgh', r.id)],
       more: [['🔗 مشاركة', 'sgDo(\'' + id + '\', this, \'share\')'],
         r.data && r.data.tid && !(r.data.sigs && r.data.sigs.tch) ? ['📲 تنبيه المعلمة', 'sgNotifyRec(\'' + id + '\', this)'] : null,
-        '-', ['✏️ تعديل', 'sgEditRec(\'' + id + '\')'], ['🗑️ حذف', 'sgDel(\'' + id + '\')', 'danger']].filter(Boolean) });
+        '-', ['✏️ تعديل', 'sgEditRec(\'' + id + '\')'], ['✕ حذف', 'sgDel(\'' + id + '\')', 'danger']].filter(Boolean) });
   }).join('');
 }
 const recById = id => SGH.find(r => r.id === id);
@@ -599,7 +599,7 @@ function renderSgs() {
       meta: [rcM('خلال الفترة', range), rcM('رقم الزيارة', esc(arD(r.visitNo))), rcM('عدد المعلمات', arD((d.rows || []).length))],
       tags: scTag('sgs', r.id),
       main: [['عرض', 'ssOpen(\'' + id + '\')'], ['PDF', 'ssDo(\'' + id + '\', this, \'pdf\')'], scAct('sgs', r.id)],
-      more: [['🔗 مشاركة', 'ssDo(\'' + id + '\', this, \'share\')'], '-', ['✏️ تعديل', 'ssEditRec(\'' + id + '\')'], ['🗑️ حذف', 'ssDel(\'' + id + '\')', 'danger']] });
+      more: [['🔗 مشاركة', 'ssDo(\'' + id + '\', this, \'share\')'], '-', ['✏️ تعديل', 'ssEditRec(\'' + id + '\')'], ['✕ حذف', 'ssDel(\'' + id + '\')', 'danger']] });
   }).join('');
 }
 const ssById = id => SGS.find(r => r.id === id);
@@ -619,7 +619,7 @@ function ssRowHtml(r) {
   const opts = '<option value="">اختاري</option>' + SS_ATT.map(x => '<option' + (r.att === x ? ' selected' : '') + '>' + x + '</option>').join('');
   const centers = '<option value="">اختاري المركز</option>' + (LISTS.centers || []).map(x => '<option' + (r.center === x ? ' selected' : '') + '>' + esc(x) + '</option>').join('') +
     (r.center && (LISTS.centers || []).indexOf(r.center) < 0 ? '<option selected>' + esc(r.center) + '</option>' : '');
-  return '<div class="id-row"><div class="id-row-h"><b>معلمة</b><button type="button" class="btn danger" onclick="ssRowDel(this)">حذف</button></div>' +
+  return '<div class="id-row"><div class="id-row-h"><b>معلمة</b><button type="button" class="btn danger vdel" title="حذف" aria-label="حذف" onclick="ssRowDel(this)">✕</button></div>' +
     '<div class="row2"><div><label>اسم المركز</label><select data-k="center">' + centers + '</select></div>' +
     '<div><label>اسم المعلمة</label><input data-k="teacher" class="td-name" list="tDirList" autocomplete="off" placeholder="اختاري من سجل المعلمات" value="' + esc(r.teacher) + '"' + (r.tid ? ' data-tid="' + esc(r.tid) + '"' : '') + '><div class="id-hint ss-th"></div></div></div>' +
     '<label>الملاحظات التي تم رصدها</label><textarea data-k="notes" rows="2">' + esc(r.notes) + '</textarea>' +
@@ -776,7 +776,7 @@ function renderSge() {
       main: [['عرض', 'seOpen(\'' + id + '\')'], ['PDF', 'seDo(\'' + id + '\', this, \'pdf\')'], scAct('sge', r.id)],
       more: [['🔗 مشاركة', 'seDo(\'' + id + '\', this, \'share\')'],
         r.data && r.data.tid && !(r.data.sigs && r.data.sigs.tch) ? ['📲 تنبيه المعلمة', 'sgNotifyRec(\'' + id + '\', this)'] : null,
-        '-', ['✏️ تعديل', 'seEditRec(\'' + id + '\')'], ['🗑️ حذف', 'seDel(\'' + id + '\')', 'danger']].filter(Boolean) });
+        '-', ['✏️ تعديل', 'seEditRec(\'' + id + '\')'], ['✕ حذف', 'seDel(\'' + id + '\')', 'danger']].filter(Boolean) });
   }).join('');
 }
 const seById = id => SGE.find(r => r.id === id);

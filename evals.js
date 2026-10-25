@@ -181,7 +181,7 @@ function renderDrafts() {
       return '<div class="draft-row"><div><b>' + esc(d.teacher || 'بدون اسم معلمة') + '</b><small>' + esc(DRAFT_LABEL[d.ft] || '') +
         (d.center ? ' — ' + esc(d.center) : '') + (when ? ' — ' + esc(when) : '') + '</small></div>' +
         '<div class="act"><button class="btn light" style="padding:6px 12px;font-size:13px" onclick="draftOpen(\'' + esc(d.id) + '\')">متابعة</button>' +
-        '<button class="btn danger" onclick="draftDelete(\'' + esc(d.id) + '\')">حذف</button></div></div>';
+        '<button class="btn danger vdel" title="حذف" aria-label="حذف" onclick="draftDelete(\'' + esc(d.id) + '\')">✕</button></div></div>';
     }).join('');
   });
 }
@@ -479,7 +479,7 @@ function evRenderW() {
     (r.formType === 'multi' || r.formType === 'tj_multi' ? ' <span class="tag">تعدد المجموعات</span>' : '') + '</td>' +
     '<td>' + esc(r.raw) + '</td>' + (sub.weighted ? '<td>' + esc(r.weighted) + '</td>' : '') +
     '<td>' + evGradeTag(r.grade) + '</td><td><div class="act">' + btnView(i) + btnDl(i) + (typeof scBtn === 'function' ? scBtn('ev', r.id) : '') + '</div></td>' +
-    '<td><div class="act">' + btnEdit(i) + '<button class="btn danger" onclick="evDelete(\'' + esc(r.id) + '\')">حذف</button></div></td></tr>').join('');
+    '<td><div class="act">' + btnEdit(i) + '<button class="btn danger vdel" title="حذف" aria-label="حذف" onclick="evDelete(\'' + esc(r.id) + '\')">✕</button></div></td></tr>').join('');
 }
 
 // يرسم سجل الأسبوعية وسجل النهائية معاً (يُستدعى بعد كل تحميل أو حفظ أو حذف)

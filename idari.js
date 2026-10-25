@@ -5,7 +5,7 @@ const VIEW_KEY = 'idari_view', NAME_KEY = 'idari_name', KIND_KEY = 'idari_kind';
 let LISTS = { centers: [], types: [], typesIdari: [] };
 let VISITS = [], IDR = [], idKind = 'visit', idEdit = null;
 
-const ALL_VIEWS = ['loginView', 'homeView', 'visitsView', 'idListView', 'idVisitForm', 'idProgramForm', 'idSuggestForm', 'idMonthlyForm', 'idMgrEvalForm', 'idHallsForm', 'atView'];
+const ALL_VIEWS = ['loginView', 'homeView', 'visitsView', 'idListView', 'mcView', 'idVisitForm', 'idProgramForm', 'idSuggestForm', 'idMonthlyForm', 'idMgrEvalForm', 'idHallsForm', 'atView'];
 const FORM_OF = { visit: 'idVisitForm', program: 'idProgramForm', suggest: 'idSuggestForm', monthly: 'idMonthlyForm', mgreval: 'idMgrEvalForm', halls: 'idHallsForm' };
 const ID_PFX = { visit: 'iv', program: 'ip', suggest: 'is', monthly: 'im', mgreval: 'me', halls: 'hl' };
 
@@ -222,7 +222,7 @@ function renderVisits() {
   body.innerHTML = rows.map((v, i) => '<tr><td>' + (i + 1) + '</td><td>' + (esc(v.center) || '—') + '</td><td>' + (esc(v.type) || '—') + '</td><td>' +
     esc(v.date) + '</td><td>' + esc(v.day) + '</td><td>' + statusTag(v) + '</td><td>' +
     vSigCell(v) + '</td>' +
-    '<td><button class="btn danger" onclick="delVisit(\'' + esc(v.id) + '\')">حذف</button></td></tr>').join('');
+    '<td><button class="btn danger vdel" title="حذف" aria-label="حذف" onclick="delVisit(\'' + esc(v.id) + '\')">✕</button></td></tr>').join('');
   vSigLoad(rows, renderVisits);
 }
 async function saveVisit() {
@@ -269,7 +269,7 @@ const SIGW = {
 };
 const SIGS_OF = { visit: { sup: 'ivSup' }, program: { sup: 'ipSup' }, suggest: { sup: 'isSup' }, monthly: { sup: 'imSup' }, mgreval: { sup: 'meSup' }, halls: { sup: 'hlSup' } };
 const ID_HINT = {
-  visit: 'تقرير الزيارة الإدارية للمركز بالملاحظات والتوصيات، ويُطبع أو يُحمَّل PDF بالكليشة أو يُرسَل للمديرة للتوقيع عليه.',
+  visit: '',
   program: 'تخطيط وتنفيذ ونتائج برنامج المشرفة المقيمة، ويُطبع أو يُحمَّل PDF بالكليشة.',
   suggest: 'الاقتراحات والمرئيات والصعوبات التي تواجه المشرفة، وتُسلَّم آخر الفصل الدراسي.',
   mgreval: 'تقييم مديرة المركز من ١٠٠ ببنود الاستمارة، مع توصيات المشرفة، ويُطبع أو يُحمَّل PDF بالكليشة.',
@@ -290,13 +290,15 @@ function idOpenList(kind) {
   idKind = kind;
   localStorage.setItem(KIND_KEY, kind);
   $('idListTitle').textContent = ID_KINDS[kind] === 'برنامج مشرفة مقيمة' ? 'تخطيط وتنفيذ ونتائج لبرنامج مشرفة مقيمة' : ID_KINDS[kind] === 'الاقتراحات والصعوبات' ? 'الاقتراحات والمرئيات – الصعوبات' : ID_KINDS[kind];
-  $('idListHint').textContent = ID_HINT[kind];
+  $('idListHint').textContent = ID_HINT[kind] || '';
+  $('idListHint').classList.toggle('hidden', !ID_HINT[kind]);
   show('idListView');
   loadIdari();
 }
 
 const sBtn = (txt, fn, cls) => '<button class="btn ' + (cls || 'light') + '" style="padding:6px 10px;font-size:13px" onclick="' + fn + '">' + txt + '</button>';
 function renderIdari() {
+  idStatsRender();
   const L = IDR.filter(r => r.kind === idKind);
   rcStart();
   if (!L.length) { $('idBody').innerHTML = rcEmpty('لا توجد نماذج محفوظة'); return; }
@@ -317,7 +319,7 @@ function renderIdari() {
     return rcCard({ no: arD(i + 1), title, sub, meta, tags: tags + scTag('idari', r.id),
       main: [['عرض', 'idOpen(\'' + id + '\')'], ['PDF', 'idDo(\'' + id + '\', this, \'pdf\')'], scAct('idari', r.id),
         idKind === 'visit' ? ['📲 للمديرة', 'idDo(\'' + id + '\', this, \'send\')', 'id-wa'] : null],
-      more: [['🔗 مشاركة', 'idDo(\'' + id + '\', this, \'share\')'], '-', ['✏️ تعديل', 'idEditRec(\'' + id + '\')'], ['🗑️ حذف', 'idDel(\'' + id + '\')', 'danger']] });
+      more: [['🔗 مشاركة', 'idDo(\'' + id + '\', this, \'share\')'], '-', ['✏️ تعديل', 'idEditRec(\'' + id + '\')'], ['✕ حذف', 'idDel(\'' + id + '\')', 'danger']] });
   }).join('');
 }
 const recById = id => IDR.find(r => r.id === id);
@@ -1039,6 +1041,80 @@ function idCollect(kind) {
   idEditRec = function (id) { _e(id); AD.offer(FORM_OF[idKind]); }; }
 
 /* ---------- استعادة الجلسة ---------- */
+/* ===================== المراكز المشرفة عليها + إحصائية تقرير الزيارة =====================
+   كل مشرفة تحدد المراكز التي تشرف عليها (تُحفظ في ورقة «مراكز المشرفات»)، وتظهر في قائمة «تقرير زيارة المشرفة»
+   إحصائية بالمراكز التي تمت زيارتها (مع عدد الزيارات وآخر زيارة) والتي لم تتم زيارتها. */
+let MYC = cacheGet('mycenters') || [];
+let mcLoaded = false;
+const mcNorm = s => String(s || '').trim();
+async function mcFetch() {
+  try { const out = await api('getMyCenters'); MYC = out.data || []; cacheSet('mycenters', MYC); mcLoaded = true; } catch (e) {}
+}
+async function mcOpen() {
+  show('mcView');
+  $('mcSearch').value = '';
+  mcSel = new Set(MYC.map(mcNorm));
+  mcRender();
+  await mcFetch();
+  mcSel = new Set(MYC.map(mcNorm));
+  mcRender();
+}
+let mcSel = new Set();
+function mcRender() {
+  const all = (LISTS.centers || []).map(mcNorm).filter(Boolean);
+  const q = $('mcSearch').value.trim();
+  const shown = all.filter(c => !q || c.indexOf(q) > -1);
+  $('mcList').innerHTML = shown.length ? shown.map(c => '<label class="check mc-item"><input type="checkbox" value="' + esc(c) + '"' + (mcSel.has(c) ? ' checked' : '') + ' onchange="mcPick(this)"><span>' + esc(c) + '</span></label>').join('')
+    : '<p class="empty">' + (all.length ? 'لا يوجد مركز بهذا الاسم' : 'جارِ تحميل المراكز...') + '</p>';
+  $('mcAll').checked = all.length > 0 && all.every(c => mcSel.has(c));
+  $('mcCount').textContent = 'المراكز المحددة: ' + mcSel.size + ' من ' + all.length;
+}
+function mcPick(el) { if (el.checked) mcSel.add(el.value); else mcSel.delete(el.value); mcRender(); }
+function mcToggleAll(on) { (LISTS.centers || []).map(mcNorm).filter(Boolean).forEach(c => on ? mcSel.add(c) : mcSel.delete(c)); mcRender(); }
+async function mcSave() {
+  const btn = $('mcSaveBtn');
+  setBtnBusy(btn, true, 'جارِ الحفظ...');
+  try {
+    const list = [...mcSel];
+    const out = await api('saveMyCenters', { centers: list });
+    MYC = out.data || list; cacheSet('mycenters', MYC);
+    toast('تم حفظ المراكز المشرفة عليها');
+    show('homeView');
+  } catch (e) { toast(e.message || 'تعذّر الحفظ', false); }
+  finally { setBtnBusy(btn, false); }
+}
+
+function idStatsRender() {
+  const box = $('idStats'); if (!box) return;
+  if (idKind !== 'visit') { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  if (!mcLoaded) mcFetch().then(() => { if (idKind === 'visit') idStatsRender(); });
+  if (!MYC.length) {
+    box.innerHTML = '<h2>إحصائية الزيارات</h2><p class="rp-hint">حدّدي أولاً المراكز التي تشرفين عليها، لتظهر هنا المراكز التي تمت زيارتها والتي لم تتم زيارتها.</p>' +
+      '<button class="btn light" onclick="mcOpen()">تحديد المراكز المشرفة عليها</button>';
+    return;
+  }
+  const visits = IDR.filter(r => r.kind === 'visit');
+  const by = {};
+  visits.forEach(r => { const c = mcNorm(r.center); if (!c) return; (by[c] = by[c] || []).push(r); });
+  const mine = MYC.map(mcNorm).filter(Boolean);
+  const done = mine.filter(c => by[c]).sort((a, b) => by[b].length - by[a].length || a.localeCompare(b, 'ar'));
+  const not = mine.filter(c => !by[c]).sort((a, b) => a.localeCompare(b, 'ar'));
+  const lastOf = c => { const L = by[c]; const r = L.slice().sort((a, b) => String(b.date || b.at || '').localeCompare(String(a.date || a.at || '')))[0]; return r && r.data && r.data.hd ? idHDate(r) : esc(r && r.date || ''); };
+  const visTbl = done.length ? '<div class="tbl-wrap"><table class="mc-tbl"><thead><tr><th>م</th><th>المركز</th><th>عدد الزيارات</th><th>آخر زيارة</th></tr></thead><tbody>' +
+    done.map((c, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(c) + '</td><td><b>' + by[c].length + '</b></td><td>' + lastOf(c) + '</td></tr>').join('') + '</tbody></table></div>'
+    : '<p class="empty">لم تتم زيارة أي مركز بعد</p>';
+  const notList = not.length ? '<div class="tbl-wrap"><table class="mc-tbl"><thead><tr><th>م</th><th>المركز</th></tr></thead><tbody>' +
+    not.map((c, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(c) + '</td></tr>').join('') + '</tbody></table></div>'
+    : '<p class="empty">تمت زيارة جميع المراكز المشرفة عليها</p>';
+  const open = box.querySelectorAll('details[open]');
+  const wasOpen = [...open].map(d => d.dataset.k);
+  box.innerHTML = '<h2>إحصائية الزيارات</h2>' +
+    '<details class="mc-fold" data-k="done"' + (wasOpen.indexOf('done') > -1 ? ' open' : '') + '><summary><span class="mc-ft">المراكز التي تمت زيارتها</span><span class="mc-cnt ok">' + done.length + '</span><span class="mc-arr">▾</span></summary>' + visTbl + '</details>' +
+    '<details class="mc-fold" data-k="not"' + (wasOpen.indexOf('not') > -1 ? ' open' : '') + '><summary><span class="mc-ft">المراكز التي لم تتم زيارتها</span><span class="mc-cnt no">' + not.length + '</span><span class="mc-arr">▾</span></summary>' + notList + '</details>' +
+    '<p style="margin:10px 0 0;font-size:13px;color:var(--muted)">من ' + mine.length + ' مركزاً تشرفين عليها — <a class="lnk" href="#" onclick="mcOpen();return false">تعديل المراكز</a></p>';
+}
+
 (function init() {
   loadLoginNames('users', 'un', { unit: ID_UNIT });
   idKind = localStorage.getItem(KIND_KEY) || 'visit';
@@ -1050,3 +1126,4 @@ function idCollect(kind) {
   else if (last === 'idListView' || (last && last.indexOf('id') === 0)) idOpenList(idKind);
   else { show('homeView'); loadIdari(true); }
 })();
+
