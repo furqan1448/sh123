@@ -1054,10 +1054,62 @@ async function mcOpen() {
   show('mcView');
   $('mcSearch').value = '';
   mcSel = new Set(MYC.map(mcNorm));
-  mcRender();
+  $('mcPickFold').open = !MYC.length;   // القائمة مصغّرة إن سبق الاختيار
+  mcRender(); mcSavedRender();
   await mcFetch();
   mcSel = new Set(MYC.map(mcNorm));
-  mcRender();
+  if (!MYC.length) $('mcPickFold').open = true;
+  mcRender(); mcSavedRender();
+}
+// المراكز المحفوظة (تحت القائمة) + تحميلها PDF وExcel
+const mcSorted = () => MYC.map(mcNorm).filter(Boolean).sort((a, b) => a.localeCompare(b, 'ar'));
+function mcSavedRender() {
+  const L = mcSorted();
+  $('mcSavedCnt').textContent = L.length;
+  $('mcSaved').innerHTML = L.length ? '<div class="tbl-wrap"><table class="mc-tbl"><thead><tr><th style="width:56px">م</th><th>المركز</th></tr></thead><tbody>' +
+    L.map((c, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(c) + '</td></tr>').join('') + '</tbody></table></div>'
+    : '<p class="empty">لم تحددي المراكز بعد. افتحي «اختيار المراكز» أعلاه.</p>';
+}
+const MC_CSS = `
+.im-page.mcp{width:794px;height:1123px;overflow:hidden;position:relative;background:#fff;font-size:16px}
+.im-page.mcp .idc-body{padding:0 40px}
+.im-page.mcp .idc-title{font-size:22px;margin:14px 0 10px}
+.im-page.mcp .mc-meta{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px 18px;font-weight:700;margin:0 0 10px}
+.im-page.mcp td{height:36px;padding:4px 10px;font-size:16px}
+.im-page.mcp td.r{text-align:right}
+.im-page.mcp .mc-pg{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:12px;color:#777}
+`;
+function mcHDate() {
+  try {
+    const p = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura-nu-latn', { day: 'numeric', month: 'numeric', year: 'numeric' }).formatToParts(new Date());
+    const g = t => ((p.find(x => x.type === t) || {}).value || '').replace(/\D/g, '');
+    return idDigits(g('day')) + '/' + idDigits(g('month')) + '/' + idDigits(g('year')) + 'هـ';
+  } catch (e) { return ''; }
+}
+async function mcPdf(btn) {
+  const L = mcSorted();
+  if (!L.length) return toast('لا توجد مراكز محفوظة', false);
+  setBtnBusy(btn, true, 'جارِ التجهيز...');
+  try {
+    const per = 21, pages = [];
+    for (let i = 0; i < L.length; i += per) pages.push(L.slice(i, i + per).map((c, k) => '<tr><td class="idc-n">' + idDigits(i + k + 1) + '</td><td class="r">' + esc(c) + '</td></tr>').join(''));
+    const val = x => '<span class="idc-m">' + x + '</span>';
+    const html = pages.map((rows, i) => '<div class="im-page mcp"><img class="idc-lh" src="' + ID_LETTERHEAD + '" width="2000" height="351" alt=""><div class="idc-body">' +
+      '<div class="idc-title">المراكز المشرفة عليها</div>' +
+      '<div class="mc-meta"><span>المشرفة: ' + val(esc(localStorage.getItem(NAME_KEY) || getUser())) + '</span><span>عدد المراكز: ' + val(idDigits(L.length)) + '</span><span>التاريخ: ' + val(mcHDate()) + '</span></div>' +
+      '<table><colgroup><col style="width:70px"><col></colgroup><tr><th>م</th><th>اسم المركز</th></tr>' + rows + '</table></div>' +
+      (pages.length > 1 ? '<div class="mc-pg">صفحة ' + idDigits(i + 1) + ' من ' + idDigits(pages.length) + '</div>' : '') + '</div>');
+    idSaveBlob(await idPagesPdf(html, MC_CSS, true), 'المراكز_المشرفة_عليها.pdf');
+    toast('تم التحميل');
+  } catch (e) { toast(e.message || 'تعذّر تحميل PDF', false); }
+  finally { setBtnBusy(btn, false); }
+}
+function mcXlsx(btn) {
+  const L = mcSorted();
+  if (!L.length) return toast('لا توجد مراكز محفوظة', false);
+  exRun({ title: 'المراكز المشرفة عليها', file: 'المراكز_المشرفة_عليها', landscape: false,
+    info: [['المشرفة', localStorage.getItem(NAME_KEY) || getUser()], ['عدد المراكز', String(L.length)]],
+    cols: ['م', 'اسم المركز'], widths: [8, 70], rows: L.map((c, i) => [i + 1, c]), sections: [], totals: [], notes: [] }, btn);
 }
 let mcSel = new Set();
 function mcRender() {
@@ -1068,6 +1120,7 @@ function mcRender() {
     : '<p class="empty">' + (all.length ? 'لا يوجد مركز بهذا الاسم' : 'جارِ تحميل المراكز...') + '</p>';
   $('mcAll').checked = all.length > 0 && all.every(c => mcSel.has(c));
   $('mcCount').textContent = 'المراكز المحددة: ' + mcSel.size + ' من ' + all.length;
+  $('mcPickCnt').textContent = mcSel.size + ' / ' + all.length;
 }
 function mcPick(el) { if (el.checked) mcSel.add(el.value); else mcSel.delete(el.value); mcRender(); }
 function mcToggleAll(on) { (LISTS.centers || []).map(mcNorm).filter(Boolean).forEach(c => on ? mcSel.add(c) : mcSel.delete(c)); mcRender(); }
@@ -1079,7 +1132,9 @@ async function mcSave() {
     const out = await api('saveMyCenters', { centers: list });
     MYC = out.data || list; cacheSet('mycenters', MYC);
     toast('تم حفظ المراكز المشرفة عليها');
-    show('homeView');
+    $('mcPickFold').open = false;
+    mcSavedRender();
+    window.scrollTo({ top: $('mcSaved').getBoundingClientRect().top + window.scrollY - 120, behavior: 'smooth' });
   } catch (e) { toast(e.message || 'تعذّر الحفظ', false); }
   finally { setBtnBusy(btn, false); }
 }

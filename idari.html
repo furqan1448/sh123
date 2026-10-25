@@ -175,11 +175,21 @@
     <div class="card">
       <h2>المراكز المشرفة عليها</h2>
       <p class="rp-hint">ضعي علامة ✔ على المراكز التي تشرفين عليها، ثم احفظي. وتظهر في إحصائية تقرير الزيارة المراكز التي تمت زيارتها والتي لم تتم زيارتها منها.</p>
-      <input id="mcSearch" placeholder="ابحثي باسم المركز" autocomplete="off" oninput="mcRender()">
-      <label class="check" style="margin:12px 0 6px"><input type="checkbox" id="mcAll" onchange="mcToggleAll(this.checked)"><span>تحديد الكل</span></label>
-      <div id="mcList" class="mc-list"><p class="empty">جارِ التحميل...</p></div>
-      <p id="mcCount" style="font-weight:700;color:var(--muted);margin:10px 0 0"></p>
-      <button id="mcSaveBtn" class="btn block" style="margin-top:12px" onclick="mcSave()">حفظ</button>
+      <details class="mc-fold" id="mcPickFold">
+        <summary><span class="mc-ft">اختيار المراكز</span><span class="mc-cnt ok" id="mcPickCnt">0</span><span class="mc-arr">▾</span></summary>
+        <div style="padding:0 12px 12px">
+          <input id="mcSearch" placeholder="ابحثي باسم المركز" autocomplete="off" oninput="mcRender()">
+          <label class="check" style="margin:12px 0 6px"><input type="checkbox" id="mcAll" onchange="mcToggleAll(this.checked)"><span>تحديد الكل</span></label>
+          <div id="mcList" class="mc-list"><p class="empty">جارِ التحميل...</p></div>
+          <p id="mcCount" style="font-weight:700;color:var(--muted);margin:10px 0 0"></p>
+          <button id="mcSaveBtn" class="btn block" style="margin-top:12px" onclick="mcSave()">حفظ</button>
+        </div>
+      </details>
+    </div>
+    <div class="card">
+      <h2>المراكز المشرفة عليها <span class="tag ok" id="mcSavedCnt">0</span></h2>
+      <div id="mcSaved"><p class="empty">جارِ التحميل...</p></div>
+      <div class="ex-bar"><button class="btn light" onclick="mcPdf(this)">تحميل PDF</button><button class="btn light" onclick="mcXlsx(this)">تحميل Excel</button></div>
     </div>
   </div>
 
