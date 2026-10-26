@@ -433,8 +433,9 @@ const KF_CSS = `
 .im-page.kf td.idc-n{color:#888}
 .im-page.kf img.kf-sig{height:27px;width:auto;max-width:130px;display:block;margin:auto}
 .im-page.kf .kf-pg{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:11px;color:#000}
-/* التنسيق المعتمد: رسمي بالأسود، ورأس الجدول عنابي، واسم المركز عنابي بشريط جانبي، وخط IBM Plex */
-.idoc .im-page.kf,.idoc .im-page.kf *{font-family:'IBM Plex Sans Arabic','Tajawal',Tahoma,sans-serif !important}
+/* التنسيق المعتمد: رسمي بالأسود، ورأس الجدول عنابي، واسم المركز عنابي بشريط جانبي، وخط Tajawal مع عنوان Amiri مثل نظام المقاصف */
+.idoc .im-page.kf,.idoc .im-page.kf *{font-family:'Tajawal','Segoe UI',Tahoma,sans-serif !important}
+.idoc .im-page.kf .kf-title{font-family:'Amiri',serif !important;font-size:26px}
 .idoc .im-page.kf td{height:34px;font-size:14px;font-weight:400;color:#000 !important}
 .idoc .im-page.kf th,.idoc .im-page.kf td{border:1px solid #000 !important}
 .idoc .im-page.kf th{background:#7a1f2b !important;color:#fff !important;border-color:#000 !important;font-weight:700;font-size:14px}
@@ -472,7 +473,7 @@ async function kfSigs(rows) {
 async function kfPages(rows, lhUrl) {
   if (!document.getElementById('kfFont')) { const l = document.createElement('link'); l.id = 'kfFont'; l.rel = 'stylesheet'; l.href = ID_FONT_CSS; document.head.appendChild(l); }
   await kfSigs(rows);
-  try { await document.fonts.load("14px 'IBM Plex Sans Arabic'"); } catch (e) {}
+  try { await Promise.all([document.fonts.load("14px 'Tajawal'"), document.fonts.load("700 26px 'Amiri'")]); } catch (e) {}
   const m = exVisitsModel(rows);
   const lh = esc(lhUrl || ID_LETTERHEAD);
   const today = new Date(); const td = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');

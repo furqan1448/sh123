@@ -3,7 +3,7 @@
 const ID_LETTERHEAD = 'letterhead.jpg';
 const ID_UNIT = 'وحدة الإشراف الإداري';
 const ID_PDF_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-const ID_FONT_CSS = 'https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=IBM+Plex+Sans+Arabic:wght@400;700&display=swap';
+const ID_FONT_CSS = 'https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Amiri:wght@400;700&display=swap';
 const ID_IMG_LIB = 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js';   // مثل نظام المقاصف: يرسم النموذج بمحرك المتصفح نفسه
 const ID_KINDS = {
   visit: 'تقرير زيارة المشرفة',
@@ -114,6 +114,8 @@ const ID_CSS = `
    رأس الجدول عنابي بكتابة بيضاء، وخلايا البيانات والمجالات بيج فاتح، وسطور المجموع بيج، والحدود بيج رمادي فاتح. */
 /* التنسيق الموحد لجميع النماذج والاستمارات: عنوان عنابي بلا خلفية، ورأس الجدول وردي فاتح بكتابة عنابية، وحدود فاتحة */
 .idoc .idc-title{background:transparent !important;color:#7a1f2b !important;border:0 !important;padding:4px 10px !important;line-height:1.35}
+/* الخطوط مثل نظام المقاصف: النص Tajawal وعناوين النماذج Amiri */
+.idoc .idc-title,.idoc .kf-title{font-family:'Amiri',serif !important;font-weight:700}
 .idoc th:not(.hs-s){background:#f3e3e6 !important;color:#7a1f2b !important;border-color:#e2cdd2 !important}
 .idoc td{border-color:#e2cdd2 !important}
 .idoc .idc-info td,.idoc .sge-info td,.idoc .tv-info td,.idoc td.idc-lbl,.idoc td.k,.idoc td.im-t{background:#fff !important}
