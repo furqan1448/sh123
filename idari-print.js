@@ -3,7 +3,7 @@
 const ID_LETTERHEAD = 'letterhead.jpg';
 const ID_UNIT = 'وحدة الإشراف الإداري';
 const ID_PDF_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-const ID_FONT_CSS = 'https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap';
+const ID_FONT_CSS = 'https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=IBM+Plex+Sans+Arabic:wght@400;700&display=swap';
 const ID_IMG_LIB = 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js';   // مثل نظام المقاصف: يرسم النموذج بمحرك المتصفح نفسه
 const ID_KINDS = {
   visit: 'تقرير زيارة المشرفة',

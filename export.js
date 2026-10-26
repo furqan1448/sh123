@@ -432,14 +432,21 @@ const KF_CSS = `
 .im-page.kf .kf-tot b{color:#7a1f2b;font-size:17px}
 .im-page.kf td.idc-n{color:#888}
 .im-page.kf img.kf-sig{height:27px;width:auto;max-width:130px;display:block;margin:auto}
-.im-page.kf .kf-pg{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:11px;color:#999}
-/* التنسيق المعتمد: رأس عنابي، وصف المركز والبطاقات وردية، وحدود وردية ناعمة */
-.idoc .im-page.kf th,.idoc .im-page.kf td{border:1px solid #e3c3ca !important}
-.idoc .im-page.kf th{background:#7a1f2b !important;color:#fff !important;border-color:#7a1f2b !important}
-.idoc .im-page.kf tr.kf-c td{background:#f1dde1;border:1px solid #e3c3ca !important;padding-top:3px}
-.idoc .im-page.kf tr.kf-t td{border:0 !important}
-.im-page.kf .kf-cards>div,.im-page.kf .kf-tot>div{background:#f6e8eb;border-color:#e3c3ca}
-.im-page.kf .kf-cards span,.im-page.kf .kf-tot span{color:#7a1f2b}
+.im-page.kf .kf-pg{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:11px;color:#000}
+/* التنسيق المعتمد: رسمي بالأسود، ورأس الجدول عنابي، واسم المركز عنابي بشريط جانبي، وخط IBM Plex */
+.idoc .im-page.kf,.idoc .im-page.kf *{font-family:'IBM Plex Sans Arabic','Tajawal',Tahoma,sans-serif !important}
+.idoc .im-page.kf td{height:34px;font-size:14px;font-weight:400;color:#000 !important}
+.idoc .im-page.kf th,.idoc .im-page.kf td{border:1px solid #000 !important}
+.idoc .im-page.kf th{background:#7a1f2b !important;color:#fff !important;border-color:#000 !important;font-weight:700;font-size:14px}
+.idoc .im-page.kf tr.kf-c td{border:1px solid #000 !important;background:#f4e1e4 !important;color:#7a1f2b !important;padding-top:3px;font-weight:700}
+.idoc .im-page.kf tr.kf-t td{border:0 !important;background:transparent !important}
+.im-page.kf td.idc-n{color:#000 !important}
+.im-page.kf .kf-title{color:#7a1f2b !important}
+.im-page.kf .kf-cards{gap:40px;justify-content:flex-start}
+.im-page.kf .kf-tot{gap:40px;padding-top:4px}
+.im-page.kf .kf-cards>div,.im-page.kf .kf-tot>div{flex:0 0 auto;min-width:0;background:none !important;border:0 !important;padding:0 !important;gap:8px;justify-content:flex-start}
+.im-page.kf .kf-cards span,.im-page.kf .kf-tot span{color:#000 !important;font-weight:700}
+.im-page.kf .kf-cards b,.im-page.kf .kf-tot b,.im-page.kf .kf-cards b *,.im-page.kf .kf-tot b *{color:#7a1f2b !important}
 `;
 function kfHijri(dateStr) {
   const p = String(dateStr || '').split(' ')[0].split('-');
@@ -463,12 +470,14 @@ async function kfSigs(rows) {
 }
 // صفحات الكشف: نقيس ارتفاع كل صف فعلياً ونبدأ صفحة جديدة عند امتلاء الصفحة
 async function kfPages(rows, lhUrl) {
+  if (!document.getElementById('kfFont')) { const l = document.createElement('link'); l.id = 'kfFont'; l.rel = 'stylesheet'; l.href = ID_FONT_CSS; document.head.appendChild(l); }
   await kfSigs(rows);
+  try { await document.fonts.load("14px 'IBM Plex Sans Arabic'"); } catch (e) {}
   const m = exVisitsModel(rows);
   const lh = esc(lhUrl || ID_LETTERHEAD);
   const today = new Date(); const td = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
   const centersN = (m.info.find(x => x[0] === 'المراكز') || [])[1] || '';
-  const card = (l, v) => '<div><span>' + l + '</span><b>' + v + '</b></div>';
+  const card = (l, v) => '<div><span>' + l + ':</span><b><bdi>' + v + '</bdi></b></div>';
   const top = '<img class="idc-lh" src="' + lh + '" width="2000" height="351" alt=""><div class="idc-body"><div class="kf-title">كشف خروج المشرفة</div>' +
     '<div class="kf-cards">' + card('المشرفة', esc(getUser())) + card('تاريخ التقرير', kfGreg(td)) + card('عدد المراكز', idDigits(centersN)) + '</div>';
   const thead = '<table><colgroup><col style="width:4%"><col style="width:10%"><col style="width:8%"><col style="width:16%"><col style="width:15%"><col style="width:28%"><col style="width:19%"></colgroup>' +
