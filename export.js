@@ -413,34 +413,36 @@ function exPrefetch() {
    الكليشة الحمراء من الطرف إلى الطرف، والعنوان العنابي، وجدول لكل مركز فيه صورة توقيع المديرة،
    مع إجمالي أيام الحضور والغياب. يُقسَّم تلقائياً على صفحات A4 طولية (الكليشة أعلى كل صفحة). */
 const KF_CSS = `
-.im-page.kf{width:794px;height:1123px;overflow:hidden;position:relative;background:#fff;font-size:15px}
-.im-page.kf .idc-body{padding:0 26px}
-.im-page.kf .idc-title{font-size:21px;margin:12px 0 8px}
-.im-page.kf .kf-meta{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px 18px;font-weight:700;margin:0 0 8px}
-.im-page.kf table{font-size:14.5px;table-layout:fixed}
-.im-page.kf th{padding:5px 6px;font-size:14.5px}
-.im-page.kf td{padding:4px 6px;height:34px}
-.im-page.kf tr.kf-c td{background:#faf6f6;color:#7a1f2b;font-weight:800;text-align:right;font-size:15.5px}
-.im-page.kf tr.kf-f td{background:#f2f2f2;font-weight:800}
-.im-page.kf tr.kf-t td{background:#f2f2f2;font-weight:800;color:#7a1f2b;font-size:15.5px}
-.im-page.kf img.kf-sig{max-height:40px;max-width:130px;display:block;margin:auto}
-.im-page.kf .kf-pg{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:12px;color:#777}
-/* ألوان استمارة تقييم مسؤولة المقصف: رأس الجدول عنابي بكتابة بيضاء، وخلايا العناوين بيج، والإجمالي عنابي */
-.im-page.kf th,.im-page.kf td{border-color:#cdbfb5}
-.im-page.kf th{background:#8d192c;color:#fff;border-color:#8d192c}
-.im-page.kf tr.kf-c td{background:#f4efe9;color:#8d192c}
-.im-page.kf tr.kf-t td{background:#8d192c;color:#fff;border-color:#8d192c}
-.im-page.kf td{color:#2b2321}
-.im-page.kf td.idc-n{color:#8d192c}
+.im-page.kf{width:1123px;height:794px;overflow:hidden;position:relative;background:#fff;font-size:13px}
+.im-page.kf .idc-body{padding:0 24px}
+.im-page.kf table{font-size:13px;table-layout:fixed;width:100%;border-collapse:collapse}
+.im-page.kf th,.im-page.kf td{border:1px solid #dcc8cd;color:#2b2321}
+.im-page.kf th{padding:7px 6px;font-size:13px;background:#7a1f2b;color:#fff;border-color:#7a1f2b}
+.im-page.kf td{padding:3px 6px;height:30px;text-align:center}
+.im-page.kf .kf-head{margin:10px 0 12px}
+.im-page.kf .kf-head td{height:24px;padding:2px 8px;text-align:right}
+.im-page.kf .kf-head td.kf-bar{background:#7a1f2b;color:#fff;border-color:#7a1f2b;text-align:center;font-weight:800;font-size:16px;height:32px}
+.im-page.kf .kf-head td.kf-l{background:#f6f0f2;font-weight:800}
+.im-page.kf tr.kf-c td{background:#f3e3e6;color:#7a1f2b;font-weight:800;text-align:right;height:26px}
+.im-page.kf tr.kf-t td{background:#efe3e6;font-weight:800;height:26px}
+.im-page.kf tr.kf-t td.kf-l{color:#7a1f2b;text-align:right}
+.im-page.kf td.idc-n{color:#2b2321}
+.im-page.kf img.kf-sig{height:26px;width:auto;max-width:120px;display:block;margin:auto}
+.im-page.kf td{line-height:1.3}
+.im-page.kf .kf-pg{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:11px;color:#777}
 `;
 function kfHijri(dateStr) {
   const p = String(dateStr || '').split(' ')[0].split('-');
-  if (p.length !== 3) return idDigits(dateStr || '');
+  if (p.length !== 3) return '';
   try {
-    const parts = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura-nu-latn', { day: 'numeric', month: 'numeric', year: 'numeric' }).formatToParts(new Date(+p[0], +p[1] - 1, +p[2]));
-    const g = t => ((parts.find(x => x.type === t) || {}).value || '').replace(/\D/g, '');
-    return '<span class="idc-date"><bdi>' + idDigits(g('day')) + '</bdi>/<bdi>' + idDigits(g('month')) + '</bdi>/<bdi>' + idDigits(g('year')) + 'هـ</bdi></span>';
-  } catch (e) { return idDigits(dateStr); }
+    const parts = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' }).formatToParts(new Date(+p[0], +p[1] - 1, +p[2]));
+    const g = t => ((parts.find(x => x.type === t) || {}).value || '');
+    return '<bdi>' + idDigits(g('day').replace(/\D/g, '')) + ' ' + esc(g('month')) + ' ' + idDigits(g('year').replace(/\D/g, '')) + ' هـ</bdi>';
+  } catch (e) { return ''; }
+}
+function kfGreg(d) {
+  const p = String(d || '').split(' ')[0].split('-');
+  return p.length === 3 ? '<span class="idc-date"><bdi>' + idDigits(p[0]) + '</bdi>-<bdi>' + idDigits(p[1]) + '</bdi>-<bdi>' + idDigits(p[2]) + '</bdi></span>' : esc(d || '');
 }
 async function kfSigs(rows) {
   const need = rows.filter(v => v.signature && v.id && !VSIG[v.id]).map(v => ({ id: v.id }));
@@ -455,12 +457,14 @@ async function kfPages(rows, lhUrl) {
   const m = exVisitsModel(rows);
   const lh = esc(lhUrl || ID_LETTERHEAD);
   const today = new Date(); const td = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-  const val = x => '<span class="idc-m">' + x + '</span>';
   const centersN = (m.info.find(x => x[0] === 'المراكز') || [])[1] || '';
-  const top = '<img class="idc-lh" src="' + lh + '" width="2000" height="351" alt=""><div class="idc-body"><div class="idc-title">كشف خروج المشرفة</div>' +
-    '<div class="kf-meta"><span>المشرفة: ' + val(esc(getUser())) + '</span><span>المراكز: ' + val(idDigits(centersN)) + '</span><span>تاريخ الكشف: ' + val(kfHijri(td)) + '</span></div>';
-  const thead = '<table><colgroup><col style="width:44px"><col style="width:16%"><col style="width:12%"><col><col style="width:17%"><col style="width:150px"></colgroup>' +
-    '<tr><th>م</th><th>التاريخ</th><th>اليوم</th><th>نوع الزيارة</th><th>الحالة</th><th>توقيع المديرة</th></tr>';
+  const top = '<img class="idc-lh" src="' + lh + '" width="2000" height="351" alt=""><div class="idc-body">' +
+    '<table class="kf-head"><colgroup><col style="width:15%"><col></colgroup><tr><td class="kf-bar" colspan="2">كشف خروج المشرفة</td></tr>' +
+    '<tr><td class="kf-l">المشرفة</td><td>' + esc(getUser()) + '</td></tr>' +
+    '<tr><td class="kf-l">تاريخ التقرير</td><td>' + kfGreg(td) + '</td></tr>' +
+    '<tr><td class="kf-l">المراكز</td><td>' + idDigits(centersN) + '</td></tr></table>';
+  const thead = '<table><colgroup><col style="width:4%"><col style="width:10%"><col style="width:8%"><col style="width:16%"><col style="width:15%"><col style="width:28%"><col style="width:19%"></colgroup>' +
+    '<tr><th>م</th><th>التاريخ</th><th>اليوم</th><th>الموافق</th><th>نوع الزيارة</th><th>الحالة</th><th>توقيع المديرة</th></tr>';
   const list = [];
   let att = 0, abs = 0;
   const byCenter = {};
@@ -468,19 +472,20 @@ async function kfPages(rows, lhUrl) {
   Object.keys(byCenter).sort((a, b) => a.localeCompare(b, 'ar')).forEach(c => {
     const L = byCenter[c].slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
     const a1 = L.filter(v => !vIsAbsent(v)).length, a2 = L.length - a1; att += a1; abs += a2;
-    list.push('<tr class="kf-c"><td colspan="6">المركز: ' + esc(c) + '</td></tr>');
-    L.forEach((v, i) => list.push('<tr><td class="idc-n">' + idDigits(i + 1) + '</td><td>' + kfHijri(v.date) + '</td><td>' + esc(v.day || '') + '</td><td>' + esc(v.type || '—') + '</td><td>' + esc(vStatusOf(v)) + '</td><td>' +
+    list.push('<tr class="kf-c"><td colspan="7">' + esc(c) + '</td></tr>');
+    L.forEach((v, i) => list.push('<tr><td class="idc-n">' + idDigits(i + 1) + '</td><td>' + kfGreg(v.date) + '</td><td>' + esc(v.day || '') + '</td><td>' + kfHijri(v.date) + '</td><td>' + esc(v.type || '—') + '</td><td>' + esc(vStatusOf(v)) + '</td><td>' +
       (VSIG[v.id] ? '<img class="kf-sig" src="' + VSIG[v.id] + '" alt="">' : '') + '</td></tr>'));
   });
-  list.push('<tr class="kf-t"><td colspan="3">الإجمالي العام لأيام الحضور: ' + idDigits(att) + '</td><td colspan="3">الإجمالي العام لأيام الغياب: ' + idDigits(abs) + '</td></tr>');
+  list.push('<tr class="kf-t"><td class="kf-l" colspan="2">إجمالي أيام الحضور</td><td colspan="5">' + idDigits(att) + '</td></tr>' +
+    '<tr class="kf-t"><td class="kf-l" colspan="2">إجمالي أيام الغياب</td><td colspan="5">' + idDigits(abs) + '</td></tr>');
   // القياس
   const box = document.createElement('div');
-  box.style.cssText = 'position:absolute;top:0;left:-3000px;width:794px;visibility:hidden;direction:rtl';
-  box.innerHTML = '<style>' + ID_CSS + KF_CSS + '.idoc{width:794px;padding:0}</style><div class="idoc ptdoc"><div class="im-page kf">' + top + thead + '</table></div></div></div>';
+  box.style.cssText = 'position:absolute;top:0;left:-3000px;width:1123px;visibility:hidden;direction:rtl';
+  box.innerHTML = '<style>' + ID_CSS + KF_CSS + '.idoc{width:1123px;padding:0}</style><div class="idoc imdoc"><div class="im-page kf">' + top + thead + '</table></div></div></div>';
   document.body.appendChild(box);
   const page = box.querySelector('.im-page');
   await Promise.all([...box.querySelectorAll('img')].map(x => x.complete ? 0 : new Promise(r => { x.onload = x.onerror = r; })));
-  const limit = 1123 - 40;
+  const limit = 794 - 62;
   const pages = []; let cur = [];
   const table = () => page.querySelector('table');
   let curCenter = '';
@@ -490,7 +495,8 @@ async function kfPages(rows, lhUrl) {
     if (page.querySelector('.idc-body').getBoundingClientRect().bottom - page.getBoundingClientRect().top > limit && cur.length) {
       // عنوان المركز لا يبقى وحده أسفل الصفحة: ينتقل مع أول زيارة إلى الصفحة التالية
       const carry = cur[cur.length - 1].indexOf('kf-c') > -1 ? [cur.pop()]
-        : (tr.indexOf('kf-c') < 0 && tr.indexOf('kf-t') < 0 && curCenter ? [curCenter.replace('المركز: ', 'تابع المركز: ')] : []);   // نكرر اسم المركز أعلى الصفحة التالية
+        : (tr.indexOf('kf-t') > -1 && cur.length > 2 && curCenter ? [curCenter.replace('<td colspan="7">', '<td colspan="7">تابع: '), cur.pop()]   // الإجمالي لا يبقى وحده في صفحة
+        : (tr.indexOf('kf-c') < 0 && tr.indexOf('kf-t') < 0 && curCenter ? [curCenter.replace('<td colspan="7">', '<td colspan="7">تابع: ')] : []));   // نكرر اسم المركز أعلى الصفحة التالية
       pages.push(cur); cur = carry;
       table().innerHTML = thead.replace(/^<table>/, '') + carry.join('');
       table().insertAdjacentHTML('beforeend', tr);
@@ -512,7 +518,7 @@ async function kfPdf(btn) {
   if (btn) setBtnBusy(btn, true, 'جارِ التجهيز...');
   try {
     const pages = await kfPages(rows);
-    idSaveBlob(await idPagesPdf(pages, KF_CSS, true), 'كشف_الخروج_' + getUser().replace(/\s+/g, '_') + '.pdf');
+    idSaveBlob(await idPagesPdf(pages, KF_CSS, false), 'كشف_الخروج_' + getUser().replace(/\s+/g, '_') + '.pdf');
     toast('تم التحميل');
   } catch (e) { toast(e.message || 'تعذّر تحميل PDF', false); }
   finally { if (btn) setBtnBusy(btn, false); }

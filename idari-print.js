@@ -110,6 +110,19 @@ const ID_CSS = `
 .idoc .idc-subject{font-weight:800;color:#7a1f2b;font-size:15.5px;margin:0 0 12px}
 .idoc td.idc-note-c{text-align:right;padding-right:14px;height:52px}
 .idoc td.idc-rec-c{text-align:right;padding-right:14px;font-weight:700}
+/* ===== التنسيق الموحّد لكل الكشوف والاستمارات (ألوان استمارة تقييم مسؤولة المقصف) =====
+   رأس الجدول عنابي بكتابة بيضاء، وخلايا البيانات والمجالات بيج فاتح، وسطور المجموع بيج، والحدود بيج رمادي فاتح. */
+.idoc th:not(.hs-s){background:#7a1f2b !important;color:#fff !important;border-color:#7a1f2b !important}
+.idoc td{border-color:#dcc8cd !important}
+.idoc .idc-info td,.idoc .sge-info td,.idoc .tv-info td,.idoc td.idc-lbl,.idoc td.k,.idoc td.im-t{background:#f6f0f2 !important;color:#2b2321 !important}
+.idoc td.sge-g,.idoc td.tv-g,.idoc td.im-g,.idoc td.g{background:#f3e3e6 !important;color:#7a1f2b !important}
+.idoc tr.sge-sum td,.idoc tr.tv-sum td,.idoc tr.tv-sub td{background:#efe3e6 !important}
+.idoc .sge-box b,.idoc .tv-box b{background:#7a1f2b !important;color:#fff !important;border-color:#7a1f2b !important}
+.idoc .sge-box,.idoc .tv-box{border-color:#dcc8cd !important}
+.idoc .im-band{background:#f6f0f2;border-color:#dcc8cd}
+.idoc .idc-m,.idoc td.idc-n{color:#7a1f2b}
+/* عنوان كل كشف واستمارة: شريط عنابي بعرض الجدول وكتابة بيضاء (مثل ملف الإكسل) */
+.idoc .idc-title{background:#7a1f2b !important;color:#fff !important;border:1px solid #7a1f2b;padding:7px 10px !important;line-height:1.35}
 `;
 
 /* ---------- محتوى النموذج (نفس الشكل للعرض والطباعة والـ PDF) ---------- */
