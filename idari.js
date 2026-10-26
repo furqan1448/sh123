@@ -1069,6 +1069,9 @@ function mcPeriod(c) {
   const m = /مسائ/.test(t), s = /صباح/.test(t);
   return m && s ? 'both' : m ? 'pm' : s ? 'am' : '';
 }
+const MC_GROUPS = [['am', 'أسماء المراكز للفترة الصباحية'], ['pm', 'أسماء المراكز للفترة المسائية'], ['both', 'أسماء المراكز للفترتين الصباحية والمسائية'], ['', 'مراكز بدون فترة محددة']];
+// تقسيم المراكز حسب الفترة: [{ k, title, list }]
+const mcGroups = L => MC_GROUPS.map(([k, title]) => ({ k, title, list: L.filter(c => mcPeriod(c) === k) })).filter(g => g.list.length);
 function mcPeriodLine(L, lead) {
   const am = L.filter(c => mcPeriod(c) === 'am').length, pm = L.filter(c => mcPeriod(c) === 'pm').length,
     both = L.filter(c => mcPeriod(c) === 'both').length, none = L.length - am - pm - both;
@@ -1079,7 +1082,7 @@ function mcSavedRender() {
   const L = mcSorted();
   $('mcSavedCnt').textContent = L.length;
   $('mcSaved').innerHTML = L.length ? mcPeriodLine(L) + '<div class="tbl-wrap"><table class="mc-tbl"><thead><tr><th style="width:56px">م</th><th>المركز</th></tr></thead><tbody>' +
-    L.map((c, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(c) + '</td></tr>').join('') + '</tbody></table></div>'
+    mcGroups(L).map(g => '<tr class="mc-gh"><td colspan="2">' + g.title + ' (' + g.list.length + ')</td></tr>' + g.list.map((c, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(c) + '</td></tr>').join('')).join('') + '</tbody></table></div>'
     : '<p class="empty">لم تحددي المراكز بعد. افتحي «اختيار المراكز» أعلاه.</p>';
 }
 const MC_CSS = `
@@ -1089,6 +1092,7 @@ const MC_CSS = `
 .im-page.mcp .mc-meta{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px 18px;font-weight:700;margin:0 0 10px}
 .im-page.mcp td{height:36px;padding:4px 10px;font-size:16px}
 .im-page.mcp td.r{text-align:right}
+.im-page.mcp tr.mc-gh td{background:#faf6f6;color:#7a1f2b;font-weight:800;text-align:right;font-size:16.5px}
 .im-page.mcp .mc-pg{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:12px;color:#777}
 `;
 function mcHDate() {
@@ -1103,8 +1107,19 @@ async function mcPdf(btn) {
   if (!L.length) return toast('لا توجد مراكز محفوظة', false);
   setBtnBusy(btn, true, 'جارِ التجهيز...');
   try {
-    const per = 21, pages = [];
-    for (let i = 0; i < L.length; i += per) pages.push(L.slice(i, i + per).map((c, k) => '<tr><td class="idc-n">' + idDigits(i + k + 1) + '</td><td class="r">' + esc(c) + '</td></tr>').join(''));
+    // صفوف مجمّعة حسب الفترة: عنوان لكل فترة ثم مراكزها بترقيم مستقل
+    const items = [];
+    mcGroups(L).forEach(g => {
+      items.push({ h: 1, html: '<tr class="mc-gh"><td colspan="2">' + g.title + ' (' + idDigits(g.list.length) + ')</td></tr>' });
+      g.list.forEach((c, k) => items.push({ html: '<tr><td class="idc-n">' + idDigits(k + 1) + '</td><td class="r">' + esc(c) + '</td></tr>' }));
+    });
+    const per = 20, pages = [];
+    let cur = [];
+    items.forEach(it => {
+      if (cur.length >= per) { const carry = cur[cur.length - 1].h ? [cur.pop()] : []; pages.push(cur.map(x => x.html).join('')); cur = carry; }
+      cur.push(it);
+    });
+    if (cur.length) pages.push(cur.map(x => x.html).join(''));
     const val = x => '<span class="idc-m">' + x + '</span>';
     const html = pages.map((rows, i) => '<div class="im-page mcp"><img class="idc-lh" src="' + ID_LETTERHEAD + '" width="2000" height="351" alt=""><div class="idc-body">' +
       '<div class="idc-title">المراكز المشرفة عليها</div>' +
@@ -1123,7 +1138,7 @@ function mcXlsx(btn) {
   exRun({ title: 'المراكز المشرفة عليها', file: 'المراكز_المشرفة_عليها', landscape: false,
     info: [['المشرفة', localStorage.getItem(NAME_KEY) || getUser()], ['عدد المراكز', String(L.length)],
       ['الفترة الصباحية', String(L.filter(c => mcPeriod(c) === 'am').length)], ['الفترة المسائية', String(L.filter(c => mcPeriod(c) === 'pm').length)]],
-    cols: ['م', 'اسم المركز'], widths: [8, 70], rows: L.map((c, i) => [i + 1, c]), sections: [], totals: [], notes: [] }, btn);
+    cols: ['م', 'اسم المركز'], widths: [8, 70], sections: mcGroups(L).map(g => ({ title: g.title + ' (' + g.list.length + ')', rows: g.list.map((c, i) => [i + 1, c]) })), totals: [], notes: [] }, btn);
 }
 let mcSel = new Set();
 function mcRender() {
@@ -1171,10 +1186,10 @@ function idStatsRender() {
   const not = mine.filter(c => !by[c]).sort((a, b) => a.localeCompare(b, 'ar'));
   const lastOf = c => { const L = by[c]; const r = L.slice().sort((a, b) => String(b.date || b.at || '').localeCompare(String(a.date || a.at || '')))[0]; return r && r.data && r.data.hd ? idHDate(r) : esc(r && r.date || ''); };
   const visTbl = done.length ? '<div class="tbl-wrap"><table class="mc-tbl"><thead><tr><th>م</th><th>المركز</th><th>عدد الزيارات</th><th>آخر زيارة</th></tr></thead><tbody>' +
-    done.map((c, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(c) + '</td><td><b>' + by[c].length + '</b></td><td>' + lastOf(c) + '</td></tr>').join('') + '</tbody></table></div>'
+    mcGroups(done).map(g => '<tr class="mc-gh"><td colspan="4">' + g.title + ' (' + g.list.length + ')</td></tr>' + g.list.map((c, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(c) + '</td><td><b>' + by[c].length + '</b></td><td>' + lastOf(c) + '</td></tr>').join('')).join('') + '</tbody></table></div>'
     : '<p class="empty">لم تتم زيارة أي مركز بعد</p>';
   const notList = not.length ? '<div class="tbl-wrap"><table class="mc-tbl"><thead><tr><th>م</th><th>المركز</th></tr></thead><tbody>' +
-    not.map((c, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(c) + '</td></tr>').join('') + '</tbody></table></div>'
+    mcGroups(not).map(g => '<tr class="mc-gh"><td colspan="2">' + g.title + ' (' + g.list.length + ')</td></tr>' + g.list.map((c, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(c) + '</td></tr>').join('')).join('') + '</tbody></table></div>'
     : '<p class="empty">تمت زيارة جميع المراكز المشرفة عليها</p>';
   const open = box.querySelectorAll('details[open]');
   const wasOpen = [...open].map(d => d.dataset.k);
