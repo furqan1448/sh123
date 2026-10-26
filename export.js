@@ -5,6 +5,17 @@ const EX_LETTER_RATIO = 351 / 2000; // ارتفاع/عرض الكليشة
 const EX_XLSX_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
 const EX_GRADE_COLORS = { 'gr-top': '0A5C32', 'gr-ex': '1B8F4E', 'gr-vg': '1F8A8A', 'gr-g': '2A73B8', 'gr-p': 'C98A0A', 'gr-w': 'E0531F', 'gr-f': 'B71C1C' };
 const EX_PRIMARY = '7A1F2B';
+/* تنسيق ملفات الإكسل: لتغيير الشكل يكفي تعديل هذا الكائن */
+const EX_THEME = {   // ألوان مأخوذة من استمارة الإكسل الأصلية للجمعية
+  font: 'Arial', size: 12, line: '000000',
+  title: { fill: 'FFFFFF', color: '953734', size: 16 },
+  head: { fill: 'F2DBDB', color: '000000' },
+  label: { fill: 'F2DBDB', color: '000000' },
+  sec: { fill: 'D9D9D9', color: '000000' },
+  foot: { fill: 'F2F2F2', color: '000000' },
+  num: 'F2F2F2',
+  zebra: '', gradeFill: false, rowH: 22
+};
 let exCur = null;      // الاستمارة المفتوحة حالياً
 let exLoading = null;
 let exLetterBuf = null;   // الكليشة تُجلب مرة واحدة فقط
@@ -212,8 +223,9 @@ async function exBuildXlsx(m, imgBuf, ExcelJS) {
   });
   const n = m.widths.length;
   ws.columns = m.widths.map(w => ({ width: w }));
-  const FONT = 'Arial';
-  const thin = { style: 'thin', color: { argb: 'FFD9C7C0' } };
+  const T = Object.assign({}, EX_THEME, m.theme || {});
+  const FONT = T.font;
+  const thin = { style: 'thin', color: { argb: 'FF' + T.line } };
   const border = { top: thin, left: thin, bottom: thin, right: thin };
   const fill = hex => ({ type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + hex } });
   const pxW = m.widths.reduce((a, w) => a + Math.round(w * 7 + 5), 0);
@@ -227,7 +239,7 @@ async function exBuildXlsx(m, imgBuf, ExcelJS) {
 
   let row = HR + 2;
   const style = (cell, o) => {
-    cell.font = { name: FONT, size: o.size || 11, bold: !!o.bold, color: { argb: 'FF' + (o.color || '222222') } };
+    cell.font = { name: FONT, size: o.size || T.size, bold: !!o.bold, color: { argb: 'FF' + (o.color || '222222') } };
     cell.alignment = { horizontal: o.h || 'right', vertical: 'middle', wrapText: true, readingOrder: 'rtl' };
     if (o.fill) cell.fill = fill(o.fill);
     if (o.border !== false) cell.border = border;
@@ -251,16 +263,16 @@ async function exBuildXlsx(m, imgBuf, ExcelJS) {
   const split = Math.min(2, n - 1);   // أول عمودين للعنوان والباقي للقيمة
   const valWidth = m.widths.slice(split).reduce((a, w) => a + w, 0);
 
-  merged(row, 1, n, m.title, { bold: true, size: 14, color: 'FFFFFF', fill: EX_PRIMARY, h: 'center' }, 28); row++;
+  merged(row, 1, n, m.title, { bold: true, size: T.title.size, color: T.title.color, fill: T.title.fill, h: 'center' }, T.title.size * 2.1); row++;
 
   m.info.forEach(([l, v]) => {
-    merged(row, 1, split, l, { bold: true, fill: 'F6F0F2' });
-    merged(row, split + 1, n, v, {}, Math.max(20, lines(v, valWidth) * 16)); row++;
+    merged(row, 1, split, l, { bold: true, fill: T.label.fill, color: T.label.color });
+    merged(row, split + 1, n, v, {}, Math.max(T.rowH || 20, lines(v, valWidth) * 16)); row++;
   });
   if (m.info.length) row++;
 
   if (m.rows) {            // سجل (جدول واحد)
-    m.cols.forEach((c, i) => { const cell = ws.getCell(row, i + 1); cell.value = c; style(cell, { bold: true, color: 'FFFFFF', fill: EX_PRIMARY, h: 'center' }); });
+    m.cols.forEach((c, i) => { const cell = ws.getCell(row, i + 1); cell.value = c; style(cell, { bold: true, color: T.head.color, fill: T.head.fill, h: 'center' }); });
     ws.getRow(row).height = 26;
     ws.views = [{ rightToLeft: true, showGridLines: false, state: 'frozen', ySplit: row }];
     row++;
@@ -268,8 +280,8 @@ async function exBuildXlsx(m, imgBuf, ExcelJS) {
       rw.forEach((v, i) => {
         const cell = ws.getCell(row, i + 1); cell.value = v;
         const isGrade = (m.gradeCols || []).indexOf(i) > -1 && v;
-        style(cell, isGrade ? { bold: true, color: 'FFFFFF', fill: exGradeColor(v) || '777777', h: 'center' }
-          : { h: i < 3 && typeof v !== 'number' ? 'right' : 'center', fill: ri % 2 ? 'FAF7F8' : undefined });
+        style(cell, isGrade ? (T.gradeFill ? { bold: true, color: 'FFFFFF', fill: exGradeColor(v) || '777777', h: 'center' } : { bold: true, color: exGradeColor(v) || '222222', h: 'center' })
+          : { h: i < 3 && typeof v !== 'number' ? 'right' : 'center', fill: ri % 2 && T.zebra ? T.zebra : undefined });
       });
       row++;
     });
@@ -279,23 +291,24 @@ async function exBuildXlsx(m, imgBuf, ExcelJS) {
   }
 
   // استمارة
-  m.cols.forEach((c, i) => { const cell = ws.getCell(row, i + 1); cell.value = c; style(cell, { bold: true, color: 'FFFFFF', fill: EX_PRIMARY, h: 'center' }); });
+  m.cols.forEach((c, i) => { const cell = ws.getCell(row, i + 1); cell.value = c; style(cell, { bold: true, color: T.head.color, fill: T.head.fill, h: 'center' }); });
   ws.getRow(row).height = 26; row++;
   m.sections.forEach(sec => {
-    if (sec.title) { merged(row, 1, n, sec.title, { bold: true, fill: 'F3E3E6', color: EX_PRIMARY }, 22); row++; }
+    if (sec.title) { merged(row, 1, n, sec.title, { bold: true, fill: T.sec.fill, color: T.sec.color }, 22); row++; }
     sec.rows.forEach((rw, ri) => {
       rw.forEach((v, i) => {
         const cell = ws.getCell(row, i + 1); cell.value = v;
         const wide = m.widths[i] > 30;
-        style(cell, { h: wide ? 'right' : 'center', fill: ri % 2 ? 'FAF7F8' : undefined });
+        style(cell, { h: wide ? 'right' : 'center', bold: i === 0 && !!T.num, fill: i === 0 && T.num ? T.num : (ri % 2 && T.zebra ? T.zebra : undefined) });
       });
+      if (T.rowH) ws.getRow(row).height = Math.max(T.rowH, rw.some((v, i) => m.widths[i] > 30 && String(v).length > m.widths[i]) ? T.rowH * 1.7 : 0);
       const sg = sec.sigs && sec.sigs[ri];
       if (sg) { ws.getRow(row).height = 56; putSig(sg, row - 1, n - 1, colPx(n - 1) - 8, 66, 75); }
       row++;
     });
     (sec.footer || []).forEach(([l, v]) => {
-      merged(row, 1, split, l, { bold: true, fill: 'EFE3E6', color: EX_PRIMARY });
-      merged(row, split + 1, n, v, { bold: true, size: 12, h: 'center', fill: 'EFE3E6' }, 22);
+      merged(row, 1, split, l, { bold: true, fill: T.foot.fill, color: T.foot.color });
+      merged(row, split + 1, n, v, { bold: true, size: T.size + 1, h: 'center', fill: T.foot.fill }, 22);
       row++;
     });
     if (sec.footer) row++;
@@ -303,18 +316,18 @@ async function exBuildXlsx(m, imgBuf, ExcelJS) {
   row++;
   m.totals.forEach(([l, v]) => {
     const isG = l === 'التقدير';
-    merged(row, 1, split, l, { bold: true, fill: 'F6F0F2' });
-    merged(row, split + 1, n, v, isG ? { bold: true, size: 13, color: 'FFFFFF', fill: exGradeColor(v) || '777777', h: 'center' } : { bold: true, size: 13, h: 'center' }, 24);
+    merged(row, 1, split, l, { bold: true, fill: T.label.fill, color: T.label.color });
+    merged(row, split + 1, n, v, isG ? (T.gradeFill ? { bold: true, size: T.size + 2, color: 'FFFFFF', fill: exGradeColor(v) || '777777', h: 'center' } : { bold: true, size: T.size + 2, color: exGradeColor(v) || '222222', h: 'center' }) : { bold: true, size: T.size + 2, h: 'center' }, 24);
     row++;
   });
   if (m.notes.length) row++;
   m.notes.forEach(([l, v]) => {
-    merged(row, 1, split, l, { bold: true, fill: 'F6F0F2' });
+    merged(row, 1, split, l, { bold: true, fill: T.label.fill, color: T.label.color });
     merged(row, split + 1, n, v, {}, Math.max(24, lines(v, valWidth) * 16)); row++;
   });
   if (m.signature && m.signature.data) {   // توقيع المشرفة
     row++;
-    merged(row, 1, split, 'توقيع المشرفة', { bold: true, fill: 'F6F0F2' });
+    merged(row, 1, split, 'توقيع المشرفة', { bold: true, fill: T.label.fill, color: T.label.color });
     merged(row, split + 1, n, '', {}, 78);
     const boxW = m.widths.slice(split).reduce((a, w) => a + Math.round(w * 7 + 5), 0) - 12;
     putSig(m.signature, row - 1, split, Math.min(boxW, 260), 80, 104);
