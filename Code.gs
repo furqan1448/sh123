@@ -305,25 +305,65 @@ function profileOf_(user) {
 function getLists_(fresh) {
   const cache = CacheService.getScriptCache();
   if (!fresh) {
-    const hit = cache.get('lists_v3');
+    const hit = cache.get('lists_v4');
     if (hit) { try { return JSON.parse(hit); } catch (e) {} }
   }
+  listsAddPeriod_();
   const sh = ss_().getSheetByName(SHEET.LISTS);
-  const rows = sh.getDataRange().getDisplayValues().slice(1);
+  const all = sh.getDataRange().getDisplayValues();
+  const head = (all[0] || []).map(x => String(x).trim()), rows = all.slice(1);
+  // الأعمدة تُعرف من عناوينها؛ وعمود «الفترة» (بجانب أسماء المراكز) يزيح المواضع الافتراضية للأعمدة بعده
+  const cP = head.indexOf('الفترة');
+  const col = (names, def) => { for (let i = 0; i < names.length; i++) { const k = head.indexOf(names[i]); if (k > -1) return k; } return cP > -1 && def >= cP ? def + 1 : def; };
+  const cC = col(['أسماء المراكز', 'اسم المركز', 'المراكز'], 0), cT = col(['أنواع الزيارة'], 1), cTe = col(['أسماء المعلمات'], 2),
+    cI = col([LISTS_IDARI_TYPES], 3), cS = col([LISTS_SGH_TYPES], 4);
+  const cell = (r, i) => (i > -1 && r[i] != null ? String(r[i]).trim() : '');
   const centers = [], types = [], teachers = [], typesIdari = [], typesSgh = [];
   rows.forEach(r => {
-    if (String(r[0]).trim()) centers.push(String(r[0]).trim());
-    if (String(r[1]).trim()) types.push(String(r[1]).trim());
-    if (r[2] != null && String(r[2]).trim()) teachers.push(String(r[2]).trim());
-    if (r[3] != null && String(r[3]).trim()) typesIdari.push(String(r[3]).trim());
-    if (r[4] != null && String(r[4]).trim()) typesSgh.push(String(r[4]).trim());
+    const c = cell(r, cC);
+    if (c) { const p = listsPeriod_(cell(r, cP)); centers.push(p ? c + ' - الفترة ' + p : c); }   // الاسم الكامل: «المركز - الفترة الصباحية»
+    if (cell(r, cT)) types.push(cell(r, cT));
+    if (cell(r, cTe)) teachers.push(cell(r, cTe));
+    if (cell(r, cI)) typesIdari.push(cell(r, cI));
+    if (cell(r, cS)) typesSgh.push(cell(r, cS));
   });
   // أسماء المعلمات للقائمة المنسدلة: من «القوائم» + سجل المعلمات (شيت الشهادات)
   try { certRows_(false).forEach(t => { if (teachers.indexOf(t.name) < 0) teachers.push(t.name); }); } catch (e) {}
   teachers.sort((a, b) => a.localeCompare(b, 'ar'));
   const out = { centers: centers, types: types, teachers: teachers, typesIdari: typesIdari, typesSgh: typesSgh };
-  try { cache.put('lists_v3', JSON.stringify(out), 120); } catch (e) {}
+  try { cache.put('lists_v4', JSON.stringify(out), 120); } catch (e) {}
   return out;
+}
+// نص الفترة الموحّد: صباحي/الصباحية ← «الصباحية»، مسائي/عصر ← «المسائية»
+function listsPeriod_(p) {
+  const t = String(p || '').replace(/[أإآ]/g, 'ا').trim();
+  if (!t) return '';
+  const m = /عصر|مساء|مسائ/.test(t), s = /صباح/.test(t);
+  return m && s ? 'الصباحية والمسائية' : m ? 'المسائية' : s ? 'الصباحية' : String(p).trim();
+}
+// مرة واحدة: إضافة عمود «الفترة» بعد «أسماء المراكز» في «القوائم» ونقل الفترة من اسم المركز إليه
+// («أم حكيم - الفترة الصباحية» ← «أم حكيم» | «الصباحية»)
+function listsAddPeriod_() {
+  const sh = ss_().getSheetByName(SHEET.LISTS);
+  if (!sh || sh.getLastColumn() < 1) return;
+  const hasP = () => sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0].map(x => String(x).trim()).indexOf('الفترة') > -1;
+  if (hasP()) return;
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(15000)) return;
+  try {
+    if (hasP()) return;
+    sh.insertColumnAfter(1);
+    sh.getRange(1, 2).setValue('الفترة');
+    styleHeader_(sh, sh.getLastColumn());
+    sh.setColumnWidth(2, 140);
+    const n = sh.getLastRow() - 1;
+    if (n > 0) {
+      const v = sh.getRange(2, 1, n, 1).getDisplayValues();
+      const out = v.map(r => { const x = mycSplit_(r[0]); return x.period ? [x.name, x.period] : [String(r[0]).trim(), '']; });
+      sh.getRange(2, 1, n, 2).setValues(out);
+    }
+    try { CacheService.getScriptCache().remove('lists_v4'); } catch (e) {}
+  } finally { lock.releaseLock(); }
 }
 
 /* ============ كشف الخروج ============ */

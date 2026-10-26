@@ -14,14 +14,18 @@ const mcNorm = s => String(s || '').trim();
 async function mcFetch() {
   try { const out = await api('getMyCenters'); MYC = out.data || []; cacheSet('mycenters', MYC); mcLoaded = true; } catch (e) {}
 }
+// قائمة المراكز للاختيار: من «القوائم» (اسم المركز + عمود الفترة)
+const mcAll = () => (LISTS.centers || []).map(mcNorm).filter(Boolean);
+// مفتاح المطابقة: الاسم + الفترة (يتجاهل اختلاف المسافات حول «-»)
+const mcKey = c => mcName(c) + '|' + mcPeriod(c);
 async function mcOpen() {
   show('mcView');
   mc$('mcSearch').value = '';
-  mcSel = new Set(MYC.map(mcNorm));
+  mcSel = mcSelFromSaved();
   mc$('mcPickFold').open = !MYC.length;   // القائمة مصغّرة إن سبق الاختيار
   mcRender(); mcSavedRender();
   await mcFetch();
-  mcSel = new Set(MYC.map(mcNorm));
+  mcSel = mcSelFromSaved();
   if (!MYC.length) mc$('mcPickFold').open = true;
   mcRender(); mcSavedRender();
 }
@@ -109,8 +113,13 @@ function mcXlsx(btn) {
     cols: ['م', ''], widths: [8, 70], sections: mcGroups(L).map(g => ({ title: g.title, rows: g.list.map((c, i) => [i + 1, mcName(c)]) })), totals: [], notes: [] }, btn);
 }
 let mcSel = new Set();
+// المراكز المحفوظة بأسمائها كما في القائمة الحالية (لتبقى محددة حتى لو اختلفت كتابة الفترة)
+function mcSelFromSaved() {
+  const byKey = {}; mcAll().forEach(c => { byKey[mcKey(c)] = c; });
+  return new Set(MYC.map(mcNorm).filter(Boolean).map(c => byKey[mcKey(c)] || c));
+}
 function mcRender() {
-  const all = (LISTS.centers || []).map(mcNorm).filter(Boolean);
+  const all = mcAll();
   const q = mc$('mcSearch').value.trim();
   const shown = all.filter(c => !q || c.indexOf(q) > -1);
   // القائمة مقسّمة: الفترة الصباحية ثم المسائية (مع «تحديد الكل» لكل فترة)
@@ -126,8 +135,8 @@ function mcRender() {
   mc$('mcPickCnt').textContent = mcSel.size + ' / ' + all.length;
 }
 function mcPick(el) { if (el.checked) mcSel.add(el.value); else mcSel.delete(el.value); mcRender(); }
-function mcToggleGroup(el) { (LISTS.centers || []).map(mcNorm).filter(c => c && mcPeriod(c) === el.dataset.k).forEach(c => el.checked ? mcSel.add(c) : mcSel.delete(c)); mcRender(); }
-function mcToggleAll(on) { (LISTS.centers || []).map(mcNorm).filter(Boolean).forEach(c => on ? mcSel.add(c) : mcSel.delete(c)); mcRender(); }
+function mcToggleGroup(el) { mcAll().filter(c => mcPeriod(c) === el.dataset.k).forEach(c => el.checked ? mcSel.add(c) : mcSel.delete(c)); mcRender(); }
+function mcToggleAll(on) { mcAll().forEach(c => on ? mcSel.add(c) : mcSel.delete(c)); mcRender(); }
 async function mcSave() {
   const btn = mc$('mcSaveBtn');
   setBtnBusy(btn, true, 'جارِ الحفظ...');
