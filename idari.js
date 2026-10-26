@@ -1082,7 +1082,7 @@ function mcSavedRender() {
   const L = mcSorted();
   $('mcSavedCnt').textContent = L.length;
   $('mcSaved').innerHTML = L.length ? mcPeriodLine(L) + '<div class="tbl-wrap"><table class="mc-tbl"><thead><tr><th style="width:56px">م</th><th>المركز</th></tr></thead><tbody>' +
-    mcGroups(L).map(g => '<tr class="mc-gh"><td colspan="2">' + g.title + ' (' + g.list.length + ')</td></tr>' + g.list.map((c, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(c) + '</td></tr>').join('')).join('') + '</tbody></table></div>'
+    mcGroups(L).map(g => '<tr class="mc-gh"><td colspan="2">' + g.title + '</td></tr>' + g.list.map((c, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(c) + '</td></tr>').join('')).join('') + '</tbody></table></div>'
     : '<p class="empty">لم تحددي المراكز بعد. افتحي «اختيار المراكز» أعلاه.</p>';
 }
 const MC_CSS = `
@@ -1110,7 +1110,7 @@ async function mcPdf(btn) {
     // صفوف مجمّعة حسب الفترة: عنوان لكل فترة ثم مراكزها بترقيم مستقل
     const items = [];
     mcGroups(L).forEach(g => {
-      items.push({ h: 1, html: '<tr class="mc-gh"><td colspan="2">' + g.title + ' (' + idDigits(g.list.length) + ')</td></tr>' });
+      items.push({ h: 1, html: '<tr class="mc-gh"><td colspan="2">' + g.title + '</td></tr>' });
       g.list.forEach((c, k) => items.push({ html: '<tr><td class="idc-n">' + idDigits(k + 1) + '</td><td class="r">' + esc(c) + '</td></tr>' }));
     });
     const per = 20, pages = [];
@@ -1138,7 +1138,7 @@ function mcXlsx(btn) {
   exRun({ title: 'المراكز المشرفة عليها', file: 'المراكز_المشرفة_عليها', landscape: false,
     info: [['المشرفة', localStorage.getItem(NAME_KEY) || getUser()], ['عدد المراكز', String(L.length)],
       ['الفترة الصباحية', String(L.filter(c => mcPeriod(c) === 'am').length)], ['الفترة المسائية', String(L.filter(c => mcPeriod(c) === 'pm').length)]],
-    cols: ['م', 'اسم المركز'], widths: [8, 70], sections: mcGroups(L).map(g => ({ title: g.title + ' (' + g.list.length + ')', rows: g.list.map((c, i) => [i + 1, c]) })), totals: [], notes: [] }, btn);
+    cols: ['م', 'اسم المركز'], widths: [8, 70], sections: mcGroups(L).map(g => ({ title: g.title, rows: g.list.map((c, i) => [i + 1, c]) })), totals: [], notes: [] }, btn);
 }
 let mcSel = new Set();
 function mcRender() {
@@ -1186,10 +1186,10 @@ function idStatsRender() {
   const not = mine.filter(c => !by[c]).sort((a, b) => a.localeCompare(b, 'ar'));
   const lastOf = c => { const L = by[c]; const r = L.slice().sort((a, b) => String(b.date || b.at || '').localeCompare(String(a.date || a.at || '')))[0]; return r && r.data && r.data.hd ? idHDate(r) : esc(r && r.date || ''); };
   const visTbl = done.length ? '<div class="tbl-wrap"><table class="mc-tbl"><thead><tr><th>م</th><th>المركز</th><th>عدد الزيارات</th><th>آخر زيارة</th></tr></thead><tbody>' +
-    mcGroups(done).map(g => '<tr class="mc-gh"><td colspan="4">' + g.title + ' (' + g.list.length + ')</td></tr>' + g.list.map((c, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(c) + '</td><td><b>' + by[c].length + '</b></td><td>' + lastOf(c) + '</td></tr>').join('')).join('') + '</tbody></table></div>'
+    mcGroups(done).map(g => '<tr class="mc-gh"><td colspan="4">' + g.title + '</td></tr>' + g.list.map((c, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(c) + '</td><td><b>' + by[c].length + '</b></td><td>' + lastOf(c) + '</td></tr>').join('')).join('') + '</tbody></table></div>'
     : '<p class="empty">لم تتم زيارة أي مركز بعد</p>';
   const notList = not.length ? '<div class="tbl-wrap"><table class="mc-tbl"><thead><tr><th>م</th><th>المركز</th></tr></thead><tbody>' +
-    mcGroups(not).map(g => '<tr class="mc-gh"><td colspan="2">' + g.title + ' (' + g.list.length + ')</td></tr>' + g.list.map((c, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(c) + '</td></tr>').join('')).join('') + '</tbody></table></div>'
+    mcGroups(not).map(g => '<tr class="mc-gh"><td colspan="2">' + g.title + '</td></tr>' + g.list.map((c, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(c) + '</td></tr>').join('')).join('') + '</tbody></table></div>'
     : '<p class="empty">تمت زيارة جميع المراكز المشرفة عليها</p>';
   const open = box.querySelectorAll('details[open]');
   const wasOpen = [...open].map(d => d.dataset.k);
