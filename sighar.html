@@ -85,6 +85,7 @@
   <div id="homeView" class="hidden">
     <div class="grid">
       <button class="tile" onclick="show('visitsView'); loadVisits()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4"/><path d="M10 13l2 2 3.5-4"/><path d="M10 18h5"/></svg><b>كشف الخروج</b></button>
+      <button class="tile" onclick="mcOpen()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-5h6v5"/><path d="M9.5 11l1.8 1.8 3.2-3.3"/></svg><b>المراكز المشرفة عليها</b></button>
       <button class="tile" onclick="sgOpenList()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M8.5 8h7"/><path d="M8.5 11.5h7"/><path d="M8.5 15h4"/><path d="M14.5 17.5l1.3 1.3 2.7-2.8"/></svg><b>تقرير زيارة مشرفة تحفيظ صغار</b></button>
       <button class="tile" onclick="ssOpenList()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M3.5 9h17"/><path d="M3.5 14.5h17"/><path d="M9 9v11"/><path d="M15 9v11"/></svg><b>خلاصة التقارير التعليمية</b></button>
       <button class="tile" onclick="seOpenList()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M9 3.5V3h6v.5"/><path d="M8.5 9.5l1.2 1.2 2.3-2.4"/><path d="M13.5 9.5h2.5"/><path d="M8.5 14.5l1.2 1.2 2.3-2.4"/><path d="M13.5 14.5h2.5"/></svg><b>استمارات التقييم</b></button>
@@ -93,6 +94,30 @@
       <button class="tile" onclick="atOpen()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5l-8 8a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L9.7 17.2a1.7 1.7 0 0 1-2.4-2.4L15 7"/></svg><b>المرفقات</b></button>
     </div>
     <p style="text-align:center;margin-top:22px"><button class="btn light" onclick="logout()">تسجيل الخروج</button></p>
+  </div>
+
+  <!-- المراكز المشرفة عليها -->
+  <div id="mcView" class="hidden">
+    <button class="back" onclick="show('homeView')">← رجوع</button>
+    <div class="card">
+      <h2>المراكز المشرفة عليها</h2>
+      <p class="rp-hint">ضعي علامة ✔ على المراكز التي تشرفين عليها، ثم احفظي. ويمكنك تحميل القائمة PDF أو Excel.</p>
+      <details class="mc-fold" id="mcPickFold">
+        <summary><span class="mc-ft">اختيار المراكز</span><span class="mc-cnt ok" id="mcPickCnt">0</span><span class="mc-arr">▾</span></summary>
+        <div style="padding:0 12px 12px">
+          <input id="mcSearch" placeholder="ابحثي باسم المركز" autocomplete="off" oninput="mcRender()">
+          <label class="check" style="margin:12px 0 6px"><input type="checkbox" id="mcAll" onchange="mcToggleAll(this.checked)"><span>تحديد الكل</span></label>
+          <div id="mcList" class="mc-list"><p class="empty">جارِ التحميل...</p></div>
+          <p id="mcCount" style="font-weight:700;color:var(--muted);margin:10px 0 0"></p>
+          <button id="mcSaveBtn" class="btn block" style="margin-top:12px" onclick="mcSave()">حفظ</button>
+        </div>
+      </details>
+    </div>
+    <div class="card">
+      <h2>المراكز المشرفة عليها <span class="tag ok" id="mcSavedCnt">0</span></h2>
+      <div id="mcSaved"><p class="empty">جارِ التحميل...</p></div>
+      <div class="ex-bar"><button class="btn light" onclick="mcPdf(this)">تحميل PDF</button><button class="btn light" onclick="mcXlsx(this)">تحميل Excel</button></div>
+    </div>
   </div>
 
   <!-- كشف الخروج -->
@@ -398,6 +423,7 @@
 <script src="sighar-evals.js"></script>
 <script src="minutes.js"></script>
 <script src="attach.js"></script>
+<script src="my-centers.js"></script>
 <script src="sighar.js"></script>
 <script src="sighar-staff.js"></script>
 </body>

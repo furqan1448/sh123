@@ -36,6 +36,7 @@
   <div id="homeView" class="hidden">
     <div class="grid">
       <button class="tile" onclick="show('visitsView'); loadVisits()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4"/><path d="M10 13l2 2 3.5-4"/><path d="M10 18h5"/></svg><b>كشف الخروج</b></button>
+      <button class="tile" onclick="mcOpen()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-5h6v5"/><path d="M9.5 11l1.8 1.8 3.2-3.3"/></svg><b>المراكز المشرفة عليها</b></button>
       <button class="tile" onclick="atOpen()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5l-8 8a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L9.7 17.2a1.7 1.7 0 0 1-2.4-2.4L15 7"/></svg><b>المرفقات</b></button>
       <button class="tile" onclick="show('evalsView'); evLoadList()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M8.5 12l1.5 1.5 2.5-3"/><path d="M8.5 17.5h7"/></svg><b>استمارات التقييم الأسبوعية</b></button>
       <button class="tile" onclick="show('evalsFinalView'); evLoadList()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M9 8h6"/><path d="M9 11.5h6"/><circle cx="12" cy="16" r="2"/></svg><b>استمارات التقييم النهائية</b></button>
@@ -43,6 +44,30 @@
       <button class="tile" onclick="mnOpenList()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="2.5"/><circle cx="16" cy="8" r="2.5"/><path d="M3.5 18c0-2.8 2-4.5 4.5-4.5s4.5 1.7 4.5 4.5"/><path d="M11.5 18c0-2.8 2-4.5 4.5-4.5s4.5 1.7 4.5 4.5"/><path d="M3 21h18"/></svg><b>محاضر الاجتماعات</b></button>
     </div>
     <p style="text-align:center;margin-top:22px"><button class="btn light" onclick="logout()">تسجيل الخروج</button></p>
+  </div>
+
+  <!-- المراكز المشرفة عليها -->
+  <div id="mcView" class="hidden">
+    <button class="back" onclick="show('homeView')">← رجوع</button>
+    <div class="card">
+      <h2>المراكز المشرفة عليها</h2>
+      <p class="rp-hint">ضعي علامة ✔ على المراكز التي تشرفين عليها، ثم احفظي. ويمكنك تحميل القائمة PDF أو Excel.</p>
+      <details class="mc-fold" id="mcPickFold">
+        <summary><span class="mc-ft">اختيار المراكز</span><span class="mc-cnt ok" id="mcPickCnt">0</span><span class="mc-arr">▾</span></summary>
+        <div style="padding:0 12px 12px">
+          <input id="mcSearch" placeholder="ابحثي باسم المركز" autocomplete="off" oninput="mcRender()">
+          <label class="check" style="margin:12px 0 6px"><input type="checkbox" id="mcAll" onchange="mcToggleAll(this.checked)"><span>تحديد الكل</span></label>
+          <div id="mcList" class="mc-list"><p class="empty">جارِ التحميل...</p></div>
+          <p id="mcCount" style="font-weight:700;color:var(--muted);margin:10px 0 0"></p>
+          <button id="mcSaveBtn" class="btn block" style="margin-top:12px" onclick="mcSave()">حفظ</button>
+        </div>
+      </details>
+    </div>
+    <div class="card">
+      <h2>المراكز المشرفة عليها <span class="tag ok" id="mcSavedCnt">0</span></h2>
+      <div id="mcSaved"><p class="empty">جارِ التحميل...</p></div>
+      <div class="ex-bar"><button class="btn light" onclick="mcPdf(this)">تحميل PDF</button><button class="btn light" onclick="mcXlsx(this)">تحميل Excel</button></div>
+    </div>
   </div>
 
   <!-- كشف الخروج -->
@@ -627,11 +652,14 @@
 <script src="sighar-print.js"></script>
 <script src="tarbawi-print.js"></script>
 <script src="minutes.js"></script>
+<script src="my-centers.js"></script>
 <script src="attach.js"></script>
 <script>
 const DAYS = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 const IDARI_UNIT = 'وحدة الإشراف الإداري';
 const SGH_UNIT = 'وحدة تحفيظ الصغار';
+const NAME_KEY = 'mush_name';   // اسم المشرفة (لملف «المراكز المشرفة عليها»)
+const saveMyName = p => { if (p && p.name) try { localStorage.setItem(NAME_KEY, p.name); } catch (e) {} };
 // حساب من وحدة الإشراف الإداري أو وحدة تحفيظ الصغار: نحوّله لصفحة وحدته (الدخول يبقى محفوظاً)
 function goIdari(p) {
   const page = p && (p.unit === IDARI_UNIT ? 'idari.html' : p.unit === SGH_UNIT ? 'sighar.html' : '');
@@ -653,7 +681,7 @@ const vIsAbsent = v => vStatusOf(v) === V_NONE;
 
 /* ---------- التنقل ---------- */
 function show(id) {
-  ['loginView','homeView','visitsView','filesView','evalsView','evalFormView','tbFormView','tjFormView','evalsFinalView','evfFormView','reportsView','reportEditView','mnListView','mnForm','atView'].forEach(v => document.getElementById(v).classList.add('hidden'));
+  ['loginView','homeView','visitsView','mcView','filesView','evalsView','evalFormView','tbFormView','tjFormView','evalsFinalView','evfFormView','reportsView','reportEditView','mnListView','mnForm','atView'].forEach(v => document.getElementById(v).classList.add('hidden'));
   document.getElementById(id).classList.remove('hidden');
   if (id !== 'loginView') try { sessionStorage.setItem('mush_view', id); } catch (e) {}   // آخر صفحة لهذه النافذة فقط: تُنسى عند إغلاق الموقع
   window.scrollTo(0, 0);
@@ -673,7 +701,7 @@ async function doLogin() {
   try {
     const out = await api('getLists');   // نفس الطلب يتحقق من الدخول ويجلب القوائم (طلب واحد بدل اثنين)
     if (goIdari(out.profile)) return;   // مشرفة الإشراف الإداري لها صفحتها الخاصة
-    applyLists(out.data);
+    applyLists(out.data); saveMyName(out.profile);
     loadMySig();
     show('homeView');
     evLoadList(true, true);   // تحميل مسبق للاستمارات والمسودات بالخلفية لتفتح فوراً
@@ -688,6 +716,7 @@ async function doLogin() {
 function logout() {
   localStorage.removeItem(PW_KEY);
   localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(NAME_KEY);
   try { sessionStorage.removeItem('mush_view'); } catch (e) {}
   cacheClear(); clearMySigLocal(); sigRefreshAll();
   VISITS = []; FILES = []; evRows = [];
@@ -720,7 +749,7 @@ async function preload() {
     const out = await api('getLists');
     if (goIdari(out.profile)) return;
     const vc = document.getElementById('vCenter').value;
-    applyLists(out.data);
+    applyLists(out.data); saveMyName(out.profile);
     if (vc) document.getElementById('vCenter').value = vc;
   } catch (e) {
     if (e.auth) { toast('انتهت صلاحية الدخول، سجّلي الدخول من جديد', false); logout(); }
