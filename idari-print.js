@@ -114,19 +114,23 @@ const ID_CSS = `
 .idoc td.idc-rec-c{text-align:right;padding-right:14px;font-weight:700}
 /* ===== التنسيق الموحّد لكل الكشوف والاستمارات (ألوان استمارة تقييم مسؤولة المقصف) =====
    رأس الجدول عنابي بكتابة بيضاء، وخلايا البيانات والمجالات بيج فاتح، وسطور المجموع بيج، والحدود بيج رمادي فاتح. */
-/* التنسيق الموحد لجميع النماذج والاستمارات: عنوان عنابي بلا خلفية، ورأس الجدول وردي فاتح بكتابة عنابية، وحدود فاتحة */
-.idoc .idc-title{background:transparent !important;color:#7a1f2b !important;border:0 !important;padding:4px 10px !important;line-height:1.35}
+/* التنسيق الموحد لجميع النماذج والاستمارات: نفس ألوان ملفات الإكسل (استمارة الجمعية الأصلية)
+   العنوان عنابي محمر، ورأس الجدول والعناوين وردي فاتح بكتابة سوداء، والأقسام رمادية، والترقيم والمجاميع رمادي فاتح، والحدود سوداء */
+.idoc .idc-title{background:transparent !important;color:#953734 !important;border:0 !important;padding:4px 10px !important;line-height:1.35}
 /* الخطوط مثل نظام المقاصف: النص Tajawal وعناوين النماذج Amiri */
 .idoc .idc-title,.idoc .kf-title{font-family:'Amiri',serif !important;font-weight:700}
-.idoc th:not(.hs-s){background:#f3e3e6 !important;color:#7a1f2b !important;border-color:#e2cdd2 !important}
-.idoc td{border-color:#e2cdd2 !important}
-.idoc .idc-info td,.idoc .sge-info td,.idoc .tv-info td,.idoc td.idc-lbl,.idoc td.k,.idoc td.im-t{background:#fff !important}
-.idoc td.sge-g,.idoc td.tv-g,.idoc td.im-g,.idoc td.g{background:#fbf6f7 !important;color:#7a1f2b !important}
-.idoc tr.sge-sum td,.idoc tr.tv-sum td,.idoc tr.tv-sub td{background:#fbf6f7 !important}
-.idoc .sge-box b,.idoc .tv-box b{background:#f3e3e6 !important;color:#7a1f2b !important;border-color:#e2cdd2 !important}
-.idoc .sge-box,.idoc .tv-box{border-color:#e2cdd2 !important}
-.idoc .im-band{background:#fff;border-color:#e2cdd2}
-.idoc .idc-m,.idoc td.idc-n{color:#7a1f2b}
+.idoc .idp-title{color:#953734 !important}
+.idoc th:not(.hs-s){background:#f2dbdb !important;color:#000 !important;border-color:#000 !important}
+.idoc td{border-color:#000 !important}
+.idoc .idc-info td,.idoc .sge-info td,.idoc .tv-info td,.idoc td.im-t{background:#fff !important}
+.idoc td.idc-lbl,.idoc td.k{background:#f2dbdb !important;color:#000 !important}
+.idoc td.sge-g,.idoc td.tv-g,.idoc td.im-g,.idoc td.g{background:#d9d9d9 !important;color:#000 !important}
+.idoc tr.sge-sum td,.idoc tr.tv-sum td,.idoc tr.tv-sub td{background:#f2f2f2 !important}
+.idoc .sge-box b,.idoc .tv-box b{background:#f2dbdb !important;color:#000 !important;border-color:#000 !important}
+.idoc .sge-box,.idoc .tv-box{border-color:#000 !important}
+.idoc .im-band{background:#fff;border-color:#000}
+.idoc td.idc-n{background:#f2f2f2 !important;color:#000 !important;font-weight:700}
+.idoc .idc-m{color:#953734}
 `;
 
 /* ---------- محتوى النموذج (نفس الشكل للعرض والطباعة والـ PDF) ---------- */

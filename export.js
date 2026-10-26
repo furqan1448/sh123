@@ -451,16 +451,16 @@ const KF_CSS = `
 .idoc .im-page.kf .kf-title{font-family:'Amiri',serif !important;font-size:29px}
 .idoc .im-page.kf td{height:36px;font-size:15.5px;font-weight:400;color:#000 !important}
 .idoc .im-page.kf th,.idoc .im-page.kf td{border:1px solid #000 !important}
-.idoc .im-page.kf th{background:#7a1f2b !important;color:#fff !important;border-color:#000 !important;font-weight:700;font-size:15.5px}
-.idoc .im-page.kf tr.kf-c td{border:1px solid #000 !important;background:#f4e1e4 !important;color:#7a1f2b !important;padding-top:3px;font-weight:700}
+.idoc .im-page.kf th{background:#f2dbdb !important;color:#000 !important;border-color:#000 !important;font-weight:700;font-size:15.5px}
+.idoc .im-page.kf tr.kf-c td{border:1px solid #000 !important;background:#d9d9d9 !important;color:#000 !important;padding-top:3px;font-weight:700}
 .idoc .im-page.kf tr.kf-t td{border:0 !important;background:transparent !important}
-.im-page.kf td.idc-n{color:#000 !important}
-.im-page.kf .kf-title{color:#7a1f2b !important}
+.idoc .im-page.kf td.idc-n{color:#000 !important;background:#f2f2f2 !important;font-weight:700}
+.im-page.kf .kf-title{color:#953734 !important}
 .im-page.kf .kf-cards{gap:40px;justify-content:flex-start}
 .im-page.kf .kf-tot{gap:40px;padding-top:4px}
 .im-page.kf .kf-cards>div,.im-page.kf .kf-tot>div{flex:0 0 auto;min-width:0;background:none !important;border:0 !important;padding:0 !important;gap:8px;justify-content:flex-start}
 .im-page.kf .kf-cards span,.im-page.kf .kf-tot span{color:#000 !important;font-weight:700}
-.im-page.kf .kf-cards b,.im-page.kf .kf-tot b,.im-page.kf .kf-cards b *,.im-page.kf .kf-tot b *{color:#7a1f2b !important}
+.im-page.kf .kf-cards b,.im-page.kf .kf-tot b,.im-page.kf .kf-cards b *,.im-page.kf .kf-tot b *{color:#953734 !important}
 .im-page.kf .kf-cards span,.im-page.kf .kf-cards b,.im-page.kf .kf-tot span,.im-page.kf .kf-tot b{font-size:16px !important}
 .im-page.kf .kf-tot b{font-size:18px !important}
 `;

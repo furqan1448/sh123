@@ -1092,9 +1092,9 @@ const MC_CSS = `
 .im-page.mcp .mc-meta{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px 18px;font-weight:700;margin:0 0 10px}
 .im-page.mcp td{height:36px;padding:4px 10px;font-size:16px}
 .im-page.mcp td.r{text-align:right}
-.im-page.mcp tr.mc-gh td{background:#fbf6f7;color:#7a1f2b;font-weight:800;text-align:right;font-size:16.5px;border-color:#e2cdd2}
-.im-page.mcp td{border-color:#e2cdd2}
-.im-page.mcp td.idc-n{color:#7a1f2b;background:#fff}
+.im-page.mcp tr.mc-gh td{background:#d9d9d9 !important;color:#000;font-weight:800;text-align:right;font-size:16.5px;border-color:#000}
+.im-page.mcp td{border-color:#000}
+.im-page.mcp td.idc-n{color:#000;background:#f2f2f2}
 .im-page.mcp .mc-pg{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:12px;color:#777}
 `;
 function mcHDate() {
