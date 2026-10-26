@@ -435,10 +435,10 @@ const KF_CSS = `
 .im-page.kf .kf-pg{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:11px;color:#000}
 /* التنسيق المعتمد: رسمي بالأسود، ورأس الجدول عنابي، واسم المركز عنابي بشريط جانبي، وخط Tajawal مع عنوان Amiri مثل نظام المقاصف */
 .idoc .im-page.kf,.idoc .im-page.kf *{font-family:'Tajawal','Segoe UI',Tahoma,sans-serif !important}
-.idoc .im-page.kf .kf-title{font-family:'Amiri',serif !important;font-size:26px}
-.idoc .im-page.kf td{height:34px;font-size:14px;font-weight:400;color:#000 !important}
+.idoc .im-page.kf .kf-title{font-family:'Amiri',serif !important;font-size:29px}
+.idoc .im-page.kf td{height:36px;font-size:15.5px;font-weight:400;color:#000 !important}
 .idoc .im-page.kf th,.idoc .im-page.kf td{border:1px solid #000 !important}
-.idoc .im-page.kf th{background:#7a1f2b !important;color:#fff !important;border-color:#000 !important;font-weight:700;font-size:14px}
+.idoc .im-page.kf th{background:#7a1f2b !important;color:#fff !important;border-color:#000 !important;font-weight:700;font-size:15.5px}
 .idoc .im-page.kf tr.kf-c td{border:1px solid #000 !important;background:#f4e1e4 !important;color:#7a1f2b !important;padding-top:3px;font-weight:700}
 .idoc .im-page.kf tr.kf-t td{border:0 !important;background:transparent !important}
 .im-page.kf td.idc-n{color:#000 !important}
@@ -448,6 +448,8 @@ const KF_CSS = `
 .im-page.kf .kf-cards>div,.im-page.kf .kf-tot>div{flex:0 0 auto;min-width:0;background:none !important;border:0 !important;padding:0 !important;gap:8px;justify-content:flex-start}
 .im-page.kf .kf-cards span,.im-page.kf .kf-tot span{color:#000 !important;font-weight:700}
 .im-page.kf .kf-cards b,.im-page.kf .kf-tot b,.im-page.kf .kf-cards b *,.im-page.kf .kf-tot b *{color:#7a1f2b !important}
+.im-page.kf .kf-cards span,.im-page.kf .kf-cards b,.im-page.kf .kf-tot span,.im-page.kf .kf-tot b{font-size:16px !important}
+.im-page.kf .kf-tot b{font-size:18px !important}
 `;
 function kfHijri(dateStr) {
   const p = String(dateStr || '').split(' ')[0].split('-');
