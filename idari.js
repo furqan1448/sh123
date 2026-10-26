@@ -1069,7 +1069,7 @@ function mcPeriod(c) {
   const m = /مسائ/.test(t), s = /صباح/.test(t);
   return m && s ? 'both' : m ? 'pm' : s ? 'am' : '';
 }
-const MC_GROUPS = [['am', 'أسماء المراكز للفترة الصباحية'], ['pm', 'أسماء المراكز للفترة المسائية'], ['both', 'أسماء المراكز للفترتين الصباحية والمسائية'], ['', 'مراكز بدون فترة محددة']];
+const MC_GROUPS = [['am', 'توزيع المراكز - الفترة الصباحية'], ['pm', 'توزيع المراكز - الفترة المسائية'], ['both', 'توزيع المراكز - الفترتان الصباحية والمسائية'], ['', 'توزيع المراكز - بدون فترة محددة']];
 // تقسيم المراكز حسب الفترة: [{ k, title, list }]
 const mcGroups = L => MC_GROUPS.map(([k, title]) => ({ k, title, list: L.filter(c => mcPeriod(c) === k) })).filter(g => g.list.length);
 function mcPeriodLine(L, lead) {
@@ -1081,7 +1081,7 @@ function mcPeriodLine(L, lead) {
 function mcSavedRender() {
   const L = mcSorted();
   $('mcSavedCnt').textContent = L.length;
-  $('mcSaved').innerHTML = L.length ? mcPeriodLine(L) + '<div class="tbl-wrap"><table class="mc-tbl"><thead><tr><th style="width:56px">م</th><th>المركز</th></tr></thead><tbody>' +
+  $('mcSaved').innerHTML = L.length ? mcPeriodLine(L) + '<div class="tbl-wrap"><table class="mc-tbl"><colgroup><col style="width:56px"><col></colgroup><tbody>' +
     mcGroups(L).map(g => '<tr class="mc-gh"><td colspan="2">' + g.title + '</td></tr>' + g.list.map((c, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(c) + '</td></tr>').join('')).join('') + '</tbody></table></div>'
     : '<p class="empty">لم تحددي المراكز بعد. افتحي «اختيار المراكز» أعلاه.</p>';
 }
@@ -1125,7 +1125,7 @@ async function mcPdf(btn) {
       '<div class="idc-title">المراكز المشرفة عليها</div>' +
       '<div class="mc-meta"><span>المشرفة: ' + val(esc(localStorage.getItem(NAME_KEY) || getUser())) + '</span><span>عدد المراكز: ' + val(idDigits(L.length)) + '</span><span>التاريخ: ' + val(mcHDate()) + '</span></div>' +
       '<div class="mc-meta" style="justify-content:flex-start;gap:30px"><span>الفترة الصباحية: ' + val(idDigits(L.filter(c => mcPeriod(c) === 'am').length)) + '</span><span>الفترة المسائية: ' + val(idDigits(L.filter(c => mcPeriod(c) === 'pm').length)) + '</span></div>' +
-      '<table><colgroup><col style="width:70px"><col></colgroup><tr><th>م</th><th>اسم المركز</th></tr>' + rows + '</table></div>' +
+      '<table><colgroup><col style="width:70px"><col></colgroup>' + rows + '</table></div>' +
       (pages.length > 1 ? '<div class="mc-pg">صفحة ' + idDigits(i + 1) + ' من ' + idDigits(pages.length) + '</div>' : '') + '</div>');
     idSaveBlob(await idPagesPdf(html, MC_CSS, true), 'المراكز_المشرفة_عليها.pdf');
     toast('تم التحميل');
@@ -1138,7 +1138,7 @@ function mcXlsx(btn) {
   exRun({ title: 'المراكز المشرفة عليها', file: 'المراكز_المشرفة_عليها', landscape: false,
     info: [['المشرفة', localStorage.getItem(NAME_KEY) || getUser()], ['عدد المراكز', String(L.length)],
       ['الفترة الصباحية', String(L.filter(c => mcPeriod(c) === 'am').length)], ['الفترة المسائية', String(L.filter(c => mcPeriod(c) === 'pm').length)]],
-    cols: ['م', 'اسم المركز'], widths: [8, 70], sections: mcGroups(L).map(g => ({ title: g.title, rows: g.list.map((c, i) => [i + 1, c]) })), totals: [], notes: [] }, btn);
+    cols: ['م', ''], widths: [8, 70], sections: mcGroups(L).map(g => ({ title: g.title, rows: g.list.map((c, i) => [i + 1, c]) })), totals: [], notes: [] }, btn);
 }
 let mcSel = new Set();
 function mcRender() {
