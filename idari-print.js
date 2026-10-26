@@ -90,10 +90,12 @@ const ID_CSS = `
 .idoc .idc-foot>div{text-align:center;font-weight:800;font-size:16px;min-width:240px;line-height:1.8}
 .idoc .idc-note{font-size:14px;margin:12px 0 0;font-weight:700}
 .idoc .idc-avoid{page-break-inside:avoid;break-inside:avoid}
-.idoc .idp{font-family:'Times New Roman',Times,serif;color:#000}
+.idoc .idp{font-family:'Tajawal','Segoe UI',Tahoma,Arial,sans-serif;color:#222}
 .idoc .idp *{font-weight:400}
 .idoc .idp-in{padding:22px 112px 26px}
-.idoc .idp-title{text-align:center;font-size:21px;color:#6f0c1e;margin:0 0 16px}
+.idoc .idp-title{text-align:center;font-family:'Amiri',serif;font-size:26px;font-weight:700 !important;color:#7a1f2b;margin:0 0 16px}
+.idoc .idp th{font-weight:500 !important;font-size:16px}
+.idoc .idp td{font-size:15.5px}
 .idoc .idp .idc-meta,.idoc .idp .idc-meta *{font-family:'Tajawal','Segoe UI',Tahoma,Arial,sans-serif;font-weight:700;font-size:17px;color:#2b2321}
 .idoc .idp .idp-sig,.idoc .idp .idp-sig *{font-family:'Tajawal','Segoe UI',Tahoma,Arial,sans-serif;font-weight:700;font-size:17px;color:#2b2321}   /* سطر الاسم والتوقيع والتاريخ مثل سطر الفترة */
 .idoc .idp .idp-note{font-family:'Tajawal','Segoe UI',Tahoma,Arial,sans-serif;font-weight:500;font-size:15px;color:#2b2321}
