@@ -2272,38 +2272,71 @@ function hasrSeen_(r) {
 
 
 /* ============ المراكز المشرفة عليها (لكل مشرفة) ============
-   ورقة «مراكز المشرفات»: صف لكل مشرفة فيه قائمة المراكز التي تشرف عليها (JSON).
-   تُستخدم في إحصائية تقارير الزيارة: المراكز التي تمت زيارتها والتي لم تتم زيارتها. */
+   ورقة «مراكز المشرفات»: صف لكل مركز — اسم المركز | الفترة | المشرفة | اسم المستخدم | آخر تحديث
+   (الفترة في عمود مستقل: الصباحية / المسائية). تُستخدم أيضاً في إحصائية تقارير الزيارة.
+   الصيغة القديمة (صف لكل مشرفة وقائمة JSON) تُحوَّل تلقائياً لهذه الصيغة عند أول استخدام. */
 const MYC_SHEET_ = 'مراكز المشرفات';
+const MYC_HEAD_ = ['اسم المركز', 'الفترة', 'المشرفة', 'اسم المستخدم', 'آخر تحديث'];
+// «أم حكيم - الفترة الصباحية» ← { name: 'أم حكيم', period: 'الصباحية' }
+function mycSplit_(c) {
+  const full = String(c || '').trim(), t = full.replace(/[أإآ]/g, 'ا');
+  const m = /مسائ/.test(t), s = /صباح/.test(t);
+  const period = m && s ? 'الصباحية والمسائية' : m ? 'المسائية' : s ? 'الصباحية' : '';
+  const name = full.replace(/\s*[-–—]?\s*(ال)?فتر(ة|تين|تان)\s+.*$/, '').trim() || full;
+  return { name: name, period: period };
+}
+function mycHeadFmt_(sh) {
+  sh.getRange(1, 1, 1, MYC_HEAD_.length).setValues([MYC_HEAD_])
+    .setBackground('#7a1f2b').setFontColor('#ffffff').setFontWeight('bold').setHorizontalAlignment('center');
+  sh.setFrozenRows(1);
+}
 function mycSheet_() {
   const ss = ss_();
   let sh = ss.getSheetByName(MYC_SHEET_);
-  if (!sh) {
-    sh = ss.insertSheet(MYC_SHEET_);
-    sh.getRange(1, 1, 1, 3).setValues([['المستخدم', 'المراكز', 'آخر تحديث']])
-      .setBackground('#7a1f2b').setFontColor('#ffffff').setFontWeight('bold').setHorizontalAlignment('center');
-    sh.setFrozenRows(1);
+  if (!sh) { sh = ss.insertSheet(MYC_SHEET_); mycHeadFmt_(sh); return sh; }
+  // تحويل الصيغة القديمة (المستخدم | المراكز JSON | آخر تحديث)
+  if (String(sh.getRange(1, 2).getValue()).trim() === 'المراكز') {
+    const last = sh.getLastRow(), rows = [];
+    const old = last > 1 ? sh.getRange(2, 1, last - 1, 3).getDisplayValues() : [];
+    old.forEach(r => {
+      const u = String(r[0] || '').trim().toLowerCase(); if (!u) return;
+      let L = []; try { L = JSON.parse(r[1] || '[]'); } catch (e) {}
+      const nm = profileOf_(u).name;
+      (Array.isArray(L) ? L : []).forEach(c => { const x = mycSplit_(c); rows.push([x.name, x.period, nm, u, r[2] || '']); });
+    });
+    sh.clear();
+    mycHeadFmt_(sh);
+    if (rows.length) sh.getRange(2, 1, rows.length, MYC_HEAD_.length).setNumberFormat('@').setValues(rows);
   }
   return sh;
 }
-function mycRow_(sh, u) {
+function mycAll_(sh) {
   const last = sh.getLastRow();
-  if (last < 2) return 0;
-  const ids = sh.getRange(2, 1, last - 1, 1).getValues();
-  for (let i = 0; i < ids.length; i++) if (String(ids[i][0]).trim().toLowerCase() === u) return i + 2;
-  return 0;
+  return last > 1 ? sh.getRange(2, 1, last - 1, MYC_HEAD_.length).getDisplayValues() : [];
+}
+// نعيد الاسم الكامل كما في «القوائم» (ليطابق اسم المركز في الزيارات والتقارير)
+function mycFull_(name, period) {
+  let centers = []; try { centers = getLists_().centers || []; } catch (e) {}
+  const hit = centers.filter(c => { const x = mycSplit_(c); return x.name === name && x.period === period; })[0];
+  return hit || (period ? name + ' - الفترة ' + period : name);
 }
 function myCentersGet_(username) {
-  const sh = ss_().getSheetByName(MYC_SHEET_);
-  if (!sh) return [];
-  const row = mycRow_(sh, norm_(username).toLowerCase());
-  if (!row) return [];
-  try { const a = JSON.parse(sh.getRange(row, 2).getValue() || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; }
+  if (!ss_().getSheetByName(MYC_SHEET_)) return [];
+  const u = norm_(username).toLowerCase();
+  return mycAll_(mycSheet_()).filter(r => String(r[3]).trim().toLowerCase() === u && String(r[0]).trim())
+    .map(r => mycFull_(String(r[0]).trim(), String(r[1]).trim()));
 }
 function myCentersSave_(r) {
   const list = (Array.isArray(r.centers) ? r.centers : []).map(c => String(c || '').trim().slice(0, 200)).filter(Boolean).slice(0, 500);
-  const sh = mycSheet_(), u = norm_(r.username).toLowerCase();
-  const row = mycRow_(sh, u) || sh.getLastRow() + 1;
-  sh.getRange(row, 1, 1, 3).setNumberFormat('@').setValues([[u, JSON.stringify(list), Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm')]]);
+  const sh = mycSheet_(), u = norm_(r.username).toLowerCase(), nm = profileOf_(u).name;
+  const at = Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm');
+  const order = { 'الصباحية': 1, 'المسائية': 2, 'الصباحية والمسائية': 3, '': 4 };
+  const mine = list.map(c => { const x = mycSplit_(c); return [x.name, x.period, nm, u, at]; })
+    .sort((a, b) => (order[a[1]] || 9) - (order[b[1]] || 9) || a[0].localeCompare(b[0], 'ar'));
+  const others = mycAll_(sh).filter(x => String(x[3]).trim().toLowerCase() !== u && String(x[0]).trim());
+  const rows = others.concat(mine);
+  const last = sh.getLastRow();
+  if (last > 1) sh.getRange(2, 1, last - 1, MYC_HEAD_.length).clearContent();
+  if (rows.length) sh.getRange(2, 1, rows.length, MYC_HEAD_.length).setNumberFormat('@').setValues(rows);
   return { ok: true, data: list };
 }

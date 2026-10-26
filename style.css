@@ -345,7 +345,12 @@ img.vsig{display:block;margin:0 auto;max-height:44px;max-width:120px}
 .id-scroll .idoc{padding:0}
 
 /* المراكز المشرفة عليها */
-.mc-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 14px;max-height:420px;overflow-y:auto;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.mc-list{max-height:460px;overflow-y:auto;border:1px solid var(--line);border-radius:12px;padding:0}
+.mc-grp+.mc-grp{border-top:1px solid var(--line)}
+.mc-grp-h{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:10px;background:#f6f0f2;color:#7a1f2b;font-weight:800;padding:9px 12px}
+.mc-grp-h small{font-weight:700;color:var(--muted)}
+.mc-grp-all{display:flex;white-space:nowrap;flex-shrink:0;align-items:center;gap:6px;margin:0;font-size:13.5px;font-weight:700;color:#7a1f2b;cursor:pointer}
+.mc-grp-b{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 14px;padding:8px 12px}
 .mc-item{margin:0;padding:6px 2px}
 .mc-fold{border:1px solid var(--line);border-radius:12px;margin-top:10px;overflow:hidden}
 .mc-fold>summary{list-style:none;display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;font-weight:800}

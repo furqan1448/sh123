@@ -33,6 +33,8 @@ function mcPeriod(c) {
   const m = /مسائ/.test(t), s = /صباح/.test(t);
   return m && s ? 'both' : m ? 'pm' : s ? 'am' : '';
 }
+// اسم المركز بدون الفترة: «أم حكيم - الفترة الصباحية» ← «أم حكيم» (الفترة تظهر في عنوان المجموعة)
+const mcName = c => String(c || '').replace(/\s*[-–—]?\s*(ال)?فتر(ة|تين|تان)\s+.*$/, '').trim() || String(c || '').trim();
 const MC_GROUPS = [['am', 'توزيع المراكز - الفترة الصباحية'], ['pm', 'توزيع المراكز - الفترة المسائية'], ['both', 'توزيع المراكز - الفترتان الصباحية والمسائية'], ['', 'توزيع المراكز - بدون فترة محددة']];
 // تقسيم المراكز حسب الفترة: [{ k, title, list }]
 const mcGroups = L => MC_GROUPS.map(([k, title]) => ({ k, title, list: L.filter(c => mcPeriod(c) === k) })).filter(g => g.list.length);
@@ -46,7 +48,7 @@ function mcSavedRender() {
   const L = mcSorted();
   mc$('mcSavedCnt').textContent = L.length;
   mc$('mcSaved').innerHTML = L.length ? mcPeriodLine(L) + '<div class="tbl-wrap"><table class="mc-tbl"><colgroup><col style="width:56px"><col></colgroup><tbody>' +
-    mcGroups(L).map(g => '<tr class="mc-gh"><td colspan="2">' + g.title + '</td></tr>' + g.list.map((c, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(c) + '</td></tr>').join('')).join('') + '</tbody></table></div>'
+    mcGroups(L).map(g => '<tr class="mc-gh"><td colspan="2">' + g.title + '</td></tr>' + g.list.map((c, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(mcName(c)) + '</td></tr>').join('')).join('') + '</tbody></table></div>'
     : '<p class="empty">لم تحددي المراكز بعد. افتحي «اختيار المراكز» أعلاه.</p>';
 }
 const MC_CSS = `
@@ -77,7 +79,7 @@ async function mcPdf(btn) {
     const items = [];
     mcGroups(L).forEach(g => {
       items.push({ h: 1, html: '<tr class="mc-gh"><td colspan="2">' + g.title + '</td></tr>' });
-      g.list.forEach((c, k) => items.push({ html: '<tr><td class="idc-n">' + idDigits(k + 1) + '</td><td class="r">' + esc(c) + '</td></tr>' }));
+      g.list.forEach((c, k) => items.push({ html: '<tr><td class="idc-n">' + idDigits(k + 1) + '</td><td class="r">' + esc(mcName(c)) + '</td></tr>' }));
     });
     const per = 20, pages = [];
     let cur = [];
@@ -104,20 +106,27 @@ function mcXlsx(btn) {
   exRun({ title: 'المراكز المشرفة عليها', file: 'المراكز_المشرفة_عليها', landscape: false,
     info: [['المشرفة', mcMyName()], ['عدد المراكز', String(L.length)],
       ['الفترة الصباحية', String(L.filter(c => mcPeriod(c) === 'am').length)], ['الفترة المسائية', String(L.filter(c => mcPeriod(c) === 'pm').length)]],
-    cols: ['م', ''], widths: [8, 70], sections: mcGroups(L).map(g => ({ title: g.title, rows: g.list.map((c, i) => [i + 1, c]) })), totals: [], notes: [] }, btn);
+    cols: ['م', ''], widths: [8, 70], sections: mcGroups(L).map(g => ({ title: g.title, rows: g.list.map((c, i) => [i + 1, mcName(c)]) })), totals: [], notes: [] }, btn);
 }
 let mcSel = new Set();
 function mcRender() {
   const all = (LISTS.centers || []).map(mcNorm).filter(Boolean);
   const q = mc$('mcSearch').value.trim();
   const shown = all.filter(c => !q || c.indexOf(q) > -1);
-  mc$('mcList').innerHTML = shown.length ? shown.map(c => '<label class="check mc-item"><input type="checkbox" value="' + esc(c) + '"' + (mcSel.has(c) ? ' checked' : '') + ' onchange="mcPick(this)"><span>' + esc(c) + '</span></label>').join('')
+  // القائمة مقسّمة: الفترة الصباحية ثم المسائية (مع «تحديد الكل» لكل فترة)
+  mc$('mcList').innerHTML = shown.length ? mcGroups(shown).map(g => {
+    const gAll = all.filter(c => mcPeriod(c) === g.k), on = gAll.filter(c => mcSel.has(c)).length;
+    return '<div class="mc-grp"><div class="mc-grp-h"><span>' + g.title.replace('توزيع المراكز - ', '') + ' <small>(' + on + ' / ' + gAll.length + ')</small></span>' +
+      '<label class="mc-grp-all"><input type="checkbox" data-k="' + g.k + '"' + (gAll.length && on === gAll.length ? ' checked' : '') + ' onchange="mcToggleGroup(this)"><span>تحديد الكل</span></label></div>' +
+      '<div class="mc-grp-b">' + g.list.map(c => '<label class="check mc-item"><input type="checkbox" value="' + esc(c) + '"' + (mcSel.has(c) ? ' checked' : '') + ' onchange="mcPick(this)"><span>' + esc(mcName(c)) + '</span></label>').join('') + '</div></div>';
+  }).join('')
     : '<p class="empty">' + (all.length ? 'لا يوجد مركز بهذا الاسم' : 'جارِ تحميل المراكز...') + '</p>';
   mc$('mcAll').checked = all.length > 0 && all.every(c => mcSel.has(c));
   mc$('mcCount').textContent = 'المراكز المحددة: ' + mcSel.size + ' من ' + all.length;
   mc$('mcPickCnt').textContent = mcSel.size + ' / ' + all.length;
 }
 function mcPick(el) { if (el.checked) mcSel.add(el.value); else mcSel.delete(el.value); mcRender(); }
+function mcToggleGroup(el) { (LISTS.centers || []).map(mcNorm).filter(c => c && mcPeriod(c) === el.dataset.k).forEach(c => el.checked ? mcSel.add(c) : mcSel.delete(c)); mcRender(); }
 function mcToggleAll(on) { (LISTS.centers || []).map(mcNorm).filter(Boolean).forEach(c => on ? mcSel.add(c) : mcSel.delete(c)); mcRender(); }
 async function mcSave() {
   const btn = mc$('mcSaveBtn');

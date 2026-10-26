@@ -1064,10 +1064,10 @@ function idStatsRender() {
   const not = mine.filter(c => !by[c]).sort((a, b) => a.localeCompare(b, 'ar'));
   const lastOf = c => { const L = by[c]; const r = L.slice().sort((a, b) => String(b.date || b.at || '').localeCompare(String(a.date || a.at || '')))[0]; return r && r.data && r.data.hd ? idHDate(r) : esc(r && r.date || ''); };
   const visTbl = done.length ? '<div class="tbl-wrap"><table class="mc-tbl"><thead><tr><th>م</th><th>المركز</th><th>عدد الزيارات</th><th>آخر زيارة</th></tr></thead><tbody>' +
-    mcGroups(done).map(g => '<tr class="mc-gh"><td colspan="4">' + g.title + '</td></tr>' + g.list.map((c, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(c) + '</td><td><b>' + by[c].length + '</b></td><td>' + lastOf(c) + '</td></tr>').join('')).join('') + '</tbody></table></div>'
+    mcGroups(done).map(g => '<tr class="mc-gh"><td colspan="4">' + g.title + '</td></tr>' + g.list.map((c, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(mcName(c)) + '</td><td><b>' + by[c].length + '</b></td><td>' + lastOf(c) + '</td></tr>').join('')).join('') + '</tbody></table></div>'
     : '<p class="empty">لم تتم زيارة أي مركز بعد</p>';
   const notList = not.length ? '<div class="tbl-wrap"><table class="mc-tbl"><thead><tr><th>م</th><th>المركز</th></tr></thead><tbody>' +
-    mcGroups(not).map(g => '<tr class="mc-gh"><td colspan="2">' + g.title + '</td></tr>' + g.list.map((c, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(c) + '</td></tr>').join('')).join('') + '</tbody></table></div>'
+    mcGroups(not).map(g => '<tr class="mc-gh"><td colspan="2">' + g.title + '</td></tr>' + g.list.map((c, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(mcName(c)) + '</td></tr>').join('')).join('') + '</tbody></table></div>'
     : '<p class="empty">تمت زيارة جميع المراكز المشرفة عليها</p>';
   const open = box.querySelectorAll('details[open]');
   const wasOpen = [...open].map(d => d.dataset.k);
