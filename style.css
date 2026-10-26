@@ -360,3 +360,10 @@ img.vsig{display:block;margin:0 auto;max-height:44px;max-width:120px}
 .mc-tbl{min-width:0}
 .mc-item.check{background:none;border:0;padding:6px 2px;margin:0;border-radius:0}
 .btn.vdel{padding:4px 12px;font-size:16px;line-height:1.2;font-weight:800}
+
+.mc-per{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 10px}
+.mc-p{background:#f6f0f2;color:#7a1f2b;border-radius:999px;padding:4px 12px;font-weight:700;font-size:13.5px}
+.mc-p.pm{background:#eef0f8;color:#2e3a6b}
+.mc-ptbl td.ok{color:#1f6b40;font-weight:800}
+.mc-ptbl td.no{color:#8a1f2b;font-weight:800}
+.mc-ptbl tr.mc-tot td{background:#f6f0f2;font-weight:800}
