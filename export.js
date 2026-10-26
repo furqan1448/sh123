@@ -413,23 +413,33 @@ function exPrefetch() {
    الكليشة الحمراء من الطرف إلى الطرف، والعنوان العنابي، وجدول لكل مركز فيه صورة توقيع المديرة،
    مع إجمالي أيام الحضور والغياب. يُقسَّم تلقائياً على صفحات A4 طولية (الكليشة أعلى كل صفحة). */
 const KF_CSS = `
-.im-page.kf{width:1123px;height:794px;overflow:hidden;position:relative;background:#fff;font-size:13px}
-.im-page.kf .idc-body{padding:0 24px}
-.im-page.kf table{font-size:13px;table-layout:fixed;width:100%;border-collapse:collapse}
-.im-page.kf th,.im-page.kf td{border:1px solid #e2cdd2;color:#2b2321}
-.im-page.kf th{padding:7px 6px;font-size:13px;background:#f3e3e6;color:#7a1f2b;border-color:#e2cdd2}
-.im-page.kf td{padding:3px 6px;height:30px;text-align:center}
-.im-page.kf .kf-head{margin:10px 0 12px}
-.im-page.kf .kf-head td{height:24px;padding:2px 8px;text-align:right}
-.im-page.kf .kf-head td.kf-bar{background:#fff;color:#7a1f2b;border:0;border-bottom:1px solid #e2cdd2;text-align:center;font-weight:800;font-size:20px;height:40px}
-.im-page.kf .kf-head td.kf-l{background:#fff;font-weight:800}
-.im-page.kf tr.kf-c td{background:#fbf6f7;color:#7a1f2b;font-weight:800;text-align:right;height:26px}
-.im-page.kf tr.kf-t td{background:#fbf6f7;font-weight:800;height:26px}
-.im-page.kf tr.kf-t td.kf-l{color:#7a1f2b;text-align:right}
-.im-page.kf td.idc-n{color:#2b2321}
-.im-page.kf img.kf-sig{height:26px;width:auto;max-width:120px;display:block;margin:auto}
-.im-page.kf td{line-height:1.3}
-.im-page.kf .kf-pg{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:11px;color:#777}
+.im-page.kf{width:1123px;height:794px;overflow:hidden;position:relative;background:#fff;font-size:13.5px;color:#2f2f2f}
+.im-page.kf .idc-body{padding:0 34px}
+.im-page.kf .kf-title{text-align:center;font-size:22px;font-weight:800;color:#7a1f2b;margin:14px 0 12px}
+.im-page.kf .kf-cards{display:flex;gap:12px;margin:0 0 14px}
+.im-page.kf .kf-cards>div{flex:1;border:1px solid #e6e6e6;border-radius:8px;padding:7px 14px;display:flex;justify-content:space-between;align-items:center;background:#fafafa}
+.im-page.kf .kf-cards span{color:#777;font-weight:700;font-size:13px}
+.im-page.kf .kf-cards b{color:#2f2f2f;font-size:14.5px}
+.im-page.kf table{font-size:13.5px;table-layout:fixed;width:100%;border-collapse:collapse}
+.idoc .im-page.kf th,.idoc .im-page.kf td{border:0 !important;border-bottom:1px solid #ececec !important;color:#2f2f2f}
+.idoc .im-page.kf th{padding:9px 6px;font-size:13.5px;font-weight:800;background:#f4f4f4 !important;color:#555 !important;border-bottom:2px solid #7a1f2b !important}
+.im-page.kf td{padding:3px 6px;height:31px;text-align:center;line-height:1.3}
+.idoc .im-page.kf tr.kf-c td{background:#fff;color:#7a1f2b;font-weight:800;text-align:right;height:34px;padding-top:10px;font-size:14.5px;border-bottom:1px solid #d9c3c8 !important}
+.idoc .im-page.kf tr.kf-t td{border:0 !important;padding:14px 0 0;height:auto}
+.im-page.kf .kf-tot{display:flex;gap:12px;justify-content:flex-start}
+.im-page.kf .kf-tot>div{min-width:230px;border:1px solid #e6e6e6;border-radius:8px;padding:8px 16px;display:flex;justify-content:space-between;align-items:center;background:#fafafa}
+.im-page.kf .kf-tot span{color:#555;font-weight:700}
+.im-page.kf .kf-tot b{color:#7a1f2b;font-size:17px}
+.im-page.kf td.idc-n{color:#888}
+.im-page.kf img.kf-sig{height:27px;width:auto;max-width:130px;display:block;margin:auto}
+.im-page.kf .kf-pg{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:11px;color:#999}
+/* التنسيق المعتمد: رأس عنابي، وصف المركز والبطاقات وردية، وحدود وردية ناعمة */
+.idoc .im-page.kf th,.idoc .im-page.kf td{border:1px solid #e3c3ca !important}
+.idoc .im-page.kf th{background:#7a1f2b !important;color:#fff !important;border-color:#7a1f2b !important}
+.idoc .im-page.kf tr.kf-c td{background:#f1dde1;border:1px solid #e3c3ca !important;padding-top:3px}
+.idoc .im-page.kf tr.kf-t td{border:0 !important}
+.im-page.kf .kf-cards>div,.im-page.kf .kf-tot>div{background:#f6e8eb;border-color:#e3c3ca}
+.im-page.kf .kf-cards span,.im-page.kf .kf-tot span{color:#7a1f2b}
 `;
 function kfHijri(dateStr) {
   const p = String(dateStr || '').split(' ')[0].split('-');
@@ -458,11 +468,9 @@ async function kfPages(rows, lhUrl) {
   const lh = esc(lhUrl || ID_LETTERHEAD);
   const today = new Date(); const td = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
   const centersN = (m.info.find(x => x[0] === 'المراكز') || [])[1] || '';
-  const top = '<img class="idc-lh" src="' + lh + '" width="2000" height="351" alt=""><div class="idc-body">' +
-    '<table class="kf-head"><colgroup><col style="width:15%"><col></colgroup><tr><td class="kf-bar" colspan="2">كشف خروج المشرفة</td></tr>' +
-    '<tr><td class="kf-l">المشرفة</td><td>' + esc(getUser()) + '</td></tr>' +
-    '<tr><td class="kf-l">تاريخ التقرير</td><td>' + kfGreg(td) + '</td></tr>' +
-    '<tr><td class="kf-l">المراكز</td><td>' + idDigits(centersN) + '</td></tr></table>';
+  const card = (l, v) => '<div><span>' + l + '</span><b>' + v + '</b></div>';
+  const top = '<img class="idc-lh" src="' + lh + '" width="2000" height="351" alt=""><div class="idc-body"><div class="kf-title">كشف خروج المشرفة</div>' +
+    '<div class="kf-cards">' + card('المشرفة', esc(getUser())) + card('تاريخ التقرير', kfGreg(td)) + card('عدد المراكز', idDigits(centersN)) + '</div>';
   const thead = '<table><colgroup><col style="width:4%"><col style="width:10%"><col style="width:8%"><col style="width:16%"><col style="width:15%"><col style="width:28%"><col style="width:19%"></colgroup>' +
     '<tr><th>م</th><th>التاريخ</th><th>اليوم</th><th>الموافق</th><th>نوع الزيارة</th><th>الحالة</th><th>توقيع المديرة</th></tr>';
   const list = [];
@@ -476,8 +484,7 @@ async function kfPages(rows, lhUrl) {
     L.forEach((v, i) => list.push('<tr><td class="idc-n">' + idDigits(i + 1) + '</td><td>' + kfGreg(v.date) + '</td><td>' + esc(v.day || '') + '</td><td>' + kfHijri(v.date) + '</td><td>' + esc(v.type || '—') + '</td><td>' + esc(vStatusOf(v)) + '</td><td>' +
       (VSIG[v.id] ? '<img class="kf-sig" src="' + VSIG[v.id] + '" alt="">' : '') + '</td></tr>'));
   });
-  list.push('<tr class="kf-t"><td class="kf-l" colspan="2">إجمالي أيام الحضور</td><td colspan="5">' + idDigits(att) + '</td></tr>' +
-    '<tr class="kf-t"><td class="kf-l" colspan="2">إجمالي أيام الغياب</td><td colspan="5">' + idDigits(abs) + '</td></tr>');
+  list.push('<tr class="kf-t"><td colspan="7"><div class="kf-tot">' + card('إجمالي أيام الحضور', idDigits(att)) + card('إجمالي أيام الغياب', idDigits(abs)) + '</div></td></tr>');
   // القياس
   const box = document.createElement('div');
   box.style.cssText = 'position:absolute;top:0;left:-3000px;width:1123px;visibility:hidden;direction:rtl';
