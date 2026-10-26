@@ -100,8 +100,8 @@ async function hsXlsx(rec, btn) {
   try {
     await hsLoadExcel();
     const wb = new window.ExcelJS.Workbook(), ws = wb.addWorksheet('الحصر', { views: [{ rightToLeft: true }], pageSetup: { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
-    const red = 'FF7A1F2B', pale = 'FFF3E6E9', gold = 'FFFBF3E0';
-    const border = { top: { style: 'thin', color: { argb: red } }, bottom: { style: 'thin', color: { argb: red } }, left: { style: 'thin', color: { argb: red } }, right: { style: 'thin', color: { argb: red } } };
+    const red = 'FF953734', head = 'FFF2DBDB', pale = 'FFD9D9D9', gold = 'FFF2F2F2', blk = 'FF000000';   // ألوان استمارة الإكسل الأصلية للجمعية
+    const border = { top: { style: 'thin', color: { argb: blk } }, bottom: { style: 'thin', color: { argb: blk } }, left: { style: 'thin', color: { argb: blk } }, right: { style: 'thin', color: { argb: blk } } };
     const N = 24;   // م + الاسم + المسمى + 20 خانة + ملاحظات
     ws.columns = [{ width: 5 }, { width: 26 }, { width: 14 }].concat(Array(20).fill({ width: 5.5 }), [{ width: 22 }]);
     const cell = (r, c, v, o) => { const x = ws.getCell(r, c); x.value = v; x.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true, readingOrder: 'rtl' }; x.font = { name: 'Arial', bold: true, size: 11, color: { argb: o && o.color || 'FF000000' } }; if (o && o.fill) x.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: o.fill } }; if (!o || o.border !== false) x.border = border; return x; };
@@ -112,21 +112,21 @@ async function hsXlsx(rec, btn) {
     ws.mergeCells(3, 14, 3, 19); cell(3, 14, 'الفصل الدراسي: ' + (rec.sem || ''), { border: false });
     ws.mergeCells(3, 20, 3, N); cell(3, 20, 'عام: ' + (rec.year || '') + 'هـ', { border: false });
     const h = 5;
-    [[1, 'م'], [2, 'اسم الموظفة'], [3, 'المسمى الوظيفي'], [N, 'ملاحظات']].forEach(([c, t]) => { ws.mergeCells(h, c, h + 2, c); cell(h, c, t, { fill: red, color: 'FFFFFFFF' }); });
+    [[1, 'م'], [2, 'اسم الموظفة'], [3, 'المسمى الوظيفي'], [N, 'ملاحظات']].forEach(([c, t]) => { ws.mergeCells(h, c, h + 2, c); cell(h, c, t, { fill: head, color: blk }); });
     for (let g = 0; g < 4; g++) {
       const c0 = 4 + g * 5;
-      ws.mergeCells(h, c0, h, c0 + 4); cell(h, c0, g < 3 ? hsMonthName(rec, g) : 'المجموع', { fill: red, color: 'FFFFFFFF' });
-      ws.mergeCells(h + 1, c0, h + 1, c0 + 2); cell(h + 1, c0, 'غياب', { fill: pale, color: red });
-      ws.mergeCells(h + 1, c0 + 3, h + 2, c0 + 3); cell(h + 1, c0 + 3, 'تأخير', { fill: pale, color: red });
-      ws.mergeCells(h + 1, c0 + 4, h + 2, c0 + 4); cell(h + 1, c0 + 4, 'استئذان', { fill: pale, color: red });
-      ['ض', 'غ', 'ج'].forEach((t, i) => cell(h + 2, c0 + i, t, { fill: pale, color: red }));
+      ws.mergeCells(h, c0, h, c0 + 4); cell(h, c0, g < 3 ? hsMonthName(rec, g) : 'المجموع', { fill: head, color: blk });
+      ws.mergeCells(h + 1, c0, h + 1, c0 + 2); cell(h + 1, c0, 'غياب', { fill: pale, color: blk });
+      ws.mergeCells(h + 1, c0 + 3, h + 2, c0 + 3); cell(h + 1, c0 + 3, 'تأخير', { fill: pale, color: blk });
+      ws.mergeCells(h + 1, c0 + 4, h + 2, c0 + 4); cell(h + 1, c0 + 4, 'استئذان', { fill: pale, color: blk });
+      ['ض', 'غ', 'ج'].forEach((t, i) => cell(h + 2, c0 + i, t, { fill: pale, color: blk }));
     }
     const rows = (rec.data && rec.data.rows) || [];
     rows.forEach((r, i) => {
       const R = h + 3 + i, t = hsTotals(r);
       cell(R, 1, i + 1); cell(R, 2, r.name).alignment.horizontal = 'right'; cell(R, 3, r.job || '');
       [0, 1, 2].forEach(k => HS_KEYS.forEach((c, j) => { const v = hsNum(((r.m || [])[k] || {})[c]); cell(R, 4 + k * 5 + j, v == null ? '' : v); }));
-      HS_KEYS.forEach((c, j) => cell(R, 19 + j, t[c] == null ? '' : t[c], { fill: gold, color: red }));
+      HS_KEYS.forEach((c, j) => cell(R, 19 + j, t[c] == null ? '' : t[c], { fill: gold, color: blk }));
       cell(R, N, r.note || '').font.size = 9;
       ws.getRow(R).height = 22;
     });

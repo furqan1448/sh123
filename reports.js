@@ -502,8 +502,8 @@ async function exportReport() {
       views: [{ rightToLeft: true, showGridLines: false }],
       pageSetup: { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.5, header: 0.2, footer: 0.2 } }
     });
-    const FONT = 'Arial', MAROON = 'FF7A1F2B', LIGHT = 'FFF6F0F2';
-    const thin = { style: 'thin', color: { argb: 'FFD9C7C0' } };
+    const FONT = 'Arial', MAROON = 'FF953734', LIGHT = 'FFF2DBDB';   // ألوان استمارة الإكسل الأصلية للجمعية
+    const thin = { style: 'thin', color: { argb: 'FF000000' } };
     const border = { top: thin, left: thin, bottom: thin, right: thin };
     cols.forEach((c, i) => ws.getColumn(i + 1).width = c.width);
 
@@ -523,8 +523,8 @@ async function exportReport() {
       ws.getRow(row).height = size + 16;
     };
     const T = HR + 2;
-    bar(T, 'خلاصة تقارير الإشراف (تقييم المعلمات)', 16, MAROON, 'FFFFFFFF');
-    bar(T + 1, rpModeTitle(m), 12, LIGHT, MAROON);
+    bar(T, 'خلاصة تقارير الإشراف (تقييم المعلمات)', 16, null, MAROON);
+    bar(T + 1, rpModeTitle(m), 12, LIGHT, 'FF000000');
     bar(T + 2, 'الفترة: ' + m.period + '     الفصل الدراسي: ' + m.semester + '     لعام ' + m.year + 'هـ     المشرفة: ' + m.supervisor, 11, null);
 
     const H1 = T + 4, H2 = H1 + 1, D0 = H2 + 1;
@@ -546,8 +546,8 @@ async function exportReport() {
     }
     for (let r = H1; r <= H2; r++) for (let k = 1; k <= N; k++) {
       const c = ws.getCell(r, k);
-      c.font = { name: FONT, size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
-      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: r === H1 ? MAROON : 'FF9B3A47' } };
+      c.font = { name: FONT, size: 10, bold: true, color: { argb: 'FF000000' } };
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: r === H1 ? 'FFF2DBDB' : 'FFD9D9D9' } };
       c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true, readingOrder: 'rtl' };
       c.border = border;
     }
@@ -577,7 +577,6 @@ async function exportReport() {
         cell.alignment = { horizontal: ['skills', 'improve', 'notes'].includes(col.k) ? 'right' : 'center', vertical: 'middle', wrapText: true, readingOrder: 'rtl' };
         cell.border = border;
         if (col.num) cell.numFmt = '0.##';
-        if (i % 2) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDF9F6' } };
       });
       ws.getRow(n).height = 34;
     });
