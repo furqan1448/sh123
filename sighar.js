@@ -68,7 +68,7 @@ function fillSelect(id, arr, ph) {
   if (cur && arr.indexOf(cur) > -1) el.value = cur;
 }
 function fillLists() {
-  ['vCenter', 'sgCenter'].forEach(id => fillSelect(id, LISTS.centers || [], 'اختاري المركز'));
+  ['vCenter', 'sgCenter'].forEach(id => fillSelect(id, centersForMe(), 'اختاري المركز'));
   fillSelect('fCenter', LISTS.centers || [], 'كل المراكز');
   fillTeachers();
   fillTypes();
@@ -497,7 +497,7 @@ function sgFill(r) {
   loadTDir();
   delete $('sgCenter').dataset.auto; delete $('sgPeriod').dataset.auto;
   if (!SGE.length) loadSge(true);
-  $('sgCenter').value = r.center || '';
+  selSet('sgCenter', r.center);
   periodSet('sgPeriod', r.period);
   hdSet('sg', edit ? r : null);
   $('sgVisitNo').value = r.visitNo || '';
@@ -617,8 +617,9 @@ async function ssDel(id) {
 function ssRowHtml(r) {
   r = r || {};
   const opts = '<option value="">اختاري</option>' + SS_ATT.map(x => '<option' + (r.att === x ? ' selected' : '') + '>' + x + '</option>').join('');
-  const centers = '<option value="">اختاري المركز</option>' + (LISTS.centers || []).map(x => '<option' + (r.center === x ? ' selected' : '') + '>' + esc(x) + '</option>').join('') +
-    (r.center && (LISTS.centers || []).indexOf(r.center) < 0 ? '<option selected>' + esc(r.center) + '</option>' : '');
+  const myC = centersForMe();
+  const centers = '<option value="">اختاري المركز</option>' + myC.map(x => '<option' + (r.center === x ? ' selected' : '') + '>' + esc(x) + '</option>').join('') +
+    (r.center && myC.indexOf(r.center) < 0 ? '<option selected>' + esc(r.center) + '</option>' : '');
   return '<div class="id-row"><div class="id-row-h"><b>معلمة</b><button type="button" class="btn danger vdel" title="حذف" aria-label="حذف" onclick="ssRowDel(this)">✕</button></div>' +
     '<div class="row2"><div><label>اسم المركز</label><select data-k="center">' + centers + '</select></div>' +
     '<div><label>اسم المعلمة</label><input data-k="teacher" class="td-name" list="tDirList" autocomplete="off" placeholder="اختاري من سجل المعلمات" value="' + esc(r.teacher) + '"' + (r.tid ? ' data-tid="' + esc(r.tid) + '"' : '') + '><div class="id-hint ss-th"></div></div></div>' +
@@ -813,7 +814,7 @@ function seBuild(k, r) {
   const SE_WIDE = ['center', 'teacher', 'period', 'lesson', 'subject'];
   $('seFields').innerHTML = form.fields.map(([key, lbl]) => '<div class="se-fld' + (SE_WIDE.indexOf(key) > -1 ? ' wide' : '') + '">' + seFieldHtml(key, lbl) + '</div>').join('');
   function seFieldHtml(key, lbl) {
-    if (key === 'center') return '<label for="seF_center">' + lbl + '</label><select id="seF_center"><option value="">اختاري المركز</option>' + (LISTS.centers || []).map(x => '<option>' + esc(x) + '</option>').join('') + '</select>';
+    if (key === 'center') return '<label for="seF_center">' + lbl + '</label><select id="seF_center"><option value="">اختاري المركز</option>' + centersForMe().map(x => '<option>' + esc(x) + '</option>').join('') + '</select>';
     if (key === 'period') return '<label>' + lbl + '</label><div class="chips" id="seF_period"><label class="chip"><input type="checkbox" value="صباحي"><span>صباحي</span></label><label class="chip"><input type="checkbox" value="مسائي"><span>مسائي</span></label></div>';
     if (key === 'teacher') return '<label for="seF_teacher">' + lbl + '</label><input id="seF_teacher" class="td-name" list="tDirList" autocomplete="off" placeholder="اختاري من سجل المعلمات">';
     if (key === 'sem') return '<label for="seF_sem">' + lbl + '</label><select id="seF_sem"><option value="">اختاري</option><option>الأول</option><option>الثاني</option><option>الثالث</option></select>';
@@ -862,7 +863,7 @@ function seFill(k, r) {
   const edit = !!r.id, d = r.data || {}, f = d.f || {};
   document.querySelectorAll('#seForm [data-edit]').forEach(x => x.classList.toggle('hidden', !edit));
   seBuild(k, r);
-  $('seF_center').value = r.center || '';
+  selSet('seF_center', r.center);
   if ($('seF_period')) periodSet('seF_period', r.period);
   $('seF_teacher').value = r.teacher || '';
   SGE_FORMS[k].fields.forEach(([key]) => { if (['center', 'period', 'teacher'].indexOf(key) < 0 && $('seF_' + key)) $('seF_' + key).value = f[key] || ''; });

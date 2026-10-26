@@ -315,7 +315,7 @@ function rpFieldHtml(i, f) {
   const attr = ' data-i="' + i + '" data-k="' + f.k + '" id="' + id + '"';
   let inp;
   if (f.t === 'sel' || f.t === 'center') {
-    let opts = f.t === 'center' ? (LISTS.centers || []) : f.o;
+    let opts = f.t === 'center' ? centersForMe() : f.o;
     if (v && opts.indexOf(v) < 0) opts = opts.concat([v]);
     inp = '<select' + attr + '><option value="">—</option>' +
       opts.map(o => '<option' + (o === v ? ' selected' : '') + '>' + esc(o) + '</option>').join('') + '</select>';

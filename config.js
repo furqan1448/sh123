@@ -360,3 +360,18 @@ function vSigLoad(rows, rerender) {
     if (rerender) rerender();
   }).catch(() => { vSigBusy_ = false; });
 }
+
+/* ===== أسماء المراكز في الاستمارات وكشف الخروج: المراكز المشرفة عليها فقط =====
+   (إن لم تحدد المشرفة مراكزها بعد تظهر كل المراكز). myCenters() في my-centers.js */
+function centersForMe() {
+  if (typeof myCenters === 'function') return myCenters();
+  return (typeof LISTS !== 'undefined' && LISTS.centers) || [];
+}
+// تحديد قيمة في قائمة منسدلة، مع إضافتها إن لم تكن فيها (سجل قديم لمركز خارج المراكز المشرفة عليها)
+function selSet(el, v) {
+  if (typeof el === 'string') el = document.getElementById(el);
+  if (!el) return;
+  v = v == null ? '' : String(v);
+  if (v && el.tagName === 'SELECT' && ![...el.options].some(o => o.value === v)) { const o = document.createElement('option'); o.textContent = v; o.value = v; el.appendChild(o); }
+  el.value = v;
+}

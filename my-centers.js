@@ -9,11 +9,32 @@ function mcMyName() {
   return getUser();
 }
 let MYC = cacheGet('mycenters') || [];
-let mcLoaded = false;
+let mcLoaded = false, mcUser = getUser(), mcFetching = null;
 const mcNorm = s => String(s || '').trim();
 async function mcFetch() {
-  try { const out = await api('getMyCenters'); MYC = out.data || []; cacheSet('mycenters', MYC); mcLoaded = true; } catch (e) {}
+  if (mcFetching) return mcFetching;
+  const before = JSON.stringify(MYC);
+  mcFetching = (async () => {
+    try { const out = await api('getMyCenters'); MYC = out.data || []; cacheSet('mycenters', MYC); mcLoaded = true; } catch (e) {}
+    mcFetching = null;
+    if (JSON.stringify(MYC) !== before) mcRefreshLists();
+  })();
+  return mcFetching;
 }
+// المراكز التي تظهر في الاستمارات وكشف الخروج: المراكز المشرفة عليها (بأسمائها كما في «القوائم»)، مرتبة: الصباحية ثم المسائية.
+// إن لم تحدد المشرفة مراكزها بعد: كل المراكز
+function myCenters() {
+  const all = mcAll();
+  if (!getUser()) return all;
+  if (mcUser !== getUser()) { mcUser = getUser(); MYC = cacheGet('mycenters') || []; mcLoaded = false; }   // دخول بحساب آخر
+  if (!mcLoaded && !mcFetching && getPw()) setTimeout(mcFetch, 0);
+  if (!MYC.length) return all;
+  const byKey = {}; all.forEach(c => { byKey[mcKey(c)] = c; });
+  const L = [...new Set(MYC.map(mcNorm).filter(Boolean).map(c => byKey[mcKey(c)] || c))].sort((a, b) => mcName(a).localeCompare(mcName(b), 'ar'));
+  return mcGroups(L).reduce((o, g) => o.concat(g.list), []);
+}
+// إعادة تعبئة قوائم المراكز في الصفحة بعد تغيّر المراكز المشرفة عليها
+function mcRefreshLists() { try { if (typeof fillLists === 'function') fillLists(); } catch (e) {} }
 // قائمة المراكز للاختيار: من «القوائم» (اسم المركز + عمود الفترة)
 const mcAll = () => (LISTS.centers || []).map(mcNorm).filter(Boolean);
 // مفتاح المطابقة: الاسم + الفترة (يتجاهل اختلاف المسافات حول «-»)
@@ -145,6 +166,7 @@ async function mcSave() {
     const out = await api('saveMyCenters', { centers: list });
     MYC = out.data || list; cacheSet('mycenters', MYC);
     toast('تم حفظ المراكز المشرفة عليها');
+    mcRefreshLists();
     mc$('mcPickFold').open = false;
     mcSavedRender();
     window.scrollTo({ top: mc$('mcSaved').getBoundingClientRect().top + window.scrollY - 120, behavior: 'smooth' });

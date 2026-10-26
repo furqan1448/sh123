@@ -726,7 +726,7 @@ function logout() {
 }
 
 function fillLists() {
-  fillSelect('vCenter', LISTS.centers, 'اختاري المركز');
+  fillSelect('vCenter', centersForMe(), 'اختاري المركز');
   fillTypes();
   fillSelect('fCenter', LISTS.centers, 'كل المراكز');
 }

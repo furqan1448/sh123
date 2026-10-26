@@ -70,7 +70,7 @@ function fillSelect(id, arr, ph) {
   if (cur && arr.indexOf(cur) > -1) el.value = cur;
 }
 function fillLists() {
-  ['vCenter', 'ivCenter', 'ipCenter', 'imCenter', 'meCenter', 'hlCenter'].forEach(id => fillSelect(id, LISTS.centers || [], 'اختاري المركز'));
+  ['vCenter', 'ivCenter', 'ipCenter', 'imCenter', 'meCenter', 'hlCenter'].forEach(id => fillSelect(id, centersForMe(), 'اختاري المركز'));
   fillSelect('fCenter', LISTS.centers || [], 'كل المراكز');
   fillTypes();
   fillVStatus();
@@ -491,7 +491,7 @@ function idFill(kind, r) {
   const edit = !!r.id;
   document.querySelectorAll('#' + FORM_OF[kind] + ' [data-edit]').forEach(x => x.classList.toggle('hidden', !edit));
   if (kind === 'visit') {
-    $('ivCenter').value = r.center || '';
+    selSet('ivCenter', r.center);
     $('ivSem').value = r.sem || ''; $('ivYear').value = r.year || hijriYear();
     periodSet('ivPeriod', r.period);
     hdSet('iv', edit ? r : null); $('ivVisitNo').value = r.visitNo || '';
@@ -520,7 +520,7 @@ function idFill(kind, r) {
   } else if (kind === 'halls') {
     hlFill(r, edit);
   } else if (kind === 'program') {
-    hdSet('ip', edit ? r : null); $('ipCenter').value = r.center || '';
+    hdSet('ip', edit ? r : null); selSet('ipCenter', r.center);
     ['content', 'plan', 'method', 'tools', 'results', 'ratio'].forEach(k => { $('ip' + k[0].toUpperCase() + k.slice(1)).value = d[k] || ''; });
     $('ipSupName').value = edit ? (r.supName || '') : myName();
   } else {
@@ -802,7 +802,7 @@ function imCenterChanged() { imFillMgr(); imUpdateNo(); imCopyFromLast(); }
 /* ---------- تعبئة الاستمارة وجمع بياناتها ---------- */
 function imFill(r, edit) {
   const d = r.data || {}, gen = d.gen || {};
-  $('imCenter').value = r.center || '';
+  selSet('imCenter', r.center);
   periodSet('imPeriod', r.period);
   $('imSem').value = r.sem || ''; $('imYear').value = r.year || hijriYear();
   hdSet('im', edit ? r : null);
@@ -897,7 +897,7 @@ function meQuranSet(q) {
 }
 function meFill(r, edit) {
   const d = r.data || {};
-  $('meCenter').value = r.center || '';
+  selSet('meCenter', r.center);
   periodSet('mePeriod', r.period);
   $('meSem').value = r.sem || ''; $('meYear').value = r.year || hijriYear();
   $('meMgrName').value = r.mgrName || ''; $('mePhone').value = d.phone || '';
@@ -993,7 +993,7 @@ function hlCenterChanged() {
 }
 function hlFill(r, edit) {
   const d = r.data || {};
-  $('hlCenter').value = r.center || '';
+  selSet('hlCenter', r.center);
   $('hlSem').value = r.sem || ''; $('hlYear').value = r.year || hijriYear();
   $('hlNo').value = d.no || ''; $('hlFac').value = d.facilities || ''; $('hlFloorsN').value = d.floorsCount || '';
   $('hlNotes').value = d.notes || '';

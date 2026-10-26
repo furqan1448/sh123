@@ -106,7 +106,7 @@ function tbOpenForm(fin) {
     tbPad = makeSigWidget('tbSigW', { saved: true });
     tbBuilt = true;
   }
-  document.getElementById('tbCenter').innerHTML = evOpts(LISTS.centers, 'اختاري المركز');
+  document.getElementById('tbCenter').innerHTML = evOpts(centersForMe(), 'اختاري المركز');
   evSetVal('tbSupervisor', getUser());   // اسم المشرفة تلقائياً من حساب الدخول
   evFillTeacherList();
   if (!document.getElementById('tbDate').value) { document.getElementById('tbDate').value = todayStr(); tbDateChange(); }

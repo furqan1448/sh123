@@ -97,7 +97,7 @@ function sfLayout(k) {
   $('sfWrBox').classList.toggle('hidden', k !== 'taahud');
 }
 function sfFillCenters(cur) {
-  const L = LISTS.centers || [];
+  const L = centersForMe();
   $('sfCenter').innerHTML = '<option value="">اختاري المركز</option>' + L.map(x => '<option>' + esc(x) + '</option>').join('') +
     (cur && L.indexOf(cur) < 0 ? '<option>' + esc(cur) + '</option>' : '');
   $('sfCenter').value = cur || '';
