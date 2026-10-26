@@ -425,6 +425,13 @@ const KF_CSS = `
 .im-page.kf tr.kf-t td{background:#f2f2f2;font-weight:800;color:#7a1f2b;font-size:15.5px}
 .im-page.kf img.kf-sig{max-height:40px;max-width:130px;display:block;margin:auto}
 .im-page.kf .kf-pg{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:12px;color:#777}
+/* ألوان استمارة تقييم مسؤولة المقصف: رأس الجدول عنابي بكتابة بيضاء، وخلايا العناوين بيج، والإجمالي عنابي */
+.im-page.kf th,.im-page.kf td{border-color:#cdbfb5}
+.im-page.kf th{background:#8d192c;color:#fff;border-color:#8d192c}
+.im-page.kf tr.kf-c td{background:#f4efe9;color:#8d192c}
+.im-page.kf tr.kf-t td{background:#8d192c;color:#fff;border-color:#8d192c}
+.im-page.kf td{color:#2b2321}
+.im-page.kf td.idc-n{color:#8d192c}
 `;
 function kfHijri(dateStr) {
   const p = String(dateStr || '').split(' ')[0].split('-');
