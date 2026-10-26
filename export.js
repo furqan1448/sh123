@@ -416,15 +416,15 @@ const KF_CSS = `
 .im-page.kf{width:1123px;height:794px;overflow:hidden;position:relative;background:#fff;font-size:13px}
 .im-page.kf .idc-body{padding:0 24px}
 .im-page.kf table{font-size:13px;table-layout:fixed;width:100%;border-collapse:collapse}
-.im-page.kf th,.im-page.kf td{border:1px solid #dcc8cd;color:#2b2321}
-.im-page.kf th{padding:7px 6px;font-size:13px;background:#7a1f2b;color:#fff;border-color:#7a1f2b}
+.im-page.kf th,.im-page.kf td{border:1px solid #e2cdd2;color:#2b2321}
+.im-page.kf th{padding:7px 6px;font-size:13px;background:#f3e3e6;color:#7a1f2b;border-color:#e2cdd2}
 .im-page.kf td{padding:3px 6px;height:30px;text-align:center}
 .im-page.kf .kf-head{margin:10px 0 12px}
 .im-page.kf .kf-head td{height:24px;padding:2px 8px;text-align:right}
-.im-page.kf .kf-head td.kf-bar{background:#7a1f2b;color:#fff;border-color:#7a1f2b;text-align:center;font-weight:800;font-size:16px;height:32px}
-.im-page.kf .kf-head td.kf-l{background:#f6f0f2;font-weight:800}
-.im-page.kf tr.kf-c td{background:#f3e3e6;color:#7a1f2b;font-weight:800;text-align:right;height:26px}
-.im-page.kf tr.kf-t td{background:#efe3e6;font-weight:800;height:26px}
+.im-page.kf .kf-head td.kf-bar{background:#fff;color:#7a1f2b;border:0;border-bottom:1px solid #e2cdd2;text-align:center;font-weight:800;font-size:20px;height:40px}
+.im-page.kf .kf-head td.kf-l{background:#fff;font-weight:800}
+.im-page.kf tr.kf-c td{background:#fbf6f7;color:#7a1f2b;font-weight:800;text-align:right;height:26px}
+.im-page.kf tr.kf-t td{background:#fbf6f7;font-weight:800;height:26px}
 .im-page.kf tr.kf-t td.kf-l{color:#7a1f2b;text-align:right}
 .im-page.kf td.idc-n{color:#2b2321}
 .im-page.kf img.kf-sig{height:26px;width:auto;max-width:120px;display:block;margin:auto}
