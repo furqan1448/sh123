@@ -758,13 +758,28 @@ async function preload() {
 }
 // أنواع الزيارة: اختيار أكثر من نوع (تُحفظ مفصولة بـ «،»)
 const V_TSEP = '، ';
+// أنواع الزيارة في كشف الخروج (وحدة الإشراف التربوي) — عند «أخرى» تُكتب في خانة وتُحفظ «أخرى: النص»
+const VT_LIST = ['اجتماع حضوري', 'تصحيح تلاوة', 'تقييم التبيان', 'تقييم التجويد', 'تقييم حصة القرآن الكريم', 'مراجعة', 'أخرى'];
 function fillTypes() {
-  const box = document.getElementById('vTypeList'); if (!box) return;
-  const cur = getVTypes();
-  box.innerHTML = (LISTS.types || []).map(t => '<label class="chip"><input type="checkbox" value="' + esc(t) + '"' + (cur.indexOf(t) > -1 ? ' checked' : '') + '><span>' + esc(t) + '</span></label>').join('') || '<span class="empty">لا توجد أنواع زيارة</span>';
+  const box = document.getElementById('vTypeList'); if (!box || box.dataset.built) return;
+  box.dataset.built = '1';
+  box.innerHTML = VT_LIST.map(t => '<label class="chip"><input type="checkbox" value="' + t + '"><span>' + t + '</span></label>').join('') +
+    '<input id="vTypeOther" class="hidden" style="margin-top:8px;flex-basis:100%" placeholder="اكتبي نوع الزيارة" autocomplete="off" maxlength="80">';
+  box.addEventListener('change', e => {
+    if (e.target.value !== 'أخرى') return;
+    const o = document.getElementById('vTypeOther');
+    o.classList.toggle('hidden', !e.target.checked);
+    if (e.target.checked) o.focus();
+  });
 }
-function getVTypes() { return [...document.querySelectorAll('#vTypeList input:checked')].map(i => i.value); }
-function clearVTypes() { document.querySelectorAll('#vTypeList input').forEach(i => i.checked = false); }
+function getVTypes() {
+  const o = document.getElementById('vTypeOther');
+  return [...document.querySelectorAll('#vTypeList input[type=checkbox]:checked')].map(i => i.value === 'أخرى' ? (o && o.value.trim() ? 'أخرى: ' + o.value.trim().replace(/[،,]/g, ' ') : 'أخرى') : i.value);
+}
+function clearVTypes() {
+  document.querySelectorAll('#vTypeList input[type=checkbox]').forEach(i => i.checked = false);
+  const o = document.getElementById('vTypeOther'); if (o) { o.value = ''; o.classList.add('hidden'); }
+}
 function fillSelect(id, arr, placeholder) {
   const el = document.getElementById(id);
   el.innerHTML = '<option value="">' + esc(placeholder) + '</option>' +
