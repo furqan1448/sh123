@@ -246,6 +246,7 @@ function mgRender() {
     body = L.slice(0, MG_LIMIT).map(([r, i]) => '<tr><td>' + esc(mgWho(r)) + '</td><td>' + esc(r.center) + '</td><td>' + esc(r.teacher) + '</td><td>' +
       esc(MG_FT[r.formType] || '') + '</td><td>' + esc(r.date) + '</td><td>' + esc(r.raw || '—') + '</td><td>' + (mgHasW(r) ? esc(r.weighted || '—') : '—') + '</td><td>' +
       (r.grade ? gradeTag(r.grade) : '—') + '</td><td style="white-space:nowrap"><button class="btn light" style="padding:6px 12px;font-size:13px" onclick="evView(' + i + ')">عرض</button> ' +
+      '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="pdfRow(' + i + ', this)">PDF</button> ' +
       '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="exRow(' + i + ', this)">Excel</button></td></tr>').join('');
     if (n) bar = '<button class="btn light" onclick="mgExportEvals(this)">تحميل الاستمارات المعروضة Excel (' + n + ')</button>';
   } else if (mgTab === 'idari') {

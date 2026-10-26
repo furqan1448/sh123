@@ -133,3 +133,13 @@ async function tvView(r) {
   document.getElementById('tvVShare').onclick = e => sgShare(rec, e.currentTarget, sigs);
   sgFitBox(b.querySelector('.sg-fit'));
 }
+
+// تحميل الاستمارة PDF مباشرة من السجل (الأسبوعية والنهائية) بنفس شكل العرض
+async function pdfRow(i, btn) {
+  const r = evRows[i];
+  if (!r) return;
+  if (btn) setBtnBusy(btn, true, 'جارِ التجهيز...');
+  try { const sigs = await tvLoadSigs(r); await sgPdf(tvRec(r), null, sigs); }
+  catch (e) { toast(e.message || 'تعذّر تحميل PDF', false); }
+  finally { if (btn) setBtnBusy(btn, false); }
+}

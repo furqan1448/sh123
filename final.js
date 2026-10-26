@@ -238,7 +238,8 @@ function efRender() {
   const head = document.getElementById('efHead'), body = document.getElementById('efBody');
   if (!head || !body) return;
   const btnView = i => '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="evView(' + i + ')">عرض</button>';
-  const btnDl = i => '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="exRow(' + i + ', this)">تحميل Excel</button>';
+  const btnDl = i => '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="pdfRow(' + i + ', this)">تحميل PDF</button>' +
+    '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="exRow(' + i + ', this)">تحميل Excel</button>';
   const btnEdit = i => '<button class="btn light ico-btn" title="تعديل" aria-label="تعديل" onclick="evEdit(' + i + ')">' + EV_PENCIL + '</button>';
   const bar = document.getElementById('efListBar');   // تحميل الجدول كاملاً: في «سجل المعلمات» فقط
   if (bar) bar.classList.toggle('hidden', efTab !== 'teachers');
