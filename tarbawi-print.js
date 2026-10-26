@@ -1,6 +1,6 @@
 /* ===== الإشراف التربوي: عرض استمارات التقييم (القرآن، التبيان، التجويد، النهائي) وطباعتها وتحميلها PDF =====
    بنفس تنسيق استمارات وحدة تحفيظ الصغار: الكليشة الحمراء من الطرف إلى الطرف، والعنوان العنابي، وجدول البيانات،
-   وجدول البنود بعمود «المجال»، ثم التوجيهات والتواقيع.
+   وجدول البنود بعمود «المهارات»، ثم التوجيهات والتواقيع.
    يعتمد على: idari-print.js (التاريخ والأدوات) و sighar-print.js (الطباعة وPDF والمشاركة) فيُحمَّل بعدهما،
    وعلى بيانات الاستمارات في evals.js و tabyan.js و tajweed.js و final.js. */
 
@@ -74,7 +74,7 @@ function tvDocHtml(r, sigs, lhUrl) {
   let info = '';
   for (let i = 0; i < cells.length; i += 3) info += '<tr>' + [0, 1, 2].map(j => '<td>' + (cells[i + j] || '') + '</td>').join('') + '</tr>';
 
-  // البنود: عمود «المجال» للقرآن (المهارات)، وترقيم للتبيان والتجويد
+  // البنود: عمود «المهارات» للقرآن (المهارات)، وترقيم للتبيان والتجويد
   const hasG = !!form.quran, hasNote = form.quran && !form.fin;
   let body = '', n = 0;
   form.groups.forEach(g => {
@@ -98,7 +98,7 @@ function tvDocHtml(r, sigs, lhUrl) {
       (hasNote ? '' : '<tr class="tv-sum"><td colspan="' + span + '">الدرجة الموزونة — التقدير: ' + m(gradeTxt) + '</td><td colspan="2" class="tv-v">' + idDigits(tvNum(r.weighted)) + '</td></tr>')
     : '<tr class="tv-sum"><td colspan="' + span + '">الدرجة المستحقة — التقدير: ' + m(gradeTxt) + '</td><td>' + idDigits(tvNum(form.max)) + '</td><td class="tv-v">' + idDigits(tvNum(r.raw)) + '</td></tr>';
   const cols = (hasG ? '<col style="width:96px">' : '<col style="width:40px">') + '<col><col style="width:56px"><col style="width:70px">' + (hasNote ? '<col style="width:22%">' : '');
-  const thead = '<tr><th>' + (hasG ? 'المجال' : 'م') + '</th><th>بنود التقييم</th><th>الدرجة</th><th>المستحقة</th>' + (hasNote ? '<th>ملاحظات</th>' : '') + '</tr>';
+  const thead = '<tr><th>' + (hasG ? 'المهارات' : 'م') + '</th><th>بنود التقييم</th><th>الدرجة</th><th>المستحقة</th>' + (hasNote ? '<th>ملاحظات</th>' : '') + '</tr>';
   const box = (lbl, v) => String(v || '').trim() ? '<div class="tv-box idc-avoid"><b>' + lbl + '</b><div>' + esc(v) + '</div></div>' : '';
   const sigCol = (lbl, name, sg) => '<div>' + lbl + (name ? '<br>' + m(esc(name)) : '') + idSig(sg) + '</div>';
   return '<div class="idoc sg tv">' + head + '<div class="idc-body">' +
