@@ -380,6 +380,8 @@ function getVisits_() {
 }
 
 const VT_FIXED = ['توجيهية', 'تقييمية'];
+// أنواع زيارة كشف الخروج في وحدة الإشراف التربوي (نفس القائمة في mushrifat.html)
+const VT_TARBAWI = ['اجتماع حضوري', 'تصحيح تلاوة', 'تقييم التبيان', 'تقييم التجويد', 'تقييم حصة القرآن الكريم', 'مراجعة', 'أخرى'];
 function addVisit_(r) {
   const center = String(r.center || '').trim();
   const type = String(r.type || '').trim();   // قد تحوي أكثر من نوع مفصولة بـ «،»
@@ -401,8 +403,9 @@ function addVisit_(r) {
   const typesOf = l => (meU === IDARI_UNIT && l.typesIdari && l.typesIdari.length) ? l.typesIdari
     : (meU === SGH_UNIT && l.typesSgh && l.typesSgh.length) ? l.typesSgh : l.types;
   // كشف الخروج في الإشراف الإداري وتحفيظ الصغار: أنواع ثابتة (توجيهية، تقييمية، أخرى: نص تكتبه المشرفة)
-  const fixedT = meU === IDARI_UNIT || meU === SGH_UNIT;
-  const okFixed = t => VT_FIXED.indexOf(t) > -1 || /^أخرى(\s*:\s*.{1,80})?$/.test(t);
+  // وبقية الوحدات (الإشراف التربوي): أنواعها الثابتة في الموقع (VT_TARBAWI) — لا تُقرأ من عمود «أنواع الزيارة» في «القوائم»
+  const fixedT = true;
+  const okFixed = t => (meU === IDARI_UNIT || meU === SGH_UNIT ? VT_FIXED : VT_TARBAWI).indexOf(t) > -1 || /^أخرى(\s*:\s*.{1,80})?$/.test(t);
   const badType = l => typeList.some(t => fixedT ? !okFixed(t) : typesOf(l).indexOf(t) < 0);
   if ((center && lists.centers.indexOf(center) < 0) || (!notVisited && badType(lists))) lists = getLists_(true);
   if (center && lists.centers.indexOf(center) < 0) throw new Error('اسم المركز غير موجود في القائمة');
