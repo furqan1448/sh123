@@ -66,7 +66,7 @@ function applyLists(d, prof) {
 }
 function fillSelect(id, arr, ph) {
   const el = $(id), cur = el.value;
-  el.innerHTML = '<option value="">' + esc(ph) + '</option>' + arr.map(x => '<option>' + esc(x) + '</option>').join('');
+  el.innerHTML = /Center$/.test(id) ? centerOpts(arr, ph) : '<option value="">' + esc(ph) + '</option>' + arr.map(x => '<option>' + esc(x) + '</option>').join('');
   if (cur && arr.indexOf(cur) > -1) el.value = cur;
 }
 function fillLists() {

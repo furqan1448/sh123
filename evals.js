@@ -30,7 +30,7 @@ function evSetSel(id, v) {   // يضيف الخيار إن لم يكن في ال
   const el = typeof id === 'string' ? document.getElementById(id) : id; if (!el) return;
   v = v == null ? '' : String(v);
   if (el.tagName !== 'SELECT') { el.value = v; return; }
-  if (v && ![...el.options].some(o => o.value === v)) { const o = document.createElement('option'); o.textContent = v; o.value = v; el.appendChild(o); }
+  if (v && ![...el.options].some(o => o.value === v)) { const o = document.createElement('option'); o.textContent = /Center$/.test(el.id) && typeof cpName === 'function' ? cpName(v) : v; o.value = v; el.appendChild(o); }
   el.value = v;
 }
 function evJson(t, d) { try { const x = JSON.parse(t || ''); return x == null ? d : x; } catch (e) { return d; } }
@@ -294,7 +294,7 @@ function evOpenForm(type) {
     evPad = makeSigWidget('evSigW', { saved: true });
     evBuilt = true;
   }
-  document.getElementById('evCenter').innerHTML = evOpts(centersForMe(), centersPh('اختاري المركز'));
+  document.getElementById('evCenter').innerHTML = centerOpts(centersForMe(), centersPh('اختاري المركز'));
   evSetVal('evSupervisor', getUser());   // اسم المشرفة تلقائياً من حساب الدخول
   evFillTeacherList();
   if (!document.getElementById('evDate').value) { document.getElementById('evDate').value = todayStr(); evDateChange(); }

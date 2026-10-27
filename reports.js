@@ -317,8 +317,8 @@ function rpFieldHtml(i, f) {
   if (f.t === 'sel' || f.t === 'center') {
     let opts = f.t === 'center' ? centersForMe() : f.o;
     if (v && opts.indexOf(v) < 0) opts = opts.concat([v]);
-    inp = '<select' + attr + '><option value="">' + (f.t === 'center' && !opts.length ? NO_CENTERS : '—') + '</option>' +
-      opts.map(o => '<option' + (o === v ? ' selected' : '') + '>' + esc(o) + '</option>').join('') + '</select>';
+    inp = '<select' + attr + '>' + (f.t === 'center' ? centerOpts(opts, opts.length ? '—' : NO_CENTERS, v) :
+      '<option value="">—</option>' + opts.map(o => '<option' + (o === v ? ' selected' : '') + '>' + esc(o) + '</option>').join('')) + '</select>';
   } else if (f.t === 'area') {
     inp = '<textarea rows="2"' + attr + '>' + esc(v) + '</textarea>';
   } else if (f.t === 'num') {

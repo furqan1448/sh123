@@ -782,7 +782,7 @@ function clearVTypes() {
 }
 function fillSelect(id, arr, placeholder) {
   const el = document.getElementById(id);
-  el.innerHTML = '<option value="">' + esc(placeholder) + '</option>' +
+  el.innerHTML = /Center$/.test(id) ? centerOpts(arr, placeholder) : '<option value="">' + esc(placeholder) + '</option>' +
     arr.map(x => '<option>' + esc(x) + '</option>').join('');
 }
 

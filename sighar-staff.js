@@ -98,7 +98,7 @@ function sfLayout(k) {
 }
 function sfFillCenters(cur) {
   const L = centersForMe();
-  $('sfCenter').innerHTML = '<option value="">' + esc(centersPh('اختاري المركز')) + '</option>' + L.map(x => '<option>' + esc(x) + '</option>').join('') +
+  $('sfCenter').innerHTML = centerOpts(L, centersPh('اختاري المركز')) +
     (cur && L.indexOf(cur) < 0 ? '<option>' + esc(cur) + '</option>' : '');
   $('sfCenter').value = cur || '';
 }

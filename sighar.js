@@ -64,7 +64,7 @@ function applyLists(d, prof) {
 }
 function fillSelect(id, arr, ph) {
   const el = $(id), cur = el.value;
-  el.innerHTML = '<option value="">' + esc(ph) + '</option>' + arr.map(x => '<option>' + esc(x) + '</option>').join('');
+  el.innerHTML = /Center$/.test(id) ? centerOpts(arr, ph) : '<option value="">' + esc(ph) + '</option>' + arr.map(x => '<option>' + esc(x) + '</option>').join('');
   if (cur && arr.indexOf(cur) > -1) el.value = cur;
 }
 function fillLists() {
@@ -618,7 +618,7 @@ function ssRowHtml(r) {
   r = r || {};
   const opts = '<option value="">اختاري</option>' + SS_ATT.map(x => '<option' + (r.att === x ? ' selected' : '') + '>' + x + '</option>').join('');
   const myC = centersForMe();
-  const centers = '<option value="">' + esc(centersPh('اختاري المركز')) + '</option>' + myC.map(x => '<option' + (r.center === x ? ' selected' : '') + '>' + esc(x) + '</option>').join('') +
+  const centers = centerOpts(myC, centersPh('اختاري المركز'), r.center) +
     (r.center && myC.indexOf(r.center) < 0 ? '<option selected>' + esc(r.center) + '</option>' : '');
   return '<div class="id-row"><div class="id-row-h"><b>معلمة</b><button type="button" class="btn danger vdel" title="حذف" aria-label="حذف" onclick="ssRowDel(this)">✕</button></div>' +
     '<div class="row2"><div><label>اسم المركز</label><select data-k="center">' + centers + '</select></div>' +
@@ -814,7 +814,7 @@ function seBuild(k, r) {
   const SE_WIDE = ['center', 'teacher', 'period', 'lesson', 'subject'];
   $('seFields').innerHTML = form.fields.map(([key, lbl]) => '<div class="se-fld' + (SE_WIDE.indexOf(key) > -1 ? ' wide' : '') + '">' + seFieldHtml(key, lbl) + '</div>').join('');
   function seFieldHtml(key, lbl) {
-    if (key === 'center') return '<label for="seF_center">' + lbl + '</label><select id="seF_center"><option value="">' + esc(centersPh('اختاري المركز')) + '</option>' + centersForMe().map(x => '<option>' + esc(x) + '</option>').join('') + '</select>';
+    if (key === 'center') return '<label for="seF_center">' + lbl + '</label><select id="seF_center">' + centerOpts(centersForMe(), centersPh('اختاري المركز')) + '</select>';
     if (key === 'period') return '<label>' + lbl + '</label><div class="chips" id="seF_period"><label class="chip"><input type="checkbox" value="صباحي"><span>صباحي</span></label><label class="chip"><input type="checkbox" value="مسائي"><span>مسائي</span></label></div>';
     if (key === 'teacher') return '<label for="seF_teacher">' + lbl + '</label><input id="seF_teacher" class="td-name" list="tDirList" autocomplete="off" placeholder="اختاري من سجل المعلمات">';
     if (key === 'sem') return '<label for="seF_sem">' + lbl + '</label><select id="seF_sem"><option value="">اختاري</option><option>الأول</option><option>الثاني</option><option>الثالث</option></select>';

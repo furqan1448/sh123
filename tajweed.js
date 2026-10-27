@@ -134,7 +134,7 @@ function tjOpenForm(type, fin) {
     tjPad = makeSigWidget('tjSigW', { saved: true });
     tjBuilt = true;
   }
-  document.getElementById('tjCenter').innerHTML = evOpts(centersForMe(), centersPh('اختاري المركز'));
+  document.getElementById('tjCenter').innerHTML = centerOpts(centersForMe(), centersPh('اختاري المركز'));
   evSetVal('tjSupervisor', getUser());   // اسم المشرفة تلقائياً من حساب الدخول
   evFillTeacherList();
   if (!document.getElementById('tjDate').value) { document.getElementById('tjDate').value = todayStr(); tjDateChange(); }

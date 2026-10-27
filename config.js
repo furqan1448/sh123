@@ -375,6 +375,41 @@ function selSet(el, v) {
   if (typeof el === 'string') el = document.getElementById(el);
   if (!el) return;
   v = v == null ? '' : String(v);
-  if (v && el.tagName === 'SELECT' && ![...el.options].some(o => o.value === v)) { const o = document.createElement('option'); o.textContent = v; o.value = v; el.appendChild(o); }
+  if (v && el.tagName === 'SELECT' && ![...el.options].some(o => o.value === v)) { const o = document.createElement('option'); o.textContent = /(Center$|^seF_center$)/.test(el.id) ? cpName(v) : v; o.value = v; el.appendChild(o); }
   el.value = v;
 }
+
+/* ===== قائمة المراكز: يظهر اسم المركز وحده، والفترة عنوان مجموعة («الفترة الصباحية» / «الفترة المسائية») =====
+   قيمة الخيار تبقى الاسم الكامل كما في «القوائم» (للحفظ والمطابقة)، وعند اختيار المركز تُحدَّد خانة «الفترة» في النموذج تلقائياً */
+const cpName = c => String(c || '').replace(/\s*[-–—]?\s*(ال)?فتر(ة|تين|تان)\s+.*$/, '').trim() || String(c || '').trim();
+const cpPer = c => { const t = String(c || '').replace(/[أإآ]/g, 'ا'); const m = /مسائ/.test(t), s = /صباح/.test(t); return m && s ? 'both' : m ? 'pm' : s ? 'am' : ''; };
+const CP_GROUPS = [['am', 'الفترة الصباحية'], ['pm', 'الفترة المسائية'], ['both', 'الفترتان الصباحية والمسائية'], ['', 'بدون فترة']];
+function centerOpts(list, ph, cur) {
+  list = list || [];
+  const o = x => '<option value="' + esc(x) + '" data-p="' + cpPer(x) + '"' + (cur != null && cur === x ? ' selected' : '') + '>' + esc(cpName(x)) + '</option>';
+  let h = ph == null ? '' : '<option value="">' + esc(ph) + '</option>';
+  if (!list.some(x => cpPer(x))) return h + list.map(o).join('');
+  CP_GROUPS.forEach(([k, t]) => { const L = list.filter(x => cpPer(x) === k); if (L.length) h += '<optgroup label="' + t + '">' + L.map(o).join('') + '</optgroup>'; });
+  return h;
+}
+// خانة الفترة المقابلة لقائمة المركز: evCenter ← evPeriod ، seF_center ← seF_period
+function cpPeriodFill(sel) {
+  const opt = sel.options[sel.selectedIndex], k = opt && opt.dataset ? opt.dataset.p : '';
+  if (!k || k === 'both') return;
+  const pid = sel.id === 'seF_center' ? 'seF_period' : sel.id.replace(/Center$/, 'Period');
+  if (pid === sel.id) return;
+  const el = document.getElementById(pid); if (!el) return;
+  const re = k === 'am' ? /صباح/ : /مسائ/;
+  if (el.tagName === 'SELECT') {
+    const o = [...el.options].find(x => re.test(x.value || x.text));
+    if (o && el.value !== o.value) { el.value = o.value; el.dispatchEvent(new Event('change', { bubbles: true })); }
+  } else {
+    const boxes = [...el.querySelectorAll('input[type=checkbox],input[type=radio]')];
+    if (!boxes.some(b => re.test(b.value))) return;
+    boxes.forEach(b => { const on = re.test(b.value); if (b.checked !== on) { b.checked = on; b.dispatchEvent(new Event('change', { bubbles: true })); } });
+  }
+}
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t && t.tagName === 'SELECT' && t.id && /(Center$|^seF_center$)/.test(t.id) && t.id !== 'fCenter' && t.id !== 'scCenter') cpPeriodFill(t);
+});

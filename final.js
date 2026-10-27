@@ -96,7 +96,7 @@ function efOpenForm(type) {
     efBuilt = true;
   }
   if (efTypeBuilt !== efType) { efBuild(); efTypeBuilt = efType; efFillCats(); }
-  document.getElementById('efCenter').innerHTML = evOpts(centersForMe(), centersPh('اختاري المركز'));
+  document.getElementById('efCenter').innerHTML = centerOpts(centersForMe(), centersPh('اختاري المركز'));
   evSetVal('efSupervisor', getUser());   // اسم المشرفة تلقائياً من حساب الدخول
   evFillTeacherList();
   if (!document.getElementById('efDate').value) { document.getElementById('efDate').value = todayStr(); efDateChange(); }
