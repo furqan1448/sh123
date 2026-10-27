@@ -147,8 +147,10 @@ async function scOpen(src, id) {
   try { await scCentersLoad(); } catch (e) { sel.innerHTML = '<option value="">تعذّر تحميل المراكز</option>'; return toast(e.message, false); }
   if (!scCur || scCur.id !== id) return;
   if (!SC_CENTERS.length) { sel.innerHTML = '<option value="">لا توجد حسابات مراكز بعد</option>'; hint.textContent = 'تُضاف الحسابات في ورقة «حسابات المراكز» في الشيت.'; return; }
-  sel.innerHTML = '<option value="">اختاري المركز</option>' + SC_CENTERS.map(c => '<option value="' + esc(c.name) + '">' + esc(c.display || c.name) + '</option>').join('');
   const g = scGuess(def.center ? def.center(rec) : '', def.period ? def.period(rec) : '');
+  // المراكز المشرفة عليها فقط (ومركز النموذج نفسه دائماً)
+  let SCL = typeof mcIsMine === 'function' ? SC_CENTERS.filter(c => c.name === g || mcIsMine(c.name)) : SC_CENTERS;
+  sel.innerHTML = '<option value="">' + (SCL.length ? 'اختاري المركز' : NO_CENTERS) + '</option>' + SCL.map(c => '<option value="' + esc(c.name) + '">' + esc(c.display || c.name) + '</option>').join('');
   sel.value = g;
   hint.textContent = g ? '' : (def.center && def.center(rec) ? 'لم يُعثر على حساب لمركز «' + def.center(rec) + '»، اختاريه من القائمة.' : '');
   scAutoShow('C', g ? '🏫 يُرسَل إلى: <b>' + esc(scCenterName(g)) + '</b> <small>(من اسم المركز في النموذج)</small>' : '');

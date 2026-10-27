@@ -363,6 +363,9 @@ function vSigLoad(rows, rerender) {
 
 /* ===== أسماء المراكز في الاستمارات وكشف الخروج: المراكز المشرفة عليها فقط =====
    (إن لم تحدد المشرفة مراكزها بعد تظهر كل المراكز). myCenters() في my-centers.js */
+// نص أول خيار في قائمة المراكز: «لا تتوفر مراكز» إن لم تحدد المشرفة المراكز المشرفة عليها
+const NO_CENTERS = 'لا تتوفر مراكز';
+function centersPh(ph) { return centersForMe().length ? ph : NO_CENTERS; }
 function centersForMe() {
   if (typeof myCenters === 'function') return myCenters();
   return (typeof LISTS !== 'undefined' && LISTS.centers) || [];

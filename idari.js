@@ -70,8 +70,8 @@ function fillSelect(id, arr, ph) {
   if (cur && arr.indexOf(cur) > -1) el.value = cur;
 }
 function fillLists() {
-  ['vCenter', 'ivCenter', 'ipCenter', 'imCenter', 'meCenter', 'hlCenter'].forEach(id => fillSelect(id, centersForMe(), 'اختاري المركز'));
-  fillSelect('fCenter', LISTS.centers || [], 'كل المراكز');
+  ['vCenter', 'ivCenter', 'ipCenter', 'imCenter', 'meCenter', 'hlCenter'].forEach(id => fillSelect(id, centersForMe(), centersPh('اختاري المركز')));
+  fillSelect('fCenter', centersForMe(), 'كل المراكز');
   fillTypes();
   fillVStatus();
 }

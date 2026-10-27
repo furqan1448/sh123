@@ -294,7 +294,7 @@ function evOpenForm(type) {
     evPad = makeSigWidget('evSigW', { saved: true });
     evBuilt = true;
   }
-  document.getElementById('evCenter').innerHTML = evOpts(centersForMe(), 'اختاري المركز');
+  document.getElementById('evCenter').innerHTML = evOpts(centersForMe(), centersPh('اختاري المركز'));
   evSetVal('evSupervisor', getUser());   // اسم المشرفة تلقائياً من حساب الدخول
   evFillTeacherList();
   if (!document.getElementById('evDate').value) { document.getElementById('evDate').value = todayStr(); evDateChange(); }

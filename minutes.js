@@ -241,7 +241,7 @@ function mnFill(r) {
   r = r || {}; const d = r.data || {}, tg = d.target || {};
   mn$('mnEditNote').classList.toggle('hidden', !r.id);
   const centers = centersForMe();
-  mn$('mnCenter').innerHTML = '<option value="">اختاري المركز</option>' + centers.map(x => '<option>' + esc(x) + '</option>').join('');
+  mn$('mnCenter').innerHTML = '<option value="">' + esc(centersPh('اختاري المركز')) + '</option>' + centers.map(x => '<option>' + esc(x) + '</option>').join('');
   selSet(mn$('mnCenter'), r.center);
   mn$('mnNo').value = r.no || (MN.length ? '' : '1');
   let h = d.hy ? { d: +d.hd, m: +d.hm, y: +d.hy } : (idHParts(new Date()) || { d: 1, m: 1, y: '' });

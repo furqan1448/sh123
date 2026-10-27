@@ -726,9 +726,9 @@ function logout() {
 }
 
 function fillLists() {
-  fillSelect('vCenter', centersForMe(), 'اختاري المركز');
+  fillSelect('vCenter', centersForMe(), centersPh('اختاري المركز'));
   fillTypes();
-  fillSelect('fCenter', LISTS.centers, 'كل المراكز');
+  fillSelect('fCenter', centersForMe(), 'كل المراكز');
 }
 function applyLists(d) {
   LISTS = d;

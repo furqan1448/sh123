@@ -22,16 +22,24 @@ async function mcFetch() {
   return mcFetching;
 }
 // المراكز التي تظهر في الاستمارات وكشف الخروج: المراكز المشرفة عليها (بأسمائها كما في «القوائم»)، مرتبة: الصباحية ثم المسائية.
-// إن لم تحدد المشرفة مراكزها بعد: كل المراكز
+// إن لم تحدد المشرفة مراكزها بعد: لا تظهر مراكز
 function myCenters() {
   const all = mcAll();
   if (!getUser()) return all;
   if (mcUser !== getUser()) { mcUser = getUser(); MYC = cacheGet('mycenters') || []; mcLoaded = false; }   // دخول بحساب آخر
   if (!mcLoaded && !mcFetching && getPw()) setTimeout(mcFetch, 0);
-  if (!MYC.length) return all;
+  if (!MYC.length) return [];   // لم تحدد المشرفة مراكزها: لا تظهر أي مراكز («لا تتوفر مراكز»)
   const byKey = {}; all.forEach(c => { byKey[mcKey(c)] = c; });
   const L = [...new Set(MYC.map(mcNorm).filter(Boolean).map(c => byKey[mcKey(c)] || c))].sort((a, b) => mcName(a).localeCompare(mcName(b), 'ar'));
   return mcGroups(L).reduce((o, g) => o.concat(g.list), []);
+}
+// هل المركز من المراكز المشرفة عليها؟ (مقارنة بالاسم مع تجاهل الهمزات والمسافات، وبالفترة إن كانت مكتوبة في الاسمين)
+const mcLoose = s => mcName(s).replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/^\s*مركز\s+/, '').replace(/\s*[-–—]?\s*\S*(صباح|مسائ)\S*/g, '').replace(/\s+/g, '');
+function mcIsMine(name) {
+  if (!getUser()) return true;
+  const L = myCenters();
+  const n = mcLoose(name), p = mcPeriod(name);
+  return L.some(c => mcLoose(c) === n && (!p || !mcPeriod(c) || mcPeriod(c) === p));
 }
 // إعادة تعبئة قوائم المراكز في الصفحة بعد تغيّر المراكز المشرفة عليها
 function mcRefreshLists() { try { if (typeof fillLists === 'function') fillLists(); } catch (e) {} }
@@ -173,3 +181,6 @@ async function mcSave() {
   } catch (e) { toast(e.message || 'تعذّر الحفظ', false); }
   finally { setBtnBusy(btn, false); }
 }
+
+// جلب المراكز المشرفة عليها مبكراً عند فتح الصفحة (لتظهر القوائم مقتصرة عليها من البداية)
+try { if (getUser() && getPw()) mcFetch(); } catch (e) {}
