@@ -164,6 +164,8 @@ function doPost(e) {
     const req = JSON.parse(e.postData.contents);
     if (req.action === 'listNames') {   // قائمة الأسماء لشاشة الدخول (أسماء فقط، بلا كلمات مرور)
       out = { ok: true, data: listNames_(req.kind, req.unit, req.exclude) };
+    } else if (req.action === 'feedback') {   // نموذج ملاحظات التجربة في صفحة «دليل المنظومة» (بدون تسجيل دخول)
+      out = withLock_(() => feedbackSave_(req));
     } else if (req.action === 'getManage' || (req.action === 'getSigs' && req.mgr)) {   // صفحة إدارة الوحدات لها دخول مستقل (ورقة «مديرات الوحدات»)
       const mgr = mgrAuth_(req.username, req.password);
       if (!mgr) out = { ok: false, error: 'الاسم أو كلمة المرور غير صحيحة' };
@@ -182,6 +184,31 @@ function doPost(e) {
     out = { ok: false, error: String(err && err.message ? err.message : err) };
   }
   return json_(out);
+}
+
+/* ============ ملاحظات تجربة المنظومة (صفحة guide.html) ============
+   ورقة «ملاحظات التجربة»: الوقت | اسم من جرّبت | ما جرّبته | التقييم | الملحوظات | الجهاز — تُنشأ تلقائياً */
+const FB_SHEET = 'ملاحظات التجربة';
+const FB_HEADERS = ['وقت الإرسال', 'اسم من جرّبت', 'الوحدة / الصفحة', 'التقييم العام', 'الملحوظات', 'الجهاز'];
+function feedbackSave_(r) {
+  const cut = (v, n) => String(v || '').trim().slice(0, n);
+  const name = cut(r.name, 100), notes = cut(r.notes, 5000);
+  if (!name) throw new Error('اكتبي اسمكِ');
+  if (!notes) throw new Error('اكتبي ملحوظاتكِ');
+  const ss = ss_();
+  let sh = ss.getSheetByName(FB_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(FB_SHEET);
+    sh.getRange(1, 1, 1, FB_HEADERS.length).setValues([FB_HEADERS]);
+    styleHeader_(sh, FB_HEADERS.length);
+    sh.setFrozenRows(1);
+    sh.setColumnWidth(5, 480);
+  }
+  const row = [Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm'), name, cut(r.parts, 300), cut(r.rate, 40), notes, cut(r.device, 60)];
+  const at = sh.getLastRow() + 1;
+  sh.getRange(at, 1, 1, row.length).setNumberFormat('@').setValues([row]);
+  sh.getRange(at, 5).setWrap(true);
+  return { ok: true };
 }
 
 function json_(o) {

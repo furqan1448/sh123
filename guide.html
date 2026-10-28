@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>دليل المنظومة — منظومة مشرفات مكتب إشراف الداخل</title>
+<link rel="preconnect" href="https://script.google.com">
+<link rel="stylesheet" href="style.css">
+<style>
+  .g-hero{background:#fffbf2;border:1.5px solid var(--gold);border-radius:var(--radius);padding:16px 18px;margin-bottom:16px;line-height:1.9}
+  .g-hero b{color:var(--primary)}
+  .g-badge{display:inline-flex;align-items:center;gap:6px;background:#e4f4ec;color:#1f6b40;border-radius:999px;padding:3px 12px;font-size:13px;font-weight:800;margin-bottom:8px}
+  .g-badge.warn{background:#fbf3e0;color:#8a6a1f}
+  .g-acc{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:6px}
+  .g-acc>div{border:1.5px solid var(--line);border-radius:14px;padding:12px 14px;background:#fff}
+  .g-acc h3{font-size:15px;color:var(--primary);margin-bottom:8px}
+  .g-acc dl{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;font-size:14.5px}
+  .g-acc dt{color:var(--muted);font-weight:600}
+  .g-acc dd{font-weight:800}
+  .g-code{display:inline-block;background:#f6f0f2;color:var(--primary);border-radius:8px;padding:0 10px;font-family:inherit;letter-spacing:.5px}
+  .g-sec{border:1px solid var(--line);border-radius:var(--radius);background:#fff;margin-bottom:12px;overflow:hidden}
+  .g-sec>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:14px 16px;font-weight:800;color:var(--primary);font-size:16px}
+  .g-sec>summary::-webkit-details-marker{display:none}
+  .g-sec>summary svg{width:30px;height:30px;flex:none}
+  .g-sec>summary .arr{margin-inline-start:auto;transition:transform .2s;color:var(--muted)}
+  .g-sec[open]>summary .arr{transform:rotate(180deg)}
+  .g-sec .g-body{padding:0 18px 16px;line-height:1.95;font-size:15px}
+  .g-body ul{padding-inline-start:20px;margin:6px 0}
+  .g-body li{margin:3px 0}
+  .g-body b{color:var(--primary)}
+  .g-steps{counter-reset:s;list-style:none;padding:0!important}
+  .g-steps li{counter-increment:s;position:relative;padding-inline-start:36px;margin:8px 0}
+  .g-steps li::before{content:counter(s);position:absolute;inset-inline-start:0;top:1px;width:26px;height:26px;border-radius:50%;background:var(--primary);color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .g-note{background:#f6f0f2;border-inline-start:4px solid var(--primary);border-radius:10px;padding:10px 12px;margin-top:10px;font-size:14px;line-height:1.85}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{display:flex;align-items:center;gap:6px;border:1.5px solid var(--line);border-radius:999px;padding:7px 14px;margin:0;cursor:pointer;font-weight:600;font-size:14px}
+  .chip input{width:auto;margin:0;accent-color:var(--primary)}
+  .chip:has(input:checked){border-color:var(--primary);background:#f6f0f2;color:var(--primary)}
+  .rate{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .rate label{margin:0;text-align:center;border:1.5px solid var(--line);border-radius:12px;padding:10px 6px;cursor:pointer;font-size:14px}
+  .rate input{display:none}
+  .rate label:has(input:checked){border-color:var(--primary);background:#f6f0f2;color:var(--primary);font-weight:800}
+  @media(max-width:520px){.rate{grid-template-columns:repeat(2,1fr)}}
+  .req{color:var(--err)}
+  .g-done{background:#e4f4ec;border-radius:14px;padding:16px;line-height:1.9;color:#1f6b40;font-weight:700;text-align:center}
+  .g-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <img class="logo" alt="شعار فرقان">
+  <h1>دليل منظومة مشرفات مكتب إشراف الداخل</h1>
+  <p>جمعية فرقان لتحفيظ القرآن الكريم</p>
+</div>
+
+<div class="wrap">
+  <div class="g-top"><a class="lnk" href="index.html">← الرئيسية</a><a class="lnk" href="#feedback">انتقلي إلى نموذج الملاحظات</a></div>
+
+  <div class="g-hero">
+    <span class="g-badge">✔ تمت تجربة المنظومة</span> <span class="g-badge warn">بانتظار تجربة المشرفات</span><br>
+    تمت تجربة المنظومة وتعمل جميع أجزائها، <b>ولكنها تحتاج إلى تجربة أخرى من قبل المشرفات</b> قبل اعتمادها رسمياً.
+    نرجو من كل مشرفة تجربة الأجزاء الخاصة بوحدتها بحساب التجربة أدناه، ثم كتابة ملاحظاتها في <a class="lnk" href="#feedback">نموذج الملاحظات</a> في آخر هذه الصفحة.
+  </div>
+
+  <!-- حساب التجربة -->
+  <div class="card">
+    <h2>حساب التجربة</h2>
+    <div class="g-acc">
+      <div>
+        <h3>صفحات المشرفات (الوحدات الثلاث)</h3>
+        <dl><dt>الاسم:</dt><dd>تجربة</dd><dt>كلمة المرور:</dt><dd><span class="g-code">11</span></dd></dl>
+      </div>
+      <div>
+        <h3>إدارة المراكز</h3>
+        <dl><dt>اسم المركز:</dt><dd>تجربة</dd><dt>كلمة المرور:</dt><dd><span class="g-code">666</span></dd></dl>
+      </div>
+    </div>
+    <div class="g-note">حساب التجربة مخصص للتجربة فقط، فلا بأس بإدخال بيانات تجريبية وحذفها بعد ذلك. ونرجو عدم استخدام الحسابات الحقيقية أثناء التجربة.</div>
+  </div>
+
+  <!-- البداية -->
+  <div class="card">
+    <h2>كيف أبدأ؟</h2>
+    <ol class="g-steps">
+      <li>افتحي الصفحة الرئيسية للمنظومة، واختاري أيقونة وحدتكِ.</li>
+      <li>اختاري الاسم <b>«تجربة»</b> من القائمة، واكتبي كلمة المرور <b>11</b>، ثم اضغطي «دخول».</li>
+      <li>تظهر لكِ أيقونات الوحدة، وابدئي بأيقونة <b>«المراكز المشرفة عليها»</b> لتحديد المراكز التي تشرفين عليها، فهي التي تظهر بعد ذلك في كشف الخروج وفي الاستمارات.</li>
+      <li>جرّبي بقية الأيقونات كما في الشرح أدناه، ثم اكتبي ملاحظاتكِ في آخر الصفحة.</li>
+    </ol>
+    <div class="g-note">يبقى الدخول محفوظاً في الجهاز، فلا يُطلب مرة أخرى حتى تضغطي «تسجيل الخروج». وكل ما يُكتب في النماذج يُحفظ تلقائياً أثناء الكتابة، فإن انقطع الإنترنت أو أُغلقت الصفحة يرجع كما هو.</div>
+  </div>
+
+  <!-- الأجزاء -->
+  <div class="card">
+    <h2>أجزاء المنظومة</h2>
+
+    <details class="g-sec" open>
+      <summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4"/><path d="M10 13l2 2 3.5-4"/><path d="M10 18h5"/></svg>مشترك بين الوحدات الثلاث<span class="arr">▾</span></summary>
+      <div class="g-body">
+        <ul>
+          <li><b>كشف الخروج:</b> تسجيل كل زيارة (المركز، نوع الزيارة، التاريخ، حالة الزيارة، وتوقيع المديرة)، وتُحسب أيام الحضور والغياب تلقائياً، مع تحميل الكشف PDF أو Excel أو طباعته.</li>
+          <li><b>المراكز المشرفة عليها:</b> تحديد مراكز المشرفة مقسّمة إلى الفترة الصباحية والمسائية، وتظهر في القوائم وحدها. وإن لم تُحدَّد تظهر عبارة «لا تتوفر مراكز».</li>
+          <li><b>محاضر الاجتماعات والمرفقات:</b> كتابة محضر الاجتماع أو رفع ملف ومشاركته مع المعلمات، ومعرفة من اطّلعت عليه.</li>
+          <li><b>الإرسال للمديرة أو المعلمة:</b> بعد حفظ أي نموذج يظهر زر الإرسال، فيصل للمديرة في «إدارة المراكز» أو للمعلمة في «المعلمات»، للاطلاع فقط أو للاطلاع والتوقيع، وتظهر حالته بجانب النموذج.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="g-sec">
+      <summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.4A4.6 4.6 0 0 1 21 19"/></svg>وحدة الإشراف التربوي<span class="arr">▾</span></summary>
+      <div class="g-body">
+        <ul>
+          <li><b>استمارات التقييم الأسبوعية والنهائية:</b> القرآن الكريم (بدون تعدد / تعدد المجموعات)، والتبيان، والتجويد، مع حساب الدرجة والتقدير تلقائياً، وحفظ المسودات.</li>
+          <li><b>خلاصة التقارير:</b> جمع درجات المعلمات في خلاصة واحدة لكل فترة وفصل.</li>
+          <li>أنواع الزيارة في كشف الخروج: اجتماع حضوري، تصحيح تلاوة، تقييم التبيان، تقييم التجويد، تقييم حصة القرآن الكريم، مراجعة، أخرى.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="g-sec">
+      <summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7.5" r="3"/><path d="M6 21v-3.5a6 6 0 0 1 12 0V21"/></svg>وحدة تحفيظ الصغار<span class="arr">▾</span></summary>
+      <div class="g-body">
+        <ul>
+          <li><b>تقرير زيارة مشرفة تحفيظ الصغار</b> و<b>خلاصة التقارير التعليمية</b>، ويُرسلان للمعلمة لتطّلع وتوقّع من حسابها.</li>
+          <li><b>استمارات التقييم</b> (التلاوة، التبيان، المادة، لقاء أخير، أثناء الوجبة، معلمة الأركان، مشرفة الساحة)، وتصل للمعلمة بالملاحظات والتوصيات دون الدرجات.</li>
+          <li><b>إجراءات الموظفات:</b> الإنذار الشفوي والكتابي والتعهد والملاحظات، مع توقيع الموظفة والمديرة.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="g-sec">
+      <summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M8.5 10h7M8.5 14h7M8.5 18h4"/></svg>وحدة الإشراف الإداري<span class="arr">▾</span></summary>
+      <div class="g-body">
+        <ul>
+          <li><b>تقرير زيارة المشرفة:</b> اسم المديرة وجوالها يظهران تلقائياً من المركز، ورقم الزيارة من الزيارات السابقة، والتوصية تكتبها المشرفة، ثم يُرسل للمديرة.</li>
+          <li><b>برنامج مشرفة مقيمة</b>، و<b>الاقتراحات والصعوبات</b>، و<b>المتابعة الإدارية الشهرية</b>، و<b>استمارة تقييم المديرة</b> (من ١٠٠)، و<b>حصر القاعات في المراكز</b>.</li>
+          <li><b>الوارد من المراكز:</b> ما ترسله مديرات المراكز (مثل حصر الغياب والتأخير والاستئذان).</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="g-sec">
+      <summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 20.5h17"/><path d="M5 20.5V8l7-4.5L19 8v12.5"/><path d="M9.5 20.5v-4.5h5v4.5"/><path d="M9 10.5h6"/></svg>إدارة المراكز (مديرات المراكز)<span class="arr">▾</span></summary>
+      <div class="g-body">
+        <ul>
+          <li>الدخول باسم المركز وكلمة مروره (للتجربة: <b>تجربة</b> وكلمة المرور <b>666</b>).</li>
+          <li><b>الوارد من المشرفات:</b> تُعرض فيه النماذج المرسلة، فتطّلع المديرة على النموذج أولاً، ثم تحفظه بصيغة <b>PDF</b> أو <b>Excel</b>، وتضغط «تم الاطلاع» أو توقّع إن طُلب منها التوقيع.</li>
+          <li><b>حصر الغياب والتأخير والاستئذان:</b> تعبئته وإرساله للمشرفة.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="g-sec">
+      <summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V6a2 2 0 0 1 2-2h9l5 5v10.5a.5.5 0 0 1-.5.5H6a2 2 0 0 1-2-2z"/><path d="M14 4v5h5"/></svg>المعلمات<span class="arr">▾</span></summary>
+      <div class="g-body">
+        <ul>
+          <li>تدخل المعلمة برقم جوالها وكلمة مرورها، وتجد ما أرسلته المشرفات إليها، فتطّلع عليه وتحفظه <b>PDF</b> أو <b>Excel</b>، وتوقّع من حسابها.</li>
+          <li><b>شهادتي:</b> عرض شهادة اجتياز الاختبار وتحميلها، إضافة إلى محاضر الاجتماعات والمرفقات المشتركة معها.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="g-sec">
+      <summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>إدارة الوحدات<span class="arr">▾</span></summary>
+      <div class="g-body">
+        <ul><li>لمديرات الوحدات: متابعة كل ما سجّلته مشرفات الوحدة (الزيارات، الاستمارات، النماذج، المرفقات، المحاضر) مع التصفية بالتاريخ والمشرفة.</li></ul>
+      </div>
+    </details>
+  </div>
+
+  <!-- ما نرجو تجربته -->
+  <div class="card">
+    <h2>ما نرجو التركيز عليه في التجربة</h2>
+    <ul style="padding-inline-start:20px;line-height:2">
+      <li>سهولة الدخول وسرعة فتح الصفحات على الجوال والحاسب.</li>
+      <li>صحة البيانات في النماذج المطبوعة وملفات PDF وExcel (الأسماء، التواريخ، الكليشة، التواقيع).</li>
+      <li>وصول النماذج المرسلة إلى المديرة والمعلمة، وظهور حالة الاطلاع والتوقيع.</li>
+      <li>أي كلمة غير واضحة، أو خطوة متعبة، أو شيء تحتاجه المشرفة ولم تجده.</li>
+    </ul>
+  </div>
+
+  <!-- نموذج الملاحظات -->
+  <div class="card" id="feedback">
+    <h2>نموذج ملاحظات التجربة</h2>
+    <div id="fbForm">
+      <label for="fbName">اسم من جرّبت <span class="req">*</span></label>
+      <input id="fbName" autocomplete="name" placeholder="اكتبي اسمكِ">
+
+      <label>الوحدة أو الصفحة التي جرّبتِها</label>
+      <div class="chips" id="fbParts">
+        <label class="chip"><input type="checkbox" value="الإشراف التربوي">الإشراف التربوي</label>
+        <label class="chip"><input type="checkbox" value="تحفيظ الصغار">تحفيظ الصغار</label>
+        <label class="chip"><input type="checkbox" value="الإشراف الإداري">الإشراف الإداري</label>
+        <label class="chip"><input type="checkbox" value="إدارة المراكز">إدارة المراكز</label>
+        <label class="chip"><input type="checkbox" value="المعلمات">المعلمات</label>
+        <label class="chip"><input type="checkbox" value="إدارة الوحدات">إدارة الوحدات</label>
+      </div>
+
+      <label>تقييمكِ العام للمنظومة</label>
+      <div class="rate" id="fbRate">
+        <label><input type="radio" name="fbRate" value="ممتازة">ممتازة</label>
+        <label><input type="radio" name="fbRate" value="جيدة">جيدة</label>
+        <label><input type="radio" name="fbRate" value="مقبولة">مقبولة</label>
+        <label><input type="radio" name="fbRate" value="تحتاج إلى تحسين">تحتاج إلى تحسين</label>
+      </div>
+
+      <label for="fbNotes">الملحوظات <span class="req">*</span></label>
+      <textarea id="fbNotes" rows="6" placeholder="اكتبي كل ملحوظة في سطر: ما الذي لم يعمل؟ ما الذي كان غير واضح؟ ما الذي تقترحين إضافته؟"></textarea>
+
+      <label for="fbDevice">الجهاز المستخدم في التجربة</label>
+      <select id="fbDevice"><option value="">اختاري</option><option>جوال آيفون</option><option>جوال أندرويد</option><option>حاسب</option><option>آيباد / جهاز لوحي</option></select>
+
+      <button class="btn block" id="fbBtn" onclick="fbSend(this)">إرسال الملاحظات</button>
+    </div>
+    <div id="fbDone" class="g-done hidden"></div>
+  </div>
+</div>
+
+<script src="logo-config.js"></script>
+<script src="config.js"></script>
+<script>
+// ملاحظات التجربة: تُحفظ في ورقة «ملاحظات التجربة» في شيت المنظومة (بدون تسجيل دخول)
+async function fbSend(btn) {
+  const name = document.getElementById('fbName').value.trim();
+  const notes = document.getElementById('fbNotes').value.trim();
+  if (!name) return toast('اكتبي اسمكِ', false);
+  if (!notes) return toast('اكتبي ملحوظاتكِ', false);
+  const parts = [...document.querySelectorAll('#fbParts input:checked')].map(i => i.value).join('، ');
+  const rate = (document.querySelector('input[name="fbRate"]:checked') || {}).value || '';
+  const device = document.getElementById('fbDevice').value;
+  setBtnBusy(btn, true, 'جارِ الإرسال...');
+  try {
+    await api('feedback', { name, parts, rate, notes, device });
+    try { localStorage.setItem('fb_name', name); } catch (e) {}
+    document.getElementById('fbForm').classList.add('hidden');
+    const done = document.getElementById('fbDone');
+    done.innerHTML = 'شكراً لكِ يا ' + esc(name) + '، وصلت ملحوظاتكِ.<br><button class="btn light" style="margin-top:10px" onclick="fbAgain()">إرسال ملحوظات أخرى</button>';
+    done.classList.remove('hidden');
+  } catch (e) { toast(e.message || 'تعذّر الإرسال', false); }
+  finally { setBtnBusy(btn, false); }
+}
+function fbAgain() {
+  document.getElementById('fbNotes').value = '';
+  document.getElementById('fbDone').classList.add('hidden');
+  document.getElementById('fbForm').classList.remove('hidden');
+}
+try { const n = localStorage.getItem('fb_name'); if (n) document.getElementById('fbName').value = n; } catch (e) {}
+</script>
+</body>
+</html>
