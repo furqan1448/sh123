@@ -279,7 +279,7 @@ function stfDocHtml(rec, sigs, lhUrl) {
   let body = '';
   if (f === 'shafawi' || f === 'khatti') {
     body = meta +
-      '<div class="stf-h">' + (f === 'khatti' ? 'نظراً لتكرار' : 'نظراً لرصد') + ' الملاحظات التالية على الموظفة <small>(الاسم وفق الهوية)</small> / ' + m(name) + ' :</div>' + ol(d.obs) +
+      '<div class="stf-h">' + (f === 'khatti' ? 'نظراً لتكرار' : 'نظراً لرصد') + ' الملاحظات التالية على الموظفة/ ' + m(name) + '</div>' + ol(d.obs) +
       (f === 'khatti' ? prev(d.oral, 'والتي تم إنذارها بشأنها شفوياً') : '') +
       '<div class="stf-h">فإنه قد تم إنذارها ' + (f === 'khatti' ? 'خطياً' : 'شفوياً') + ' وتوجيهها إلى:</div>' + ol(d.req) +
       '<div class="stf-close">وضرورة عدم تكرار ذلك، وإلا سيُتّخذ بحقها الإجراء المناسب.</div>' + foot;
