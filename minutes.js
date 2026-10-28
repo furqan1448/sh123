@@ -216,7 +216,8 @@ if (typeof scRegister === 'function') scRegister('min', {
   rec: id => mnById(id),
   title: r => 'محضر اجتماع رقم ( ' + idDigits(r.no) + ' )' + (r.center ? ' — ' + r.center : ''),
   center: r => r.center || '', period: r => r.period || '',
-  file: async r => ({ blob: await sgPdfBlob(r), name: sgFileName(r) + '.pdf', mime: 'application/pdf' })
+  file: async r => ({ blob: await sgPdfBlob(r), name: sgFileName(r) + '.pdf', mime: 'application/pdf' }),
+  alt: async r => ({ blob: await sgXlsxBlob(r), name: sgFileName(r) + '.xlsx', mime: DX_MIME })   // نسخة Excel
 });
 function mnView(id) { const r = mnById(id); if (r) sgView(r); }
 function mnDo(id, btn, what) { const r = mnById(id); if (!r) return; what === 'share' ? sgShare(r, btn) : sgPdf(r, btn); }

@@ -144,7 +144,7 @@ async function sgPdfBlob(rec, sigs) {
   const P = sgPortrait(rec), W = P ? 794 : 1123;
   box.style.cssText = 'position:absolute;top:0;left:0;width:' + W + 'px;z-index:-1;background:#fff;direction:rtl';
   box.innerHTML = '<style>' + sgAllCss() + '.idoc{width:' + W + 'px;padding:0}</style>' + sgDocHtml(rec, sigs);
-  document.body.appendChild(box);
+  document.body.appendChild(box); pdfBusy(1);
   try {
     await Promise.all([...box.querySelectorAll('img')].map(im => im.complete ? 0 : new Promise(r => { im.onload = im.onerror = r; })));
     const opt = { margin: 0, image: { type: 'jpeg', quality: 0.97 }, jsPDF: { unit: 'mm', format: P ? [210, 297] : [297, 210], orientation: P ? 'portrait' : 'landscape' } };
@@ -164,7 +164,7 @@ async function sgPdfBlob(rec, sigs) {
         if (c.parentElement) c.parentElement.style.direction = 'ltr';
         Object.assign(c.style, { position: 'absolute', top: '0', left: '0', right: 'auto', margin: '0', width: W + 'px', direction: 'rtl' });
       }).toCanvas().toPdf().outputPdf('blob');
-  } finally { box.remove(); }
+  } finally { box.remove(); pdfBusy(0); }
 }
 // صفحة A4 طولية: إن زادت الاستمارة قليلاً عن الصفحة نصغّرها لتكفي صفحة واحدة
 function sgFitPortrait(cv) { return idFitBleed(cv, true); }   // الكليشة من الطرف إلى الطرف (idari-print.js)

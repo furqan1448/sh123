@@ -94,7 +94,7 @@ function tItem(r, pending) {
     '<div class="t-meta">المركز: ' + esc(r.center) + ' — ' + tDate(r) + '<br>المشرفة: ' + esc(r.supName || '—') + ' — رقم الزيارة: ' + esc(idDigits(r.visitNo) || '—') +
     (!pending && r.data && r.data.tchAt ? '<br><span class="t-signed">✔ وقّعتِ بتاريخ ' + esc(r.data.tchAt) + '</span>' : '') + '</div>' +
     '<div class="act">' + (pending ? '<button class="btn" onclick="tOpen(\'' + id + '\')">فتح التقرير والتوقيع</button>'
-      : '<button class="btn light" onclick="tOpen(\'' + id + '\')">عرض</button><button class="btn light" onclick="tPdf(\'' + id + '\', this)">تحميل PDF</button>') + '</div></div>';
+      : '<button class="btn light" onclick="tOpen(\'' + id + '\')">عرض</button>') + '</div></div>';   // يُعرض النموذج أولاً ثم الحفظ PDF أو Excel
 }
 // نموذج وارد بزر «📤 إرسال» من المشرفة
 function inItem(x) {
@@ -123,8 +123,9 @@ async function tOpen(id) {
   $('tDoc').innerHTML = '<p class="empty">جارِ التحميل...</p>';
   $('tSignCard').classList.toggle('hidden', !!r.signed);
   $('tAgree').checked = false; tSig.reset();
-  $('tBar').innerHTML = '<button class="btn light" id="tVPdf">تحميل PDF</button>';
+  $('tBar').innerHTML = dxBar('tVPdf', 'tVXls');
   $('tVPdf').onclick = e => sgPdf(r, e.currentTarget, tSigsCur);
+  $('tVXls').onclick = e => sgXlsx(r, e.currentTarget, tSigsCur);
   tShow('signView');
   try { tSigsCur = await sgLoadSigs(r); } catch (e) {}
   $('tDoc').innerHTML = '<style>' + sgAllCss() + '</style><div class="id-scroll sg-fit">' + sgDocHtml(r, tSigsCur) + '</div>';
@@ -202,8 +203,9 @@ function tMinRender() {
 function tMinShow(id) {
   const m = TMIN.find(x => x.id === id); if (!m) return;
   tMinCur = m;
-  $('minBar').innerHTML = '<button class="btn light" id="minPdfBtn">تحميل PDF</button>';
+  $('minBar').innerHTML = dxBar('minPdfBtn', 'minXlsBtn');
   $('minPdfBtn').onclick = e => sgPdf(m, e.currentTarget, {});
+  $('minXlsBtn').onclick = e => sgXlsx(m, e.currentTarget, {});
   $('minDoc').innerHTML = '<style>' + sgAllCss() + '</style><div class="id-scroll sg-fit">' + sgDocHtml(m, {}) + '</div>';
   $('minAckBtn').classList.toggle('hidden', !!m.acked);
   $('minAcked').classList.toggle('hidden', !m.acked);
@@ -272,7 +274,7 @@ function inBlob(o) {
 // معاينة صفحات ملف PDF داخل الصفحة (تعمل على الجوال)
 async function inPreview(f, id) {
   const box = $('inPrev');
-  if (!f.isPdf) { box.innerHTML = '<p class="empty">الملف بصيغة Excel — اضغطي «تحميل الملف» لفتحه.</p>'; return; }
+  if (!f.isPdf) { box.innerHTML = '<p class="empty">هذا النموذج أُرسل بصيغة Excel فقط، فلا تتوفر له معاينة هنا — اضغطي «حفظ Excel» لفتحه.</p>'; return; }
   box.innerHTML = '<p class="empty">جارِ عرض الملف...</p>';
   try {
     await inLoadPdfJs();
@@ -308,12 +310,38 @@ async function inOpen(id) {
   }
   tShow('inView');
   try {
-    const f = inBlob(await tApi('t_file', { id }));
+    const f = await inGetFile(id, 'pdf');
     if (!inCur || inCur.id !== id) return;
     inFile = f;
-    $('inBar').innerHTML = (f.isPdf ? '<button class="btn light" onclick="inView()">فتح الملف</button>' : '') + '<button class="btn light" onclick="inSave()">تحميل الملف</button>';
+    $('inBar').innerHTML = inBarHtml(f.fmts);
     inPreview(f, id);
   } catch (e) { $('inPrev').innerHTML = '<p class="empty">' + esc(e.message) + '</p>'; }
+}
+// الملف الوارد: نعرض نسخة PDF للمعاينة، ونحفظ بالصيغة التي تختارها (PDF أو Excel)
+const inFiles = {};
+async function inGetFile(id, fmt) {
+  const k = id + '|' + fmt;
+  if (inFiles[k]) return inFiles[k];
+  const o = await tApi('t_file', { id, fmt });
+  const f = inBlob(o); f.fmts = o.fmts || [f.isPdf ? 'pdf' : 'xlsx'];
+  inFiles[id + '|' + (f.isPdf ? 'pdf' : 'xlsx')] = f;
+  return f;
+}
+function inBarHtml(fmts) {
+  return (fmts.indexOf('pdf') > -1 ? '<button class="btn light" onclick="inSaveFmt(\'pdf\', this)">' + DX_ICO_PDF + 'حفظ PDF</button>' : '') +
+    (fmts.indexOf('xlsx') > -1 ? '<button class="btn light" onclick="inSaveFmt(\'xlsx\', this)">' + DX_ICO_XLS + 'حفظ Excel</button>' : '');
+}
+async function inSaveFmt(fmt, btn) {
+  if (!inCur) return;
+  setBtnBusy(btn, true, 'جارِ التجهيز...');
+  try {
+    const f = await inGetFile(inCur.id, fmt);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(f.blob); a.download = f.name;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  } catch (e) { toast(e.message || 'تعذّر التحميل', false); }
+  finally { setBtnBusy(btn, false); }
 }
 function inView() {
   if (!inFile) return;

@@ -91,7 +91,7 @@ function cItem(r, pending) {
     '<div class="t-meta">' + cDate(r) + (r.period ? ' — الفترة ' + esc(r.period) : '') + '<br>المشرفة: ' + esc(r.supName || '—') + ' — رقم الزيارة: ' + esc(idDigits(r.visitNo) || '—') +
     (!pending && d.mgrAt ? '<br><span class="t-signed">✔ تم التوقيع' + (r.mgrName ? ' من ' + esc(r.mgrName) : '') + ' بتاريخ ' + esc(d.mgrAt) + '</span>' : '') + '</div>' +
     '<div class="act">' + (pending ? '<button class="btn" onclick="cOpen(\'' + id + '\')">فتح التقرير والتوقيع</button>'
-      : '<button class="btn light" onclick="cOpen(\'' + id + '\')">عرض</button><button class="btn light" onclick="cPdf(\'' + id + '\', this)">تحميل PDF</button>') + '</div></div>';
+      : '<button class="btn light" onclick="cOpen(\'' + id + '\')">عرض</button>') + '</div></div>';   // يُعرض النموذج أولاً ثم الحفظ PDF أو Excel
 }
 // نموذج وارد بزر «📤 إرسال للمركز»
 function inItem(x) {
@@ -140,8 +140,9 @@ async function cOpen(id) {
   $('cSignCard').classList.toggle('hidden', !!r.signed);
   $('cAgree').checked = false; cSig.reset();
   $('cSigner').value = localStorage.getItem(C_SIGNER) || r.mgrName || '';
-  $('cBar').innerHTML = '<button class="btn light" id="cVPdf">تحميل PDF</button>';
+  $('cBar').innerHTML = dxBar('cVPdf', 'cVXls');
   $('cVPdf').onclick = e => idPdf(r, e.currentTarget, cSigsCur);
+  $('cVXls').onclick = e => idXlsx(r, e.currentTarget, cSigsCur);
   cShow('signView');
   try { cSigsCur = await idLoadSigs(r); } catch (e) {}
   cDraw();
@@ -193,7 +194,7 @@ function inBlob(o) {
 // معاينة صفحات ملف PDF داخل الصفحة (تعمل على الجوال)
 async function inPreview(f, id) {
   const box = $('inPrev');
-  if (!f.isPdf) { box.innerHTML = '<p class="empty">الملف بصيغة Excel — اضغطي «تحميل الملف» لفتحه.</p>'; return; }
+  if (!f.isPdf) { box.innerHTML = '<p class="empty">هذا النموذج أُرسل بصيغة Excel فقط، فلا تتوفر له معاينة هنا — اضغطي «حفظ Excel» لفتحه.</p>'; return; }
   box.innerHTML = '<p class="empty">جارِ عرض الملف...</p>';
   try {
     await inLoadPdfJs();
@@ -232,12 +233,38 @@ async function inOpen(id) {
   }
   cShow('inView');
   try {
-    const f = inBlob(await cApi('c_file', { id }));
+    const f = await inGetFile(id, 'pdf');
     if (!inCur || inCur.id !== id) return;
     inFile = f;
-    $('inBar').innerHTML = (f.isPdf ? '<button class="btn light" onclick="inView()">فتح الملف</button>' : '') + '<button class="btn light" onclick="inSave()">تحميل الملف</button>';
+    $('inBar').innerHTML = inBarHtml(f.fmts);
     inPreview(f, id);
   } catch (e) { $('inPrev').innerHTML = '<p class="empty">' + esc(e.message) + '</p>'; }
+}
+// الملف الوارد: نعرض نسخة PDF للمعاينة، ونحفظ بالصيغة التي تختارها (PDF أو Excel)
+const inFiles = {};
+async function inGetFile(id, fmt) {
+  const k = id + '|' + fmt;
+  if (inFiles[k]) return inFiles[k];
+  const o = await cApi('c_file', { id, fmt });
+  const f = inBlob(o); f.fmts = o.fmts || [f.isPdf ? 'pdf' : 'xlsx'];
+  inFiles[id + '|' + (f.isPdf ? 'pdf' : 'xlsx')] = f;
+  return f;
+}
+function inBarHtml(fmts) {
+  return (fmts.indexOf('pdf') > -1 ? '<button class="btn light" onclick="inSaveFmt(\'pdf\', this)">' + DX_ICO_PDF + 'حفظ PDF</button>' : '') +
+    (fmts.indexOf('xlsx') > -1 ? '<button class="btn light" onclick="inSaveFmt(\'xlsx\', this)">' + DX_ICO_XLS + 'حفظ Excel</button>' : '');
+}
+async function inSaveFmt(fmt, btn) {
+  if (!inCur) return;
+  setBtnBusy(btn, true, 'جارِ التجهيز...');
+  try {
+    const f = await inGetFile(inCur.id, fmt);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(f.blob); a.download = f.name;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  } catch (e) { toast(e.message || 'تعذّر التحميل', false); }
+  finally { setBtnBusy(btn, false); }
 }
 function inView() {
   if (!inFile) return;

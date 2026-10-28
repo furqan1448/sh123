@@ -639,6 +639,7 @@
 
 <script src="logo-config.js"></script>
 <script src="config.js"></script>
+<script src="doc-xlsx.js"></script>
 <script src="send-center.js"></script>
 <script src="list-ui.js"></script>
 <script src="autosave.js"></script>
@@ -829,7 +830,7 @@ async function loadVisits() {
   if (!VISITS.length) { const c = cacheGet('visits'); if (c) VISITS = c; }
   renderVisits();   // نعرض المحفوظ فوراً ثم نحدّث
   try {
-    const out = await api('getVisits');
+    const out = await api('getVisits', { mine: true });   // زياراتي فقط (أخف وأسرع)
     VISITS = out.data;
     cacheSet('visits', VISITS);
     renderVisits();

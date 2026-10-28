@@ -413,3 +413,18 @@ document.addEventListener('change', e => {
   const t = e.target;
   if (t && t.tagName === 'SELECT' && t.id && /(Center$|^seF_center$)/.test(t.id) && t.id !== 'fCenter' && t.id !== 'scCenter') cpPeriodFill(t);
 });
+
+/* ===== أثناء تجهيز ملف PDF: نافذة «جارِ تجهيز الملف» تغطي الصفحة، فلا يظهر النموذج خلفها أثناء رسمه ===== */
+let PDF_BUSY_N = 0;
+function pdfBusy(on) {
+  PDF_BUSY_N = Math.max(0, PDF_BUSY_N + (on ? 1 : -1));
+  let o = document.getElementById('pdfBusyOv');
+  if (!o) {
+    o = document.createElement('div'); o.id = 'pdfBusyOv';
+    o.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:#faf7f8;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;font-family:Tajawal,Tahoma,sans-serif;color:#7a1f2b;font-weight:800;font-size:17px';
+    o.innerHTML = '<div style="width:42px;height:42px;border:4px solid #ead9dd;border-top-color:#7a1f2b;border-radius:50%;animation:pdfSpin .8s linear infinite"></div><div>جارِ تجهيز الملف...</div>' +
+      '<style>@keyframes pdfSpin{to{transform:rotate(360deg)}}</style>';
+    document.body.appendChild(o);
+  }
+  o.style.display = PDF_BUSY_N ? 'flex' : 'none';
+}

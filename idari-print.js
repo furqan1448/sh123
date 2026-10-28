@@ -152,7 +152,7 @@ function idDocHtml(rec, sigs, lhUrl) {
     // تنسيق نظام المقاصف: «بشأن» سطر واحد، وكل ملاحظة في صف برقمها، والتوصية خلية واحدة بجانب الصفوف
     const notes = d.notes.filter(x => String(x || '').trim());
     const n = Math.max(notes.length, 1);
-    const ack = d.ackCol === '1' || !!sigs.ack;
+    const ack = false;   // عمود «توقيع بالعلم» أُلغي
     let body = '';
     for (let i = 0; i < n; i++) {
       body += '<tr><td class="idc-n">' + idDigits(i + 1) + '</td><td class="idc-note-c" colspan="2">' + idNl(notes[i] || '') + '</td>' +
@@ -171,7 +171,7 @@ function idDocHtml(rec, sigs, lhUrl) {
     // النماذج القديمة (بشأن/ملاحظة/توصية لكل بند) تبقى بشكلها السابق
     const rows = (d.rows || []).filter(r => r && (r.about || r.note || r.rec));
     const n = Math.max(rows.length, 3);
-    const ack = d.ackCol === '1' || !!sigs.ack;   // عمود «توقيع بالعلم» اختياري (يُوقَّع ورقياً)
+    const ack = false;   // عمود «توقيع بالعلم» أُلغي
     let body = '';
     for (let i = 0; i < n; i++) {
       const r = rows[i] || {};
@@ -347,7 +347,7 @@ async function idPdfBlob(rec, sigs) {
   const box = document.createElement('div');
   box.style.cssText = 'position:absolute;top:0;left:0;width:1123px;z-index:-1;background:#fff;direction:rtl';
   box.innerHTML = '<style>' + ID_CSS + '.idoc{width:1123px;padding:0}</style>' + idDocHtml(rec, sigs);
-  document.body.appendChild(box);
+  document.body.appendChild(box); pdfBusy(1);
   try {
     await Promise.all([...box.querySelectorAll('img')].map(im => im.complete ? 0 : new Promise(r => { im.onload = im.onerror = r; })));
     // الطريقة الأساسية: رسم النموذج بمحرك المتصفح (العربي والنقطتان والأرقام في أماكنها الصحيحة)
@@ -372,7 +372,7 @@ async function idPdfBlob(rec, sigs) {
         if (c.parentElement) c.parentElement.style.direction = 'ltr';
         Object.assign(c.style, { position: 'absolute', top: '0', left: '0', right: 'auto', margin: '0', width: '1123px', direction: 'rtl' });
       }).toCanvas().toPdf().outputPdf('blob');
-  } finally { box.remove(); }
+  } finally { box.remove(); pdfBusy(0); }
 }
 function idSaveBlob(blob, name) {
   const a = document.createElement('a');
@@ -726,7 +726,7 @@ async function imPdfBlob(rec, sigs) {
   const pages = imDocPages(rec, sigs);
   const box = document.createElement('div');
   box.style.cssText = 'position:absolute;top:0;left:0;width:1123px;z-index:-1;background:#fff;direction:rtl';
-  document.body.appendChild(box);
+  document.body.appendChild(box); pdfBusy(1);
   let worker = null, pdf = null;
   try {
     for (let i = 0; i < pages.length; i++) {
@@ -762,7 +762,7 @@ async function imPdfBlob(rec, sigs) {
       }
     }
     return pdf.output('blob');
-  } finally { box.remove(); }
+  } finally { box.remove(); pdfBusy(0); }
 }
 
 /* ======================= صفحات A4 (عرضية أو طولية) → ملف PDF، كل صفحة تُرسم وحدها وتُصغَّر لتكفيها ======================= */
@@ -773,7 +773,7 @@ async function idPagesPdf(pages, css, portrait) {
   const W = portrait ? 794 : 1123, pw = portrait ? 210 : 297, ph = portrait ? 297 : 210;
   const box = document.createElement('div');
   box.style.cssText = 'position:absolute;top:0;left:0;width:' + W + 'px;z-index:-1;background:#fff;direction:rtl';
-  document.body.appendChild(box);
+  document.body.appendChild(box); pdfBusy(1);
   let pdf = null;
   try {
     for (let i = 0; i < pages.length; i++) {
@@ -802,7 +802,7 @@ async function idPagesPdf(pages, css, portrait) {
       pdf.addImage(img, 'JPEG', 0, 0, pw, h);
     }
     return pdf.output('blob');
-  } finally { box.remove(); }
+  } finally { box.remove(); pdfBusy(0); }
 }
 
 /* ======================= النماذج الطولية: استمارة تقييم المديرة، وحصر القاعات في المراكز ======================= */

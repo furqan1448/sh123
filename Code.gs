@@ -245,7 +245,7 @@ function route_(r) {
     case 'hasrSig': { const u = norm_(r.username).toLowerCase(), x = hasrFor_(y => y.id === String(r.id || '') && y.sup === u)[0]; if (!x) throw new Error('غير موجود'); return { ok: true, data: sigGet_(x.id + '|mgr') }; }   // «📤 إرسال للمركز»
     case 'sendCenter': return withLock_(() => sendCenter_(r));
     case 'getSent': return { ok: true, data: getSent_(r) };
-    case 'sentFile': return outFile_(sentOwn_(r));
+    case 'sentFile': return outFile_(sentOwn_(r), r.fmt);
     case 'sentSig': { const x = sentOwn_(r); return { ok: true, data: sigGet_(x.id + '|ctr') }; }
     case 'unsend': return withLock_(() => unsend_(r));
     default: throw new Error('إجراء غير معروف');
@@ -441,14 +441,15 @@ function addVisit_(r) {
   const rg = sh.getRange(row, 1, 1, vals[0].length);
   rg.clearDataValidations(); // التحقق يمنع أنواع الزيارة المتعددة (مفصولة بـ «،») فنلغيه، والتحقق يتم داخل الكود أعلاه
   rg.setNumberFormat('@').setValues(vals);
-  if (needSig && sigUrl) sigPut_(id, r.signature);
+  if (needSig && sigUrl) sigPut_(id, r.signature, sigUrl);
   return { ok: true, id: id, day: day, signature: sigUrl };
 }
 
 // كشف الخروج لكل مشرفة: زيارات وحدتها فقط، و mine = زياراتها هي فقط (صفحة الإشراف الإداري)
 function visitsFor_(r) {
   const me = profileOf_(r.username);
-  return getVisits_().filter(v => (v.unit || DEFAULT_UNIT) === me.unit && (!r.mine || v.owner === me.username));
+  // mine: زيارات المشرفة فقط (والسجلات القديمة التي لا مالك لها تبقى ظاهرة)
+  return getVisits_().filter(v => (v.unit || DEFAULT_UNIT) === me.unit && (!r.mine || !v.owner || v.owner === me.username));
 }
 
 /* ============ المرفقات ============ */
@@ -532,18 +533,28 @@ function deleteFile_(id) {
   return deleteById_(SHEET.FILES, id, !isLink);
 }
 
-/* ============ التواقيع (نسخة مصغّرة لكل توقيع تُستخدم في الإكسل) ============ */
+/* ============ التواقيع ============
+   صور التواقيع لا تُحفظ داخل الشيت (حتى لا يثقل): كل توقيع ملف صغير في الدرايف (مجلد «التواقيع» داخل مجلد المنظومة)،
+   وورقة «التواقيع» فيها المعرّف ومرجع الملف فقط (drive:معرف_الملف). وتُحفظ نسخة مؤقتة في ذاكرة السكربت (6 ساعات) لتُعرض بسرعة.
+   التواقيع القديمة المحفوظة داخل الشيت تبقى تعمل، ولنقلها للدرايف وتخفيف الشيت: شغّلي moveSignaturesToDrive() مرة واحدة. */
+const SIG_FOLDER = 'التواقيع';
+const SIG_CACHE_S = 21600;
 function sigSheet_() {
   const ss = ss_();
   let sh = ss.getSheetByName(SHEET.SIGS);
   if (!sh) {
     sh = ss.insertSheet(SHEET.SIGS);
-    sh.getRange(1, 1, 1, 2).setValues([['المعرّف', 'التوقيع (نسخة مصغّرة)']]);
+    sh.getRange(1, 1, 1, 2).setValues([['المعرّف', 'مرجع ملف التوقيع']]);
     sh.setFrozenRows(1);
     sh.setColumnWidth(1, 260);
   }
   return sh;
 }
+function sigFolder_() {
+  const p = folder_(), it = p.getFoldersByName(SIG_FOLDER);
+  return it.hasNext() ? it.next() : p.createFolder(SIG_FOLDER);
+}
+const sigKey_ = id => 'sg_' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, String(id), Utilities.Charset.UTF_8));
 function sigRow_(sh, id) {
   const last = sh.getLastRow();
   if (last < 2) return 0;
@@ -551,49 +562,90 @@ function sigRow_(sh, id) {
   for (let i = 0; i < ids.length; i++) if (String(ids[i][0]) === String(id)) return i + 2;
   return 0;
 }
-function sigPut_(id, data) {
+// إنشاء ملف التوقيع في الدرايف من صورة data:image/...
+function sigNewFile_(id, data) {
+  const m = String(data).match(/^data:(image\/[\w+.-]+);base64,(.*)$/);
+  if (!m) return '';
+  const ext = /png/i.test(m[1]) ? 'png' : 'jpg';
+  const f = sigFolder_().createFile(Utilities.newBlob(Utilities.base64Decode(m[2]), m[1], 'توقيع-' + String(id).replace(/[\\/:*?"<>|]+/g, '_').slice(0, 80) + '.' + ext));
+  return f.getId();
+}
+function sigTrashOwn_(ref) {
+  const m = String(ref || '').match(/^drive:([-\w]+):own$/);
+  if (m) { try { DriveApp.getFileById(m[1]).setTrashed(true); } catch (e) {} }
+}
+// url: إن كان للتوقيع ملف في الدرايف أصلاً (كشف الخروج والاستمارات) نكتفي بمرجعه دون نسخة ثانية
+function sigPut_(id, data, url) {
   data = String(data || '');
-  if (!id || data.indexOf('data:image/') !== 0 || data.length > 49000) return;   // خلية الشيت لا تتّسع لأكثر من ذلك
+  if (!id || data.indexOf('data:image/') !== 0 || data.length > 49000) return;
   const sh = sigSheet_();
-  const row = sigRow_(sh, id) || sh.getLastRow() + 1;
-  sh.getRange(row, 1, 1, 2).setNumberFormat('@').setValues([[String(id), data]]);
+  const row = sigRow_(sh, id);
+  if (row) sigTrashOwn_(sh.getRange(row, 2).getValue());
+  const um = url && String(url).match(/[-\w]{25,}/);
+  const ref = um ? 'drive:' + um[0] : 'drive:' + sigNewFile_(id, data) + ':own';
+  sh.getRange(row || sh.getLastRow() + 1, 1, 1, 2).setNumberFormat('@').setValues([[String(id), ref]]);
+  try { CacheService.getScriptCache().put(sigKey_(id), data, SIG_CACHE_S); } catch (e) {}
+}
+// قيمة الخلية ← صورة التوقيع (data:image/...)
+function sigFromRef_(v) {
+  v = String(v || '');
+  if (v.indexOf('data:image/') === 0) return v;   // توقيع قديم داخل الشيت
+  const m = v.match(/^drive:([-\w]+)/);
+  if (!m) return '';
+  try { const b = DriveApp.getFileById(m[1]).getBlob(); return 'data:' + b.getContentType() + ';base64,' + Utilities.base64Encode(b.getBytes()); }
+  catch (e) { return ''; }
 }
 function sigGet_(id) {
   const sh = ss_().getSheetByName(SHEET.SIGS);
   if (!sh) return '';
+  const c = CacheService.getScriptCache();
+  try { const hit = c.get(sigKey_(id)); if (hit) return hit; } catch (e) {}
   const row = sigRow_(sh, id);
-  return row ? String(sh.getRange(row, 2).getValue()) : '';
+  if (!row) return '';
+  const d = sigFromRef_(sh.getRange(row, 2).getValue());
+  if (d) { try { c.put(sigKey_(id), d, SIG_CACHE_S); } catch (e) {} }
+  return d;
 }
 function sigDel_(id) {
   try {
     const sh = ss_().getSheetByName(SHEET.SIGS);
     if (!sh) return;
     const row = sigRow_(sh, id);
-    if (row) sh.deleteRow(row);
+    if (row) { sigTrashOwn_(sh.getRange(row, 2).getValue()); sh.deleteRow(row); }
+    try { CacheService.getScriptCache().remove(sigKey_(id)); } catch (e) {}
   } catch (e) {}
 }
-// items = [{id, url}] → { id: dataURL }. إن لم توجد نسخة مصغّرة (سجلات قديمة) نقرأ الملف من الدرايف مرة واحدة ونحفظ نسخة منه
+// items = [{id, url}] → { id: dataURL }. الأولوية للذاكرة المؤقتة، ثم ملف الدرايف. وإن لم يوجد مرجع (سجلات قديمة) نقرأ ملف الرابط مرة واحدة ونحفظ مرجعه
 function getSigs_(items) {
   items = Array.isArray(items) ? items.slice(0, 120) : [];
   const out = {};
   if (!items.length) return out;
+  const cache = CacheService.getScriptCache();
+  const keyOf = {};
+  items.forEach(x => { if (x && x.id) keyOf[x.id] = sigKey_(x.id); });
+  try {
+    const hits = cache.getAll(Object.keys(keyOf).map(k => keyOf[k]));
+    Object.keys(keyOf).forEach(id => { if (hits[keyOf[id]]) out[id] = hits[keyOf[id]]; });
+  } catch (e) {}
+  const rest = items.filter(x => x && x.id && !out[x.id]);
+  if (!rest.length) return out;
   const sh = ss_().getSheetByName(SHEET.SIGS);
   const last = sh ? sh.getLastRow() : 0;
-  const rowOf = {};
+  const valOf = {};
   if (last > 1) {
-    const ids = sh.getRange(2, 1, last - 1, 1).getValues();
-    for (let i = 0; i < ids.length; i++) rowOf[String(ids[i][0])] = i + 2;
+    const vals = sh.getRange(2, 1, last - 1, 2).getValues();
+    for (let i = 0; i < vals.length; i++) valOf[String(vals[i][0])] = vals[i][1];
   }
-  const need = items.filter(x => x && rowOf[String(x.id)]);
-  if (need.length > 15) {   // كثيرة: نقرأ العمود دفعة واحدة
-    const vals = sh.getRange(2, 2, last - 1, 1).getValues();
-    need.forEach(x => { out[x.id] = String(vals[rowOf[String(x.id)] - 2][0]); });
-  } else {
-    need.forEach(x => { out[x.id] = String(sh.getRange(rowOf[String(x.id)], 2).getValue()); });
-  }
+  const put = {};
+  let reads = 0;
+  rest.forEach(x => {
+    if (valOf[String(x.id)] == null || reads >= 60) return;
+    const d = sigFromRef_(valOf[String(x.id)]); reads++;
+    if (d) { out[x.id] = d; if (d.length < 95000) put[keyOf[x.id]] = d; }
+  });
   let fb = 0, folderId = '';
-  items.forEach(x => {
-    if (!x || out[x.id] || !x.url || fb >= 25) return;
+  rest.forEach(x => {
+    if (out[x.id] || !x.url || fb >= 25) return;
     const m = String(x.url).match(/[-\w]{25,}/);
     if (!m) return;
     try {
@@ -604,10 +656,32 @@ function getSigs_(items) {
       if (!inside) return;   // لا نقرأ إلا ملفات المنظومة
       const blob = f.getBlob(), d = 'data:' + blob.getContentType() + ';base64,' + Utilities.base64Encode(blob.getBytes());
       out[x.id] = d; fb++;
-      sigPut_(x.id, d);
+      if (d.length < 95000) put[keyOf[x.id]] = d;
+      sigPut_(x.id, d, x.url);
     } catch (e) {}
   });
+  try { if (Object.keys(put).length) cache.putAll(put, SIG_CACHE_S); } catch (e) {}
   return out;
+}
+// تشغيل يدوي مرة واحدة من محرر Apps Script: ينقل التواقيع القديمة المحفوظة داخل ورقة «التواقيع» إلى ملفات في الدرايف
+// (إن توقف قبل أن ينتهي بسبب حد الوقت، شغّليه مرة أخرى ويكمل من حيث توقف)
+function moveSignaturesToDrive() {
+  const sh = ss_().getSheetByName(SHEET.SIGS);
+  if (!sh || sh.getLastRow() < 2) { Logger.log('لا توجد تواقيع'); return; }
+  const t0 = Date.now(), n = sh.getLastRow() - 1;
+  const vals = sh.getRange(2, 1, n, 2).getValues();
+  let moved = 0, left = 0;
+  for (let i = 0; i < n; i++) {
+    const v = String(vals[i][1] || '');
+    if (v.indexOf('data:image/') !== 0) continue;
+    if (Date.now() - t0 > 4.5 * 60 * 1000) { left++; continue; }
+    const fid = sigNewFile_(vals[i][0], v);
+    if (!fid) continue;
+    sh.getRange(i + 2, 2).setNumberFormat('@').setValue('drive:' + fid + ':own');
+    moved++;
+  }
+  sh.getRange(1, 2).setValue('مرجع ملف التوقيع');
+  Logger.log('نُقل ' + moved + ' توقيعاً إلى الدرايف' + (left ? '، وبقي ' + left + ' — شغّلي الدالة مرة أخرى' : '، واكتمل النقل'));
 }
 
 /* ============ حذف صف بالرقم ============ */
@@ -706,7 +780,7 @@ function addEval_(r) {
   const newId = Utilities.getUuid();
   const vals = [evalRow_(r, c, newId, sigUrl, nowStr_(), evalTypeLabel_(c.s(r.formType)), me.username, me.unit)];
   sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
-  if (sigUrl) sigPut_(newId, r.signature);
+  if (sigUrl) sigPut_(newId, r.signature, sigUrl);
   evalsBump_();
   return { ok: true, id: newId, signature: sigUrl };
 }
@@ -733,7 +807,7 @@ function updateEval_(r) {
     const m = sigUrl.match(/[-\w]{25,}/);
     if (m) { try { DriveApp.getFileById(m[0]).setTrashed(true); } catch (e) {} }
     sigUrl = newUrl;
-    sigPut_(id, r.signature);
+    sigPut_(id, r.signature, newUrl);
   }
   const vals = [evalRow_(r, c, id, sigUrl, String(old[21] || nowStr_()), String(old[22] || evalTypeLabel_(c.s(r.formType))), String(old[24] || ''), String(old[25] || ''))];
   sh.getRange(row, 1, 1, vals[0].length).setNumberFormat('@').setValues(vals);
@@ -1446,7 +1520,7 @@ function teacherRoute_(r) {
     }
     const t = teacherAuth_(r);
     if (r.action === 't_login' || r.action === 't_list') return { ok: true, teacher: { id: t.id, name: t.name, category: t.cat }, data: teacherReports_(t), minutes: minutesFor_(t), files: filesForTeacher_(t), inbox: teacherInbox_(t) };
-    if (r.action === 't_file') { const x = outRows_().find(y => y.id === String(r.id || '') && y.to === 't' && y.tid === t.id); if (!x) throw new Error('هذا النموذج ليس لكِ'); return outFile_(x); }
+    if (r.action === 't_file') { const x = outRows_().find(y => y.id === String(r.id || '') && y.to === 't' && y.tid === t.id); if (!x) throw new Error('هذا النموذج ليس لكِ'); return outFile_(x, r.fmt); }
     if (r.action === 't_done') return withLock_(() => centerDone_({ tid: t.id, name: t.name }, Object.assign({}, r, { signer: t.name })));
     if (r.action === 't_ack') return withLock_(() => minuteAck_(t, r));
     if (r.action === 't_fack') return withLock_(() => fileAck_(t, r));
@@ -1923,7 +1997,7 @@ function centerRoute_(r) {
     if (r.action === 'c_names') return { ok: true, data: centerAccounts_().map(a => ({ name: a.name, display: a.display })) };
     const acc = centerAuth_(r);
     if (r.action === 'c_login' || r.action === 'c_list') return { ok: true, center: { name: acc.name, display: acc.display }, data: centerReports_(acc), inbox: centerInbox_(acc) };
-    if (r.action === 'c_file') { const x = outRows_().find(y => y.id === String(r.id || '') && y.to === 'c' && y.center === acc.name); if (!x) throw new Error('هذا النموذج لا يخص مركزكم'); return outFile_(x); }
+    if (r.action === 'c_file') { const x = outRows_().find(y => y.id === String(r.id || '') && y.to === 'c' && y.center === acc.name); if (!x) throw new Error('هذا النموذج لا يخص مركزكم'); return outFile_(x, r.fmt); }
     if (r.action === 'c_done') return withLock_(() => centerDone_(acc, r));
     if (r.action === 'c_sups') return { ok: true, data: listNames_('users', IDARI_UNIT).map(x => ({ u: x.u, n: x.n })) };   // مشرفات الإشراف الإداري
     if (r.action === 'c_hasr') return { ok: true, data: hasrFor_(x => x.center === acc.name) };
@@ -1967,7 +2041,8 @@ function centerSign_(acc, r) {
    نسخة الملف (PDF أو Excel) تُحفظ في الدرايف بلا مشاركة عامة، ولا تُفتح إلا من حساب المركز أو حساب المشرفة المرسِلة. */
 const OUT_SHEET = 'المرسل للمراكز';
 const OUT_HEADERS = ['الرقم', 'وقت الإرسال', 'المرسِلة', 'اسم المستخدم', 'الوحدة', 'المصدر', 'رقم النموذج', 'العنوان', 'المركز',
-  'الطريقة', 'الملاحظة', 'اسم الملف', 'معرف الملف', 'الحالة', 'وقت الإجراء', 'اسم المديرة', 'المستلمة', 'Teacher ID'];
+  'الطريقة', 'الملاحظة', 'اسم الملف', 'معرف الملف', 'الحالة', 'وقت الإجراء', 'اسم المديرة', 'المستلمة', 'Teacher ID', 'اسم الملف 2', 'معرف الملف 2'];
+// «اسم الملف 2 / معرف الملف 2»: نسخة ثانية من النموذج بالصيغة الأخرى (PDF أو Excel)، لتختار المديرة أو المعلمة الصيغة عند الحفظ
 // المستلمة: «مركز» (يظهر في صفحة المراكز، وعمود «المركز» فيه اسم حساب المركز) أو «معلمة» (يظهر في أيقونة «المعلمات»، وعمود «المركز» فيه اسم المعلمة)
 const OUT_ST = { NEW: 'لم يُطّلع عليه', ACK: 'تم الاطلاع', SIGN: 'تم التوقيع' };
 const OUT_MODE = { ack: 'اطلاع فقط', sign: 'اطلاع وتوقيع' };
@@ -1983,7 +2058,7 @@ function outSheet_() {
     styleHeader_(sh, OUT_HEADERS.length);
     sh.setRightToLeft(true);
     sh.setFrozenRows(1);
-    sh.getRange('A:R').setNumberFormat('@');
+    sh.getRange('A:T').setNumberFormat('@');
   } else ensureExtraHeaders_(sh, OUT_HEADERS);
   return sh;
 }
@@ -1998,14 +2073,25 @@ function outRows_() {
     row: i + 2, id: v[0], at: v[1], supName: v[2], owner: String(v[3]).toLowerCase(), unit: v[4], src: v[5], srcId: v[6], title: v[7],
     center: v[8], mode: v[9] === OUT_MODE.sign ? 'sign' : 'ack', note: v[10], name: v[11], fileId: v[12],
     status: v[13] === OUT_ST.SIGN ? 'sign' : v[13] === OUT_ST.ACK ? 'ack' : 'new', doneAt: v[14], signer: v[15],
-    to: v[16] === 'معلمة' ? 't' : 'c', tid: String(v[17] || '')
-  })).filter(x => x.id);
+    to: v[16] === 'معلمة' ? 't' : 'c', tid: String(v[17] || ''), name2: v[18] || '', fileId2: v[19] || ''
+  })).filter(x => x.id).map(x => Object.assign(x, { fmts: outFmts_(x) }));
 }
-const outPublic_ = x => { const o = Object.assign({}, x); delete o.row; delete o.fileId; delete o.owner; delete o.tid; return o; };
-function outFile_(x) {
-  if (!x.fileId) throw new Error('الملف غير موجود');
-  const f = DriveApp.getFileById(x.fileId), b = f.getBlob();
-  return { ok: true, name: x.name || f.getName(), mime: b.getContentType(), data: Utilities.base64Encode(b.getBytes()) };
+const outFmtOf_ = name => /\.xlsx$/i.test(String(name || '')) ? 'xlsx' : 'pdf';
+// الصيغ المتاحة للنموذج المرسل: ['pdf'] أو ['xlsx'] أو الاثنتان
+function outFmts_(x) {
+  const L = [];
+  if (x.fileId) L.push(outFmtOf_(x.name));
+  if (x.fileId2) { const f2 = outFmtOf_(x.name2); if (L.indexOf(f2) < 0) L.push(f2); }
+  return L;
+}
+const outPublic_ = x => { const o = Object.assign({}, x); delete o.row; delete o.fileId; delete o.fileId2; delete o.owner; delete o.tid; return o; };
+// fmt: 'pdf' أو 'xlsx' (إن لم تتوفر الصيغة المطلوبة يُعاد الملف الأساسي)
+function outFile_(x, fmt) {
+  let id = x.fileId, name = x.name;
+  if (fmt && x.fileId2 && outFmtOf_(x.name2) === fmt && outFmtOf_(x.name) !== fmt) { id = x.fileId2; name = x.name2; }
+  if (!id) throw new Error('الملف غير موجود');
+  const f = DriveApp.getFileById(id), b = f.getBlob();
+  return { ok: true, name: name || f.getName(), mime: b.getContentType(), data: Utilities.base64Encode(b.getBytes()), fmts: outFmts_(x) };
 }
 function outCenters_() { return centerAccounts_().map(a => ({ name: a.name, display: a.display })); }
 
@@ -2032,13 +2118,21 @@ function sendCenter_(r) {
   const src = String(r.src || '').slice(0, 30), srcId = String(r.srcId || '').slice(0, 80);
   const name = String(r.name || 'ملف').replace(/[\\/:*?"<>|]+/g, ' ').slice(0, 150);
   const f = outFolder_().createFile(Utilities.newBlob(Utilities.base64Decode(data), r.mime || 'application/pdf', name));
+  // النسخة الثانية بالصيغة الأخرى (اختيارية)
+  let f2 = null, name2 = '';
+  const data2 = String(r.data2 || '');
+  if (data2 && data2.length <= OUT_MAX_B64) {
+    name2 = String(r.name2 || 'ملف').replace(/[\\/:*?"<>|]+/g, ' ').slice(0, 150);
+    try { f2 = outFolder_().createFile(Utilities.newBlob(Utilities.base64Decode(data2), r.mime2 || 'application/octet-stream', name2)); } catch (e) { f2 = null; name2 = ''; }
+  }
   const sh = outSheet_(), at = nowStr_();
   const same = x => toT ? (x.to === 't' && x.tid === tch.id) : (x.to === 'c' && x.center === acc.name);
   const old = srcId ? outRows_().find(x => x.owner === me.username && x.src === src && x.srcId === srcId && same(x) && x.status === 'new') : null;
   const vals = [old ? old.id : Utilities.getUuid(), at, me.name, me.username, me.unit, src, srcId, title, acc.name, OUT_MODE[mode], note, name, f.getId(), OUT_ST.NEW, '', '',
-    toT ? 'معلمة' : 'مركز', toT ? tch.id : ''];
+    toT ? 'معلمة' : 'مركز', toT ? tch.id : '', name2, f2 ? f2.getId() : ''];
   if (old) {
     try { DriveApp.getFileById(old.fileId).setTrashed(true); } catch (e) {}
+    if (old.fileId2) { try { DriveApp.getFileById(old.fileId2).setTrashed(true); } catch (e) {} }
     sh.getRange(old.row, 1, 1, vals.length).setNumberFormat('@').setValues([vals]);
   } else {
     sh.getRange(sh.getLastRow() + 1, 1, 1, vals.length).setNumberFormat('@').setValues([vals]);
@@ -2057,6 +2151,7 @@ function sentOwn_(r) {
 function unsend_(r) {
   const x = sentOwn_(r);
   try { DriveApp.getFileById(x.fileId).setTrashed(true); } catch (e) {}
+  if (x.fileId2) { try { DriveApp.getFileById(x.fileId2).setTrashed(true); } catch (e) {} }
   outSheet_().deleteRow(x.row);
   sigDel_(x.id + '|ctr');
   return { ok: true };

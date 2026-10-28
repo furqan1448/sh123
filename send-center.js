@@ -8,6 +8,10 @@ const SC_SRC = {};
 let SC_CENTERS = null, SC_SENT = null, scLoading = null, scCur = null, scAt = 0;
 let SC_TDIR = null, SC_TBY = {}, SC_TLBL = {}, scTLoading = null;
 function scRegister(src, def) { SC_SRC[src] = def; }
+// أيقونات خطية (بدل الإيموجي) مثل أيقونات الموقع: المركز/المديرة والمعلمة
+const SC_SVG = d => '<svg class="sc-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
+const SC_ICO_C = SC_SVG('<path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9.5 21v-4.5h5V21"/><path d="M9 11h6"/>');
+const SC_ICO_T = SC_SVG('<circle cx="8" cy="7" r="2.6"/><path d="M3.5 20v-3.2A4.5 4.5 0 0 1 8 12.3a4.5 4.5 0 0 1 3.4 1.6"/><rect x="12.5" y="4" width="8" height="6.5" rx="1"/><path d="M11 15.5l3.5-3"/>');
 const scNoTeacher = () => !!(document.body && document.body.id === 'idariPage');   // الإشراف الإداري: لا ربط مع المعلمات (الإرسال للمركز فقط)
 
 
@@ -69,7 +73,7 @@ function scModal() {
   let m = document.getElementById('scModal');
   if (m) return m;
   const st = document.createElement('style');
-  st.textContent = '.sc-st{cursor:pointer;align-self:center}.sc-st:empty{display:none}' +
+  st.textContent = '.sc-ico{width:20px;height:20px;flex:none;vertical-align:-4px;margin-inline-end:6px;color:var(--primary)}.sc-st{cursor:pointer;align-self:center}.sc-st:empty{display:none}' +
     '#scModal .modal-box{max-width:560px}#scModal .sc-sub{color:var(--muted);font-size:14px;margin-bottom:6px;line-height:1.7}' +
     '.sc-modes{display:flex;flex-direction:column;gap:8px;margin-top:6px}.sc-modes label{display:flex;gap:8px;align-items:flex-start;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;margin:0;cursor:pointer;font-weight:600}' +
     '.sc-modes label:has(input:checked){border-color:var(--gold);background:#fffbf2}.sc-modes small{display:block;color:var(--muted);font-weight:400}.sc-modes input{width:auto;flex:none;margin:5px 0 0;accent-color:var(--primary)}.sc-modes span{flex:1}' +
@@ -87,7 +91,7 @@ function scModal() {
   m.id = 'scModal'; m.className = 'modal hidden';
   m.innerHTML = '<div class="modal-box"><h2>📤 إرسال النموذج</h2><p class="sc-sub" id="scTitle"></p>' +
     '<div id="scFormBox"><label>إرسال إلى</label><div class="sc-to" id="scTo">' +
-    '<label><input type="radio" name="scTo" value="c" checked><span>🏫 المركز</span></label><label><input type="radio" name="scTo" value="t"><span>👩‍🏫 المعلمة</span></label></div>' +
+    '<label><input type="radio" name="scTo" value="c" checked><span>' + SC_ICO_C + 'المركز</span></label><label><input type="radio" name="scTo" value="t"><span>' + SC_ICO_T + 'المعلمة</span></label></div>' +
     '<div id="scCBox"><p class="sc-auto hidden" id="scCAuto"></p><div id="scCPick"><label for="scCenter">المركز</label><select id="scCenter"></select><p class="sc-hint" id="scHint"></p></div></div>' +
     '<div id="scTBox" class="hidden"><p class="sc-auto hidden" id="scTAuto"></p><div id="scTPick"><label for="scTeacher">المعلمة</label><input id="scTeacher" list="scTList" autocomplete="off" placeholder="اكتبي أو اختاري اسم المعلمة من القائمة"><datalist id="scTList"></datalist><p class="sc-hint" id="scTHint"></p></div></div>' +
     '<label>طريقة الإرسال</label><div class="sc-modes">' +
@@ -153,7 +157,7 @@ async function scOpen(src, id) {
   sel.innerHTML = '<option value="">' + (SCL.length ? 'اختاري المركز' : NO_CENTERS) + '</option>' + SCL.map(c => '<option value="' + esc(c.name) + '">' + esc(c.display || c.name) + '</option>').join('');
   sel.value = g;
   hint.textContent = g ? '' : (def.center && def.center(rec) ? 'لم يُعثر على حساب لمركز «' + def.center(rec) + '»، اختاريه من القائمة.' : '');
-  scAutoShow('C', g ? '🏫 يُرسَل إلى: <b>' + esc(scCenterName(g)) + '</b> <small>(من اسم المركز في النموذج)</small>' : '');
+  scAutoShow('C', g ? SC_ICO_C + 'يُرسَل إلى: <b>' + esc(scCenterName(g)) + '</b> <small>(من اسم المركز في النموذج)</small>' : '');
   scPrev();
 }
 // المُرسَل إليه محدَّد تلقائياً من النموذج: يظهر نصاً ثابتاً مع «تغيير»، والقائمة لا تظهر إلا عند الحاجة
@@ -202,7 +206,7 @@ function scTGuess() {
   let lbl = d.tid && SC_TLBL[d.tid];
   if (!lbl && r.teacher && typeof tdFind === 'function' && typeof T_DIR !== 'undefined' && T_DIR) { const x = tdFind(r.teacher, r.center, d.tid); if (x.why === 'ok') lbl = SC_TLBL[x.t.id]; }
   if (!lbl && r.teacher) { const L = (SC_TDIR || []).filter(t => scNorm(t.name) === scNorm(r.teacher)); if (L.length === 1) lbl = SC_TLBL[L[0].id]; }
-  if (lbl) { document.getElementById('scTeacher').value = lbl; scTPicked(); const t = scTSel(); if (t) scAutoShow('T', '👩‍🏫 يُرسَل إلى: <b>' + esc(t.name) + '</b> <small>(من اسم المعلمة في النموذج)</small>'); }
+  if (lbl) { document.getElementById('scTeacher').value = lbl; scTPicked(); const t = scTSel(); if (t) scAutoShow('T', SC_ICO_T + 'يُرسَل إلى: <b>' + esc(t.name) + '</b> <small>(من اسم المعلمة في النموذج)</small>'); }
 }
 const scTSel = () => SC_TBY[scNorm(document.getElementById('scTeacher').value)] || null;
 function scTPicked() {
@@ -229,6 +233,12 @@ function scPrev() {
       (x.status === 'new' ? '<button class="btn danger" onclick="scUnsend(\'' + id + '\', this)">سحب الإرسال</button>' : '') + '</div></div>';
   }).join('');
 }
+// النسخة الثانية بالصيغة الأخرى (PDF ↔ Excel) لتختار المديرة أو المعلمة الصيغة عند الحفظ. إن تعذّر تجهيزها يُرسل الملف الأساسي وحده
+async function scAltFile(def, rec, to, tch) {
+  if (!def.alt) return null;
+  try { return await def.alt(rec, to, tch); } catch (e) { console.warn('alt file failed', e); return null; }
+}
+const scAltData = async f2 => f2 ? { name2: f2.name, mime2: f2.mime, data2: await scB64(f2.blob) } : {};
 const scB64 = blob => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(',')[1] || ''); fr.onerror = () => rej(new Error('تعذّر قراءة الملف')); fr.readAsDataURL(blob); });
 function scSaveB64(o) {
   const bin = atob(o.data), u = new Uint8Array(bin.length);
@@ -252,8 +262,9 @@ async function scSend(btn) {
   setBtnBusy(btn, true, 'جارِ تجهيز الملف...');
   try {
     const f = await def.file(rec, toT ? 't' : 'c', tch);   // للمعلمة قد تكون نسخة خاصة بها (مثل استمارة التقييم دون الدرجات)
+    const f2 = await scAltFile(def, rec, toT ? 't' : 'c', tch);
     btn.innerHTML = 'جارِ الإرسال...';
-    const out = await api('sendCenter', { src, srcId: id, title: def.title(rec), to: toT ? 't' : 'c', center, tid: tch ? tch.id : '', mode, note, name: f.name, mime: f.mime, data: await scB64(f.blob) });
+    const out = await api('sendCenter', Object.assign({ src, srcId: id, title: def.title(rec), to: toT ? 't' : 'c', center, tid: tch ? tch.id : '', mode, note, name: f.name, mime: f.mime, data: await scB64(f.blob) }, await scAltData(f2)));
     SC_SENT = (SC_SENT || []).filter(x => x.id !== out.item.id);
     SC_SENT.unshift(out.item);
     if (typeof cacheSet === 'function') cacheSet('sc_sent', SC_SENT);
@@ -294,7 +305,8 @@ async function scQuick(src, id, mode, btn) {
     const dup = scFor(src, id).find(x => x.to !== 't' && x.center === center);
     if (dup && dup.status !== 'new' && !confirm('سبق إرسال هذا النموذج لهذا المركز واطّلعت عليه المديرة. هل تريدين إرساله مرة أخرى؟')) return null;
     const f = await def.file(rec, 'c', null);
-    const out = await api('sendCenter', { src, srcId: id, title: def.title(rec), to: 'c', center, tid: '', mode, note: '', name: f.name, mime: f.mime, data: await scB64(f.blob) });
+    const f2 = await scAltFile(def, rec, 'c', null);
+    const out = await api('sendCenter', Object.assign({ src, srcId: id, title: def.title(rec), to: 'c', center, tid: '', mode, note: '', name: f.name, mime: f.mime, data: await scB64(f.blob) }, await scAltData(f2)));
     SC_SENT = (SC_SENT || []).filter(x => x.id !== out.item.id); SC_SENT.unshift(out.item);
     if (typeof cacheSet === 'function') cacheSet('sc_sent', SC_SENT);
     scPaint();

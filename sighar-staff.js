@@ -55,7 +55,8 @@ scRegister('stf', {
   rec: id => sfById(id),
   title: r => (STF_TYPES[sfForm(r)] || 'نموذج') + ' — ' + (r.teacher || '') + (r.data && r.data.hy ? ' — ' + idDigits(r.data.hd + '/' + r.data.hm + '/' + r.data.hy) + 'هـ' : ''),
   center: r => r.center, period: r => r.period,
-  file: async r => ({ blob: await sgPdfBlob(r), name: sgFileName(r) + '.pdf', mime: 'application/pdf' })
+  file: async r => ({ blob: await sgPdfBlob(r), name: sgFileName(r) + '.pdf', mime: 'application/pdf' }),
+  alt: async r => ({ blob: await sgXlsxBlob(r), name: sgFileName(r) + '.xlsx', mime: DX_MIME })   // نسخة Excel
 });
 
 /* ---------- بنود النص (الملاحظات / المخالفات / التوجيه) ---------- */

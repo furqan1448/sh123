@@ -394,7 +394,8 @@ if (typeof scRegister === 'function') scRegister('ev', {
   rec: id => evRows.find(r => r.id === id),
   title: r => { let t = 'استمارة تقييم'; try { t = exFormModel(r).title || t; } catch (e) {} return t + ' — ' + r.teacher + ' — ' + r.date; },
   center: r => r.center || '', period: r => r.period || '',
-  file: async r => { const m = exFormModel(r); return { blob: await exBlob(m, exSigPre(r)), name: m.file + '.xlsx', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }; }
+  file: async r => { const m = exFormModel(r); return { blob: await exBlob(m, exSigPre(r)), name: m.file + '.xlsx', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }; },
+  alt: async r => { const m = exFormModel(r), sigs = await tvLoadSigs(r); return { blob: await sgPdfBlob(tvRec(r), sigs), name: m.file + '.pdf', mime: 'application/pdf' }; }   // نسخة PDF
 });
 // تحميل كشف الخروج: كل مركز وتحته أيام الحضور والغياب (حسب تصفية المركز المعروضة)
 function exVisits(btn) {

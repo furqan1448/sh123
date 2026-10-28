@@ -787,7 +787,8 @@ const sgScDef = get => ({
   title: r => sgFileName(r).replace(/_/g, ' '),
   center: r => r.center || '', period: r => r.period || '',
   // للمعلمة: نسخة الاستمارة بالملاحظات والتوصيات فقط، ونسخة الخلاصة بسطرها فقط
-  file: async (r, to, t) => ({ blob: await sgPdfBlob(to === 't' ? sgTeacherCopy(r, t) : r), name: sgFileName(r) + '.pdf', mime: 'application/pdf' })
+  file: async (r, to, t) => ({ blob: await sgPdfBlob(to === 't' ? sgTeacherCopy(r, t) : r), name: sgFileName(r) + '.pdf', mime: 'application/pdf' }),
+  alt: async (r, to, t) => ({ blob: await sgXlsxBlob(to === 't' ? sgTeacherCopy(r, t) : r), name: sgFileName(r) + '.xlsx', mime: DX_MIME })   // نسخة Excel
 });
 scRegister('sgh', sgScDef(id => recById(id)));
 scRegister('sgs', sgScDef(id => ssById(id)));
@@ -1059,8 +1060,11 @@ async function sgPushInto(out, src, srcId, title, t, mode, fileRec, sigs) {
       return;
     }
     const blob = await sgPdfBlob(fileRec, sigs);
-    const r = await api('sendCenter', { src, srcId, title, to: 't', center: '', tid: t.id, mode, note: '',
-      name: (sgFileName(fileRec) + '_' + t.name).replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, '_') + '.pdf', mime: 'application/pdf', data: await scB64(blob) });
+    const fn = (sgFileName(fileRec) + '_' + t.name).replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, '_');
+    let alt = {};   // نسخة Excel لتختار المعلمة الصيغة عند الحفظ
+    try { if (typeof sgXlsxBlob === 'function') alt = { name2: fn + '.xlsx', mime2: DX_MIME, data2: await scB64(await sgXlsxBlob(fileRec, sigs)) }; } catch (e) { alt = {}; }
+    const r = await api('sendCenter', Object.assign({ src, srcId, title, to: 't', center: '', tid: t.id, mode, note: '',
+      name: fn + '.pdf', mime: 'application/pdf', data: await scB64(blob) }, alt));
     SC_SENT = (SC_SENT || []).filter(x => x.id !== r.item.id); SC_SENT.unshift(r.item);
     cacheSet('sc_sent', SC_SENT); scPaint();
     out.sent.push({ name: t.name, phone: r.tPhone, how: SG_HOW[mode], again: r.replaced, msg: sgWaMsg(t.name, title, mode) });

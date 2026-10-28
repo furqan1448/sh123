@@ -328,7 +328,8 @@ scRegister('idari', {
   rec: recById,
   title: r => (ID_KINDS[r.kind] || 'نموذج') + (r.center ? ' — ' + r.center : '') + ((r.data && r.data.hy) ? ' — ' + idDigits(r.data.hd + '/' + r.data.hm + '/' + r.data.hy) + 'هـ' : ''),
   center: r => r.center, period: r => r.period,
-  file: async r => ({ blob: await idPdfBlob(r), name: idFileName(r) + '.pdf', mime: 'application/pdf' })
+  file: async r => ({ blob: await idPdfBlob(r), name: idFileName(r) + '.pdf', mime: 'application/pdf' }),
+  alt: async r => ({ blob: await idXlsxBlob(r), name: idFileName(r) + '.xlsx', mime: DX_MIME })   // نسخة Excel
 });
 /* ---------- بعد الحفظ: الإرسال للمديرة (اطلاع فقط، أو اطلاع وتوقيع) مثل وحدة تحفيظ الصغار ---------- */
 function idAfterSave(rec) {
@@ -496,7 +497,6 @@ function idFill(kind, r) {
     periodSet('ivPeriod', r.period);
     hdSet('iv', edit ? r : null); $('ivVisitNo').value = r.visitNo || '';
     $('ivType').value = d.vtype || 'إداري';
-    $('ivAckCol').checked = d.ackCol === '1';
     $('ivMgrName').value = r.mgrName || ''; $('ivSupName').value = r.supName || myName();
     $('ivMgrPhone').value = d.mgrPhone || '';
     $('ivMgrStatus').textContent = ''; $('ivVisitNoHint').textContent = '';
@@ -554,7 +554,7 @@ async function idSave(kind, btn, sendAfter) {
   if (kind === 'visit') {
     Object.assign(req, { center: $('ivCenter').value, sem: $('ivSem').value, year: $('ivYear').value.trim(), period: periodGet('ivPeriod'),
       visitNo: $('ivVisitNo').value.trim(), mgrName: $('ivMgrName').value.trim(), supName: $('ivSupName').value.trim(),
-      data: Object.assign({ vtype: $('ivType').value.trim() || 'إداري', ackCol: $('ivAckCol').checked ? '1' : '',
+      data: Object.assign({ vtype: $('ivType').value.trim() || 'إداري', 
         about: $('ivAbout').value.trim(), notes: ivNotesGet(), recText: $('ivRec').value.trim(), mgrPhone: $('ivMgrPhone').value.trim() }, dateData) });
     if (!req.center) return toast('اختاري اسم المركز', false);
     if (!req.period) return toast('اختاري الفترة (صباحي أو مسائي)', false);
@@ -1015,7 +1015,7 @@ function idCollect(kind) {
   if (kind === 'monthly' || kind === 'mgreval' || kind === 'halls') { const o = (kind === 'monthly' ? imCollect : kind === 'mgreval' ? meCollect : hlCollect)(false); o.data = Object.assign(o.data, dateData); return o; }
   if (kind === 'visit') return { center: $('ivCenter').value, sem: $('ivSem').value, year: $('ivYear').value, period: periodGet('ivPeriod'), visitNo: $('ivVisitNo').value,
     mgrName: $('ivMgrName').value, supName: $('ivSupName').value,
-    data: Object.assign({ vtype: $('ivType').value, ackCol: $('ivAckCol').checked ? '1' : '', about: $('ivAbout').value, notes: ivNotesGet(), recText: $('ivRec').value, mgrPhone: $('ivMgrPhone').value }, dateData) };
+    data: Object.assign({ vtype: $('ivType').value, about: $('ivAbout').value, notes: ivNotesGet(), recText: $('ivRec').value, mgrPhone: $('ivMgrPhone').value }, dateData) };
   if (kind === 'program') {
     const data = Object.assign({}, dateData);
     ['content', 'plan', 'method', 'tools', 'results', 'ratio'].forEach(k => { data[k] = $('ip' + k[0].toUpperCase() + k.slice(1)).value; });
