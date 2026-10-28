@@ -124,7 +124,8 @@ function exVisitsModel(rows) {
   const centers = {};
   rows.forEach(v => { const k = v.center || V_NOC; (centers[k] = centers[k] || []).push(v); });
   const m = {
-    title: 'كشف خروج المشرفة', file: 'كشف_الخروج_' + today, landscape: true, visits: true,
+    title: 'كشف خروج المشرفة', file: 'كشف_الخروج_' + today, landscape: true, visits: true, theme: { head: { fill: 'D9D9D9', color: '3A3A3A' }, sec: { fill: 'F2DBDB', color: '7A1F2B' } },   // رأس الجدول رمادي وأسماء المراكز وردي (مثل PDF)
+   
     info: [['المشرفة', getUser()], ['تاريخ التقرير', today]],
     cols: ['م', 'التاريخ', 'اليوم', 'الموافق', 'نوع الزيارة', 'الحالة', 'توقيع المديرة'],
     widths: [6, 14, 12, 24, 22, 42, 28], sections: [], totals: [], notes: []
@@ -446,13 +447,13 @@ const KF_CSS = `
 .im-page.kf td.idc-n{color:#888}
 .im-page.kf img.kf-sig{height:27px;width:auto;max-width:130px;display:block;margin:auto}
 .im-page.kf .kf-pg{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:11px;color:#000}
-/* التنسيق المعتمد: رسمي بالأسود، ورأس الجدول عنابي، واسم المركز عنابي بشريط جانبي، وخط Tajawal مع عنوان Amiri مثل نظام المقاصف */
+/* التنسيق المعتمد: رأس الجدول رمادي بخط رمادي داكن، وصف اسم المركز وردي بخط عنابي، وخط Tajawal مع عنوان Amiri مثل نظام المقاصف */
 .idoc .im-page.kf,.idoc .im-page.kf *{font-family:'Tajawal','Segoe UI',Tahoma,sans-serif !important}
 .idoc .im-page.kf .kf-title{font-family:'Amiri',serif !important;font-size:29px}
 .idoc .im-page.kf td{height:36px;font-size:15.5px;font-weight:400;color:#000 !important}
 .idoc .im-page.kf th,.idoc .im-page.kf td{border:1px solid #000 !important}
-.idoc .im-page.kf th{background:#f2dbdb !important;color:#000 !important;border-color:#000 !important;font-weight:700;font-size:15.5px}
-.idoc .im-page.kf tr.kf-c td{border:1px solid #000 !important;background:#d9d9d9 !important;color:#000 !important;padding-top:3px;font-weight:700}
+.idoc .im-page.kf th{background:#d9d9d9 !important;color:#3a3a3a !important;border-color:#000 !important;font-weight:700;font-size:15.5px}
+.idoc .im-page.kf tr.kf-c td{border:1px solid #000 !important;background:#f2dbdb !important;color:#7a1f2b !important;padding-top:3px;font-weight:700}
 .idoc .im-page.kf tr.kf-t td{border:0 !important;background:transparent !important}
 .idoc .im-page.kf td.idc-n{color:#000 !important;background:#f2f2f2 !important;font-weight:700}
 .im-page.kf .kf-title{color:#953734 !important}
