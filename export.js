@@ -118,7 +118,7 @@ function exFormModel(r) {
   return m;
 }
 
-/* ---------- نموذج كشف الخروج: كل مركز وتحته أيام الحضور والغياب ---------- */
+/* ---------- نموذج كشف الخروج: زيارات كل مركز، وفي الأسفل الإجمالي العام لأيام الحضور والغياب ---------- */
 function exVisitsModel(rows) {
   const today = new Date().toISOString().slice(0, 10);
   const centers = {};
@@ -137,11 +137,11 @@ function exVisitsModel(rows) {
     m.sections.push({
       title: c,
       rows: list.map((v, i) => [i + 1, v.date, v.day, v.hijri || '', v.type || '—', vStatusOf(v), '']),
-      sigIds: list.map(v => v.signature ? { id: v.id, url: v.signature } : null),
-      footer: [['إجمالي أيام الحضور', a1], ['إجمالي أيام الغياب', a2]]
+      sigIds: list.map(v => v.signature ? { id: v.id, url: v.signature } : null)
     });
   });
   m.info.push(['المراكز', String(Object.keys(centers).filter(k => k !== V_NOC).length)]);
+  m.totals = [['إجمالي أيام الحضور', att], ['إجمالي أيام الغياب', abs]];   // الإجمالي العام فقط (بدون إجمالي لكل مركز)
   return m;
 }
 
