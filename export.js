@@ -265,10 +265,15 @@ async function exBuildXlsx(m, imgBuf, ExcelJS) {
 
   merged(row, 1, n, m.title, { bold: true, size: T.title.size, color: T.title.color, fill: T.title.fill, h: 'center' }, T.title.size * 2.1); row++;
 
-  m.info.forEach(([l, v]) => {
-    merged(row, 1, split, l, { bold: true, fill: T.label.fill, color: T.label.color });
-    merged(row, split + 1, n, v, {}, Math.max(T.rowH || 20, lines(v, valWidth) * 16)); row++;
-  });
+  // «العنوان: القيمة» في خلية واحدة متصلة (بلا فراغ بين العنوان وقيمته)
+  const allW = m.widths.reduce((a, w) => a + w, 0);
+  const kvRow = (l, v, vf, h) => {
+    const rt = { richText: [{ text: l + ': ', font: { name: FONT, size: T.size, bold: true, color: { argb: 'FF' + T.label.color } } },
+      { text: String(v == null ? '' : v), font: Object.assign({ name: FONT, size: T.size, color: { argb: 'FF222222' } }, vf || {}) }] };
+    merged(row, 1, n, rt, {}, h || Math.max(T.rowH || 20, lines(l + ': ' + v, allW) * 16));
+    row++;
+  };
+  m.info.forEach(([l, v]) => kvRow(l, v));
   if (m.info.length) row++;
 
   if (m.rows) {            // سجل (جدول واحد)
@@ -316,15 +321,10 @@ async function exBuildXlsx(m, imgBuf, ExcelJS) {
   row++;
   m.totals.forEach(([l, v]) => {
     const isG = l === 'التقدير';
-    merged(row, 1, split, l, { bold: true, fill: T.label.fill, color: T.label.color });
-    merged(row, split + 1, n, v, isG ? (T.gradeFill ? { bold: true, size: T.size + 2, color: 'FFFFFF', fill: exGradeColor(v) || '777777', h: 'center' } : { bold: true, size: T.size + 2, color: exGradeColor(v) || '222222', h: 'center' }) : { bold: true, size: T.size + 2, h: 'center' }, 24);
-    row++;
+    kvRow(l, v, { bold: true, size: T.size + 1, color: { argb: 'FF' + ((isG && exGradeColor(v)) || '222222') } }, 24);
   });
   if (m.notes.length) row++;
-  m.notes.forEach(([l, v]) => {
-    merged(row, 1, split, l, { bold: true, fill: T.label.fill, color: T.label.color });
-    merged(row, split + 1, n, v, {}, Math.max(24, lines(v, valWidth) * 16)); row++;
-  });
+  m.notes.forEach(([l, v]) => kvRow(l, v, null, Math.max(24, lines(l + ': ' + v, allW) * 16)));
   if (m.signature && m.signature.data) {   // توقيع المشرفة
     row++;
     merged(row, 1, split, 'توقيع المشرفة', { bold: true, fill: T.label.fill, color: T.label.color });

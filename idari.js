@@ -374,7 +374,7 @@ function ivNotesSet(list) {
   (list && list.length ? list : ['', '']).forEach(ivAddNote);
 }
 const ivNotesGet = () => [...$('ivNotes').querySelectorAll('textarea')].map(t => t.value.trim()).filter(Boolean);
-const IV_REC_DEFAULT = 'نشكركم على تعاونكم الفعّال ونسأل الله لكم التوفيق والسداد';
+const IV_REC_DEFAULT = '';   // التوصية فارغة، تكتبها المشرفة
 
 /* ---------- الفترة: اختيار واحد (صباحي أو مسائي) ---------- */
 $('ivPeriod').addEventListener('change', e => {

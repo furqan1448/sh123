@@ -111,7 +111,7 @@ const ID_CSS = `
 .idoc .idp-note{font-size:13px;margin:22px 0 0}
 .idoc .idc-subject{font-weight:800;color:#7a1f2b;font-size:15.5px;margin:0 0 12px}
 .idoc td.idc-note-c{text-align:right;padding-right:14px;height:52px}
-.idoc td.idc-rec-c{text-align:right;padding-right:14px;font-weight:700}
+.idoc td.idc-rec-c{text-align:center;padding:6px 14px;font-weight:700}   /* التوصية في وسط الخلية */
 /* ===== التنسيق الموحّد لكل الكشوف والاستمارات (ألوان استمارة تقييم مسؤولة المقصف) =====
    رأس الجدول عنابي بكتابة بيضاء، وخلايا البيانات والمجالات بيج فاتح، وسطور المجموع بيج، والحدود بيج رمادي فاتح. */
 /* التنسيق الموحد لجميع النماذج والاستمارات: نفس ألوان ملفات الإكسل (استمارة الجمعية الأصلية)
