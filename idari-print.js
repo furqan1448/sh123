@@ -150,13 +150,17 @@ function idDocHtml(rec, sigs, lhUrl) {
 
   if (rec.kind === 'visit' && Array.isArray(d.notes)) {
     // تنسيق نظام المقاصف: «بشأن» سطر واحد، وكل ملاحظة في صف برقمها، والتوصية خلية واحدة بجانب الصفوف
-    const notes = d.notes.filter(x => String(x || '').trim());
+    const perRow = Array.isArray(d.recs);   // توصية لكل ملاحظة (التقارير الجديدة)
+    const pairs = d.notes.map((x, i) => ({ n: String(x || '').trim(), r: perRow ? String(d.recs[i] || '').trim() : '' })).filter(x => x.n || x.r);
+    const notes = pairs.map(x => x.n);
     const n = Math.max(notes.length, 1);
     const ack = false;   // عمود «توقيع بالعلم» أُلغي
     let body = '';
     for (let i = 0; i < n; i++) {
       body += '<tr><td class="idc-n">' + idDigits(i + 1) + '</td><td class="idc-note-c" colspan="2">' + idNl(notes[i] || '') + '</td>' +
-        (i === 0 ? '<td class="idc-rec-c" colspan="2" rowspan="' + n + '">' + idNl(d.recText) + '</td>' + (ack ? '<td rowspan="' + n + '">' + idSig(sigs.ack) + '</td>' : '') : '') + '</tr>';
+        (perRow ? '<td class="idc-rec-c" colspan="2">' + idNl((pairs[i] || {}).r || '') + '</td>'
+          : i === 0 ? '<td class="idc-rec-c" colspan="2" rowspan="' + n + '">' + idNl(d.recText) + '</td>' : '') +
+        (ack && i === 0 ? '<td rowspan="' + n + '">' + idSig(sigs.ack) + '</td>' : '') + '</tr>';
     }
     h = head + '<div class="idc-body"><div class="idc-title">تقرير زيارة المشرفة</div>' +
       '<div class="idc-meta"><span><span>المركز: ' + esc(rec.center) + '</span>' + periodBoxes + '</span><span>' + yearSem + '</span></div>' +
@@ -881,7 +885,7 @@ const PT_CSS = `
 .ptdoc .pt-foot img{max-height:56px;max-width:170px;vertical-align:middle}
 .ptdoc .hl td,.ptdoc .hl th{padding:4px 3px;font-size:12.5px;text-align:center}
 .ptdoc .hl td.fl{background:#f6f0f0 !important;font-weight:800;color:#7a1f2b;width:34px;writing-mode:vertical-rl;transform:rotate(180deg)}
-.ptdoc .hl td.lb{background:#f6f0f0 !important;font-weight:800;width:92px;white-space:nowrap}
+.ptdoc .hl td.lb{background:#f6f0f0 !important;font-weight:800;width:132px;white-space:nowrap;padding:4px 6px}   /* عرض يكفي «الطاقة الاستيعابية» */
 .ptdoc .hl td.v{text-align:center}
 .ptdoc .hl td.over{color:#c0392b;font-weight:800}
 .ptdoc .pt-note{color:#7a1f2b;font-weight:800;font-size:13.5px;line-height:1.9;margin-top:14px}
@@ -934,7 +938,7 @@ function hlPages(rec, sigs, lhUrl) {
   const tbl = b => {
     const cols = Array.from({ length: 12 }, (_, i) => b.halls[i] || null);
     const row = (lbl, fn) => '<tr><td class="lb">' + lbl + '</td>' + cols.map(fn).join('') + '</tr>';
-    return '<table class="hl" style="margin-top:8px;table-layout:fixed"><colgroup><col style="width:34px"><col style="width:104px">' + '<col>'.repeat(12) + '</colgroup><tr><td class="fl" rowspan="5">' + esc(b.name) + '</td><td class="lb">رقم القاعة</td>' +
+    return '<table class="hl" style="margin-top:8px;table-layout:fixed"><colgroup><col style="width:34px"><col style="width:132px">' + '<col>'.repeat(12) + '</colgroup><tr><td class="fl" rowspan="5">' + esc(b.name) + '</td><td class="lb">رقم القاعة</td>' +
       cols.map((h, i) => '<th>' + idDigits(h && h.no ? h.no : b.start + i + 1) + '</th>').join('') + '</tr>' +
       row('نوعها', h => '<td class="v">' + (h ? esc(h.type || '') : '') + '</td>') +
       row('الحالة', h => '<td class="v">' + (h ? esc(h.status || '') : '') + '</td>') +

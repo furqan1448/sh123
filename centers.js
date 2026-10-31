@@ -194,7 +194,14 @@ function inBlob(o) {
 // معاينة صفحات ملف PDF داخل الصفحة (تعمل على الجوال)
 async function inPreview(f, id) {
   const box = $('inPrev');
-  if (!f.isPdf) { box.innerHTML = '<p class="empty">هذا النموذج أُرسل بصيغة Excel فقط، فلا تتوفر له معاينة هنا — اضغطي «حفظ Excel» لفتحه.</p>'; return; }
+  if (!f.isPdf) {   // نموذج بصيغة Excel: نعرضه جدولاً داخل الصفحة قبل الحفظ
+    box.innerHTML = '<p class="empty">جارِ عرض الملف...</p>';
+    try {
+      const html = await dxXlsxPreviewHtml(f.bytes);
+      if (inCur && inCur.id === id) box.innerHTML = '<div class="in-prev" style="overflow-x:auto">' + html + '</div>';
+    } catch (e) { box.innerHTML = '<p class="empty">تعذّر عرض الملف هنا، اضغطي «حفظ Excel» لفتحه.</p>'; }
+    return;
+  }
   box.innerHTML = '<p class="empty">جارِ عرض الملف...</p>';
   try {
     await inLoadPdfJs();
@@ -251,6 +258,7 @@ async function inGetFile(id, fmt) {
   return f;
 }
 function inBarHtml(fmts) {
+  if (fmts.indexOf('xlsx') > -1 && fmts.indexOf('pdf') < 0) fmts = ['pdf'].concat(fmts);   // نموذج Excel فقط: نوفّر له PDF من المعاينة نفسها
   return (fmts.indexOf('pdf') > -1 ? '<button class="btn light" onclick="inSaveFmt(\'pdf\', this)">' + DX_ICO_PDF + 'حفظ PDF</button>' : '') +
     (fmts.indexOf('xlsx') > -1 ? '<button class="btn light" onclick="inSaveFmt(\'xlsx\', this)">' + DX_ICO_XLS + 'حفظ Excel</button>' : '');
 }
@@ -258,7 +266,12 @@ async function inSaveFmt(fmt, btn) {
   if (!inCur) return;
   setBtnBusy(btn, true, 'جارِ التجهيز...');
   try {
-    const f = await inGetFile(inCur.id, fmt);
+    let f = await inGetFile(inCur.id, fmt);
+    if (fmt === 'pdf' && !f.isPdf) {   // لا توجد نسخة PDF: نحوّل ملف Excel إلى PDF بشكله
+      const html = await dxXlsxPreviewHtml(f.bytes);
+      const blob = await idPagesPdf(['<div class="im-page" style="width:794px;background:#fff;padding:0">' + html + '</div>'], '', true);
+      f = { blob, name: String(f.name || 'نموذج').replace(/\.xlsx$/i, '') + '.pdf', isPdf: true };
+    }
     const a = document.createElement('a');
     a.href = URL.createObjectURL(f.blob); a.download = f.name;
     document.body.appendChild(a); a.click();

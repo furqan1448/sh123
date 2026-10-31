@@ -1,6 +1,26 @@
 /* ===== إدارة الوحدات: متابعة مشرفات كل وحدة (تظهر لمديرات الوحدات فقط) ===== */
 // صفحة مستقلة (units.html) بدخول خاص: ورقة «مديرات الوحدات» (الاسم | كلمة المرور | الوحدة). وحدة «الكل» = كل الوحدات
-let MG = null, mgTab = 'visits';
+let MG = null, mgTab = 'visits', mgSub = '';
+/* التصفية حسب أيقونات كل وحدة: [المفتاح، التبويب، النوع داخل التبويب، اسم الأيقونة] */
+const MG_ICONS = {
+  'وحدة الإشراف التربوي': [['visits', 'visits', '', 'كشف الخروج'], ['evw', 'evals', 'w', 'استمارات التقييم الأسبوعية'], ['evf', 'evals', 'f', 'استمارات التقييم النهائية'],
+    ['rpt', 'rpt', '', 'خلاصة التقارير'], ['min', 'min', '', 'محاضر الاجتماعات'], ['files', 'files', '', 'المرفقات']],
+  'وحدة تحفيظ الصغار': [['visits', 'visits', '', 'كشف الخروج'], ['sgv', 'sgh', 'visit', 'تقرير زيارة مشرفة تحفيظ صغار'], ['sgs', 'sgh', 'sum', 'خلاصة التقارير التعليمية'],
+    ['sge', 'sgh', 'eval', 'استمارات التقييم'], ['stf', 'sgh', 'stf', 'إجراءات الموظفات'], ['min', 'min', '', 'محاضر الاجتماعات'], ['files', 'files', '', 'المرفقات']],
+  'وحدة الإشراف الإداري': [['visits', 'visits', '', 'كشف الخروج'], ['iv', 'idari', 'visit', 'تقرير زيارة المشرفة'], ['ip', 'idari', 'program', 'برنامج مشرفة مقيمة'],
+    ['is', 'idari', 'suggest', 'الاقتراحات والصعوبات'], ['im', 'idari', 'monthly', 'المتابعة الإدارية الشهرية'], ['me', 'idari', 'mgreval', 'استمارة تقييم المديرة'],
+    ['hl', 'idari', 'halls', 'حصر القاعات في المراكز'], ['files', 'files', '', 'المرفقات']]
+};
+const MG_ICONS_DEF = [['visits', 'visits', '', 'كشف الخروج'], ['min', 'min', '', 'محاضر الاجتماعات'], ['files', 'files', '', 'المرفقات']];
+const mgIconsOf = u => MG_ICONS[u] || MG_ICONS_DEF;
+function mgIconSet() {
+  const unit = document.getElementById('mgUnit').value, k = document.getElementById('mgIcon').value;
+  const it = mgIconsOf(unit).find(x => x[0] === k) || mgIconsOf(unit)[0];
+  mgTab = it[1]; mgSub = it[2];
+  mgRender();
+}
+// نوع السجل داخل تبويب تحفيظ الصغار
+const mgSgKind = x => ['sum', 'eval', 'stf'].indexOf(x.kind) > -1 ? x.kind : 'visit';
 const MG_NONE = 'غير محدد (سجلات قديمة)';
 const MG_LIMIT = 300;   // أقصى عدد صفوف تُعرض في التفاصيل
 
@@ -171,6 +191,7 @@ function mgEvList() {
   evRows.forEach((r, i) => {
     if (r.unit !== mgUnitSel || !inR(r.date)) return;
     const k = mgKnown[r.owner] !== undefined ? r.owner : '';
+    if (mgSub && mgTab === 'evals' && (mgSub === 'f') !== (String(r.formType).indexOf('f_') === 0)) return;   // أسبوعية أو نهائية
     if (mgSupSel === '*' || k === mgSupSel) out.push([r, i]);
   });
   return out;
@@ -182,6 +203,19 @@ function mgRender() {
   const from = document.getElementById('mgFrom').value, to = document.getElementById('mgTo').value;
   const inR = d => { d = String(d || '').slice(0, 10); return (!from || (d && d >= from)) && (!to || (d && d <= to)); };
 
+  // قائمة الأيقونات حسب الوحدة (نحافظ على الاختيار الحالي)
+  const icoSel = document.getElementById('mgIcon');
+  if (icoSel) {
+    const L = mgIconsOf(unit), sig = unit;
+    if (icoSel.dataset.sig !== sig) {
+      const prev = icoSel.value;
+      icoSel.innerHTML = L.map(x => '<option value="' + x[0] + '">' + esc(x[3]) + '</option>').join('');
+      icoSel.value = L.some(x => x[0] === prev) ? prev : L[0][0];
+      icoSel.dataset.sig = sig;
+    }
+    const it = L.find(x => x[0] === icoSel.value) || L[0];
+    mgTab = it[1]; mgSub = it[2];
+  }
   const users = MG.users.filter(u => u.unit === unit);
   const known = {}; users.forEach(u => { known[u.username] = u.name; });
   const okey = x => known[x.owner] !== undefined ? x.owner : '';   // سجل بلا مشرفة معروفة يُجمع تحت «غير محدد»
@@ -197,7 +231,7 @@ function mgRender() {
     const t = bt.dataset.t, u = TAB_UNITS[t];
     const show = t === 'min' ? (unit !== 'وحدة الإشراف الإداري' || mins.length) : !u || u === unit || (t === 'evals' && es.length) || (t === 'rpt' && rpts.length) || (t === 'idari' && ids.length) || (t === 'sgh' && mgSgh().some(x => x.unit === unit));
     bt.classList.toggle('hidden', !show);
-    if (!show && mgTab === t) { mgTab = 'visits'; document.querySelectorAll('#mgTabs button').forEach(b2 => b2.classList.toggle('on', b2.dataset.t === 'visits')); }
+    if (!show && mgTab === t && !icoSel) { mgTab = 'visits'; document.querySelectorAll('#mgTabs button').forEach(b2 => b2.classList.toggle('on', b2.dataset.t === 'visits')); }
   });
   const sgs = mgSgh().filter(x => x.unit === unit && inR(x.date || x.at));
 
@@ -250,7 +284,7 @@ function mgRender() {
       '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="exRow(' + i + ', this)">Excel</button></td></tr>').join('');
     if (n) bar = '<button class="btn light" onclick="mgExportEvals(this)">تحميل الاستمارات المعروضة Excel (' + n + ')</button>';
   } else if (mgTab === 'idari') {
-    const L = ids.filter(mine); n = L.length;
+    const L = ids.filter(mine).filter(x => !mgSub || x.kind === mgSub); n = L.length;
     const b = (t, fn) => '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="' + fn + '">' + t + '</button> ';
     head = '<tr><th>المشرفة</th><th>النموذج</th><th>المركز / الفصل</th><th>التاريخ</th><th></th></tr>';
     body = L.slice(0, MG_LIMIT).map(x => '<tr><td>' + who(x) + '</td><td>' + esc(ID_KINDS[x.kind] || '') + '</td><td>' + esc(x.center || [x.sem, x.year].filter(Boolean).join(' ') || '—') +
@@ -269,7 +303,7 @@ function mgRender() {
         (tg.all ? 'كل المعلمات' : idDigits(cnt) + ' معلمة') + '</td><td>' + idDigits((x.acks || []).length) + (cnt != null ? ' من ' + idDigits(cnt) : '') + '</td><td style="white-space:nowrap">' +
         b('من اطّلعت', 'mgMinAcks(\'' + esc(x.id) + '\')') + b('عرض', 'mgMinDo(\'' + esc(x.id) + '\', this, \'view\')') + b('PDF', 'mgMinDo(\'' + esc(x.id) + '\', this, \'pdf\')') + '</td></tr>'; }).join('');
   } else if (mgTab === 'sgh') {
-    const L = sgs.filter(mine); n = L.length;
+    const L = sgs.filter(mine).filter(x => !mgSub || mgSgKind(x) === mgSub); n = L.length;
     const b = (t, fn) => '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="' + fn + '">' + t + '</button> ';
     head = '<tr><th>المشرفة</th><th>النموذج</th><th>المعلمة</th><th>المركز</th><th>الفترة</th><th>موضوع الدرس</th><th>التاريخ</th><th>رقم الزيارة</th><th>توقيع المعلمة</th><th></th></tr>';
     const tSt = x => { const d = x.data || {}; return x.kind === 'sum' ? '—' : (d.sigs && d.sigs.tch) ? '✔ وقّعت' + (d.tchAt ? ' ' + esc(d.tchAt) : '') : d.tid ? '⏳ بانتظار توقيعها' : '—'; };

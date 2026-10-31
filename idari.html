@@ -16,6 +16,8 @@
   .id-note-row .num{font-weight:800;color:var(--maroon,#7a1f2b);min-width:22px;text-align:center;margin-top:10px}
   .id-note-row textarea{flex:1;margin:0;resize:vertical}
   .id-note-row .x{flex:none;width:auto;padding:6px 10px;margin-top:4px;background:transparent;border:1px solid #ddd;border-radius:8px;color:#888;cursor:pointer}
+  .iv-nr{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:8px}.iv-nr textarea{width:100%}.iv-nr .iv-r{background:#fffbf2}
+  @media(max-width:560px){.iv-nr{grid-template-columns:1fr}}
   .btn.id-wa{background:#1f8f4e;border-color:#1f8f4e;color:#fff;text-decoration:none;display:inline-block}
   .id-send{padding:14px 16px;border:1px solid #bfe3cd;background:#f1faf4;border-radius:12px;line-height:2}
   .id-send .btn{margin-top:8px}
@@ -218,12 +220,10 @@
     </div>
 
     <div class="card">
-      <h2>الملاحظات</h2>
-      <p class="rp-hint" style="margin-top:0">كل ملاحظة في سطر برقمها، كما تظهر في جدول التقرير.</p>
+      <h2>الملاحظات والتوصيات</h2>
+      <p class="rp-hint" style="margin-top:0">لكل ملاحظة توصيتها في نفس السطر، كما تظهر في جدول التقرير.</p>
       <div id="ivNotes"></div>
       <button type="button" class="btn light block" onclick="ivAddNote()">＋ إضافة ملاحظة</button>
-      <label for="ivRec">التوصية <span style="font-weight:400;color:var(--muted);font-size:14px">(تظهر في خلية واحدة بجانب الملاحظات)</span></label>
-      <textarea id="ivRec" rows="2" placeholder="اكتبي التوصية"></textarea>
     </div>
 
     <div class="card">

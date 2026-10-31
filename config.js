@@ -4,6 +4,17 @@ const API_URL = "https://script.google.com/macros/s/AKfycbxiqg4FzYOkKHECh8UKt2xN
 
 const PW_KEY = 'mush_pw';
 const USER_KEY = 'mush_user';
+// ===== تسجيل الخروج تلقائياً عند إغلاق الصفحة (في كل صفحات المنظومة) =====
+// كلمة المرور تبقى أثناء التنقل بين صفحات المنظومة وتحديثها، وعند إغلاق الصفحة ثم فتحها من جديد يُطلب الدخول مرة أخرى
+(function () {
+  const PW_KEYS = ['mush_pw', 'ctr_pw', 'tch_pw', 'mgr_pw'];   // المشرفات، إدارة المراكز، المعلمات، إدارة الوحدات
+  try {
+    if (!sessionStorage.getItem('furqan_session')) {
+      PW_KEYS.forEach(k => localStorage.removeItem(k));
+      sessionStorage.setItem('furqan_session', '1');
+    }
+  } catch (e) {}
+})();
 const getPw = () => localStorage.getItem(PW_KEY) || '';
 const getUser = () => localStorage.getItem(USER_KEY) || '';
 

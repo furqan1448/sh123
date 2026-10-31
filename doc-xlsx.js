@@ -263,3 +263,62 @@ const dxBar = (pdfId, xlsId) => '<button class="btn light" id="' + pdfId + '">' 
 const DX_ICO = d => '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px;margin-inline-end:6px" aria-hidden="true">' + d + '</svg>';
 const DX_ICO_PDF = DX_ICO('<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M12.5 11v6"/><path d="M10 14.5l2.5 2.5 2.5-2.5"/>');
 const DX_ICO_XLS = DX_ICO('<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M4 15h16M10 4v16"/>');
+
+/* ---------- معاينة ملف Excel داخل الصفحة (للنماذج الواردة بصيغة Excel فقط) ---------- */
+async function dxXlsxPreviewHtml(bytes) {
+  await dxLoad();
+  const wb = new window.ExcelJS.Workbook();
+  await wb.xlsx.load(bytes.buffer ? bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) : bytes);
+  const ws = wb.worksheets[0];
+  if (!ws) return '<p class="empty">الملف فارغ</p>';
+  const argb = c => c && c.argb && c.argb.length === 8 ? '#' + c.argb.slice(2) : '';
+  const nCols = ws.columnCount, nRows = ws.rowCount;
+  // الخلايا المدمجة: الخلية الأولى تأخذ الامتداد، والباقي يُتخطّى
+  const master = {}, skip = {};
+  (ws.model.merges || []).forEach(rg => {
+    const m = rg.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/); if (!m) return;
+    const col = s => s.split('').reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0);
+    const c1 = col(m[1]), r1 = +m[2], c2 = col(m[3]), r2 = +m[4];
+    master[r1 + ':' + c1] = { cs: c2 - c1 + 1, rs: r2 - r1 + 1 };
+    for (let r = r1; r <= r2; r++) for (let c = c1; c <= c2; c++) if (r !== r1 || c !== c1) skip[r + ':' + c] = r1 + ':' + c1;
+  });
+  // الصور: الكليشة (أعلى الملف) فوق الجدول، والتواقيع داخل خلاياها
+  const imgs = {}; let head = '';
+  for (const im of ws.getImages()) {
+    const media = wb.model.media.find(x => x.index === im.imageId) || wb.getImage(im.imageId);
+    if (!media || !media.buffer) continue;
+    const b = new Uint8Array(media.buffer); let s = '';
+    for (let i = 0; i < b.length; i += 32768) s += String.fromCharCode.apply(null, b.subarray(i, i + 32768));
+    const src = 'data:image/' + (media.extension === 'png' ? 'png' : 'jpeg') + ';base64,' + btoa(s);
+    const r = Math.floor(im.range.tl.nativeRow != null ? im.range.tl.nativeRow : im.range.tl.row) + 1, c = Math.floor(im.range.tl.nativeCol != null ? im.range.tl.nativeCol : im.range.tl.col) + 1;
+    if (r <= 1 && !head) { head = '<img src="' + src + '" alt="" style="display:block;width:100%;height:auto">'; continue; }
+    const k = skip[r + ':' + c] || (r + ':' + c);
+    (imgs[k] = imgs[k] || []).push('<img src="' + src + '" alt="" style="max-height:60px;max-width:150px;display:block;margin:4px auto">');
+  }
+  const widths = []; for (let c = 1; c <= nCols; c++) widths.push(Math.max(2, (ws.getColumn(c).width || 9)) * 7);
+  const total = widths.reduce((a, w) => a + w, 0);
+  let h = '<table style="width:100%;border-collapse:collapse;table-layout:fixed;min-width:0;font-size:13px;direction:rtl"><colgroup>' + widths.map(w => '<col style="width:' + (w / total * 100).toFixed(2) + '%">').join('') + '</colgroup>';
+  let started = false;
+  for (let r = 1; r <= nRows; r++) {
+    const row = ws.getRow(r);
+    let tr = '', any = false;
+    for (let c = 1; c <= nCols; c++) {
+      const key = r + ':' + c;
+      if (skip[key]) continue;
+      const cell = row.getCell(c), mg = master[key] || { cs: 1, rs: 1 };
+      let v = cell.value;
+      if (v && typeof v === 'object') v = v.richText ? v.richText.map(t => t.text).join('') : v.text || v.result || (v instanceof Date ? v.toISOString().slice(0, 10) : '');
+      v = v == null ? '' : String(v);
+      const f = cell.font || {}, al = cell.alignment || {}, fill = cell.fill && cell.fill.fgColor ? argb(cell.fill.fgColor) : '';
+      const bd = cell.border && (cell.border.top || cell.border.bottom) ? '1px solid #000' : '0';
+      if (v || imgs[key] || fill) any = true;
+      tr += '<td' + (mg.cs > 1 ? ' colspan="' + mg.cs + '"' : '') + (mg.rs > 1 ? ' rowspan="' + mg.rs + '"' : '') + ' style="border:' + bd + ';padding:4px 6px;white-space:pre-wrap;vertical-align:middle;' +
+        'text-align:' + (al.horizontal === 'center' ? 'center' : al.horizontal === 'left' ? 'left' : 'right') + ';' + (fill && fill !== '#FFFFFF' ? 'background:' + fill + ';' : 'background:#fff;') +
+        (f.bold ? 'font-weight:800;' : '') + (argb(f.color) ? 'color:' + argb(f.color) + ';' : '') + (f.size ? 'font-size:' + Math.round(f.size * 1.1) + 'px;' : '') + '">' + esc(v) + (imgs[key] || []).join('') + '</td>';
+    }
+    if (!any && !started) continue;   // صفوف الكليشة الفارغة
+    started = true;
+    h += '<tr style="height:' + Math.round((row.height || 15) / 0.75) + 'px">' + tr + '</tr>';
+  }
+  return '<div style="background:#fff;padding:8px;direction:rtl">' + head + h + '</table></div>';
+}

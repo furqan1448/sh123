@@ -356,13 +356,16 @@ async function idDel(id) {
 
 /* ======================= تقرير الزيارة: مثل نظام المقاصف ======================= */
 /* ---------- الملاحظات: كل ملاحظة في سطر برقمها ---------- */
+// كل سطر: الملاحظة وتوصيتها (v نص الملاحظة، أو { n: الملاحظة، r: التوصية })
 function ivAddNote(v) {
+  if (typeof v === 'string' || v == null) v = { n: v || '', r: '' };
   const row = document.createElement('div');
   row.className = 'id-note-row';
-  row.innerHTML = '<span class="num"></span><textarea rows="2" placeholder="اكتبي الملاحظة..."></textarea><button type="button" class="x" title="حذف">✕</button>';
-  row.querySelector('textarea').value = v || '';
+  row.innerHTML = '<span class="num"></span><div class="iv-nr"><textarea class="iv-n" rows="2" placeholder="الملاحظة"></textarea><textarea class="iv-r" rows="2" placeholder="التوصية"></textarea></div><button type="button" class="x" title="حذف">✕</button>';
+  row.querySelector('.iv-n').value = v.n || '';
+  row.querySelector('.iv-r').value = v.r || '';
   row.querySelector('.x').onclick = () => {
-    if ($('ivNotes').children.length < 2) { row.querySelector('textarea').value = ''; return; }
+    if ($('ivNotes').children.length < 2) { row.querySelectorAll('textarea').forEach(t => { t.value = ''; }); return; }
     row.remove(); ivNumNotes();
   };
   $('ivNotes').appendChild(row);
@@ -373,7 +376,10 @@ function ivNotesSet(list) {
   $('ivNotes').innerHTML = '';
   (list && list.length ? list : ['', '']).forEach(ivAddNote);
 }
-const ivNotesGet = () => [...$('ivNotes').querySelectorAll('textarea')].map(t => t.value.trim()).filter(Boolean);
+// الأسطر المكتوبة: [{ n, r }]
+const ivRowsGet = () => [...$('ivNotes').children].map(row => ({ n: row.querySelector('.iv-n').value.trim(), r: row.querySelector('.iv-r').value.trim() })).filter(x => x.n || x.r);
+const ivNotesGet = () => ivRowsGet().map(x => x.n);
+const ivRecsGet = () => ivRowsGet().map(x => x.r);
 const IV_REC_DEFAULT = '';   // التوصية فارغة، تكتبها المشرفة
 
 /* ---------- الفترة: اختيار واحد (صباحي أو مسائي) ---------- */
@@ -502,15 +508,14 @@ function idFill(kind, r) {
     $('ivMgrStatus').textContent = ''; $('ivVisitNoHint').textContent = '';
     if (Array.isArray(d.notes)) {
       $('ivAbout').value = d.about || '';
-      ivNotesSet(d.notes);
-      $('ivRec').value = d.recText || '';
+      // توصية لكل ملاحظة؛ والتقارير السابقة (توصية واحدة للكل) تظهر توصيتها في السطر الأول
+      ivNotesSet(d.notes.map((n, i) => ({ n, r: Array.isArray(d.recs) ? (d.recs[i] || '') : (i === 0 ? (d.recText || '') : '') })));
     } else if (d.rows && d.rows.length) {
       // تقرير قديم (بشأن/ملاحظة/توصية لكل بند): يُحوَّل للتنسيق الجديد عند تعديله
       $('ivAbout').value = '';
-      ivNotesSet(d.rows.map(x => [x.about, x.note].filter(Boolean).join(' — ')).filter(Boolean));
-      $('ivRec').value = d.rows.map(x => x.rec).filter(Boolean).join('\n');
+      ivNotesSet(d.rows.filter(x => x.about || x.note || x.rec).map(x => ({ n: [x.about, x.note].filter(Boolean).join(' — '), r: x.rec || '' })));
     } else {
-      $('ivAbout').value = ''; ivNotesSet([]); $('ivRec').value = IV_REC_DEFAULT;
+      $('ivAbout').value = ''; ivNotesSet([]);
     }
     if (!edit) { loadDirs().then(() => { if (!idEdit) ivCenterChanged(); }); }
   } else if (kind === 'monthly') {
@@ -544,64 +549,67 @@ function idEditRec(id) {
 function idBack() { idEdit = null; show('idListView'); renderIdari(); }
 
 /* ---------- الحفظ ---------- */
-async function idSave(kind, btn, sendAfter) {
+// auto: حفظ تلقائي عند الخروج من النموذج (بدون رسائل التحقق؛ إن كان ناقصاً يبقى مسودة)
+let idAutoFail = '';
+async function idSave(kind, btn, sendAfter, auto) {
+  const fail = m => { if (auto) idAutoFail = m; else toast(m, false); return false; };
   const req = { kind, id: idEdit ? idEdit.id : '' };
   const p = ID_PFX[kind];
   const hd = hdGet(p);
-  if (!/^\d{4}$/.test(hd.hy)) return toast('اكتبي سنة التاريخ الهجري (مثال: 1448)', false);
+  if (!/^\d{4}$/.test(hd.hy)) return fail('اكتبي سنة التاريخ الهجري (مثال: 1448)', false);
   const dateData = { hd: hd.hd, hm: hd.hm, hy: hd.hy, dayName: hd.dayName };
   req.date = hd.greg;   // الميلادي المقابل (للترتيب والتصفية فقط)
   if (kind === 'visit') {
     Object.assign(req, { center: $('ivCenter').value, sem: $('ivSem').value, year: $('ivYear').value.trim(), period: periodGet('ivPeriod'),
       visitNo: $('ivVisitNo').value.trim(), mgrName: $('ivMgrName').value.trim(), supName: $('ivSupName').value.trim(),
       data: Object.assign({ vtype: $('ivType').value.trim() || 'إداري', 
-        about: $('ivAbout').value.trim(), notes: ivNotesGet(), recText: $('ivRec').value.trim(), mgrPhone: $('ivMgrPhone').value.trim() }, dateData) });
-    if (!req.center) return toast('اختاري اسم المركز', false);
-    if (!req.period) return toast('اختاري الفترة (صباحي أو مسائي)', false);
-    if (!req.data.notes.length) return toast('اكتبي ملاحظة واحدة على الأقل', false);
+        about: $('ivAbout').value.trim(), notes: ivNotesGet(), recs: ivRecsGet(), mgrPhone: $('ivMgrPhone').value.trim() }, dateData) });
+    if (!req.center) return fail('اختاري اسم المركز', false);
+    if (!req.period) return fail('اختاري الفترة (صباحي أو مسائي)', false);
+    if (!req.data.notes.some(Boolean)) return fail('اكتبي ملاحظة واحدة على الأقل', false);
   } else if (kind === 'mgreval') {
     Object.assign(req, meCollect(true));
     req.data = Object.assign(req.data, dateData);
-    if (!req.center) return toast('اختاري اسم المركز', false);
-    if (!req.mgrName) return toast('اكتبي اسم المديرة', false);
+    if (!req.center) return fail('اختاري اسم المركز', false);
+    if (!req.mgrName) return fail('اكتبي اسم المديرة', false);
     const bad = ME_ITEMS.findIndex((it, i) => { const v = meNum(req.data.sc[i]); return req.data.sc[i] !== '' && (v == null || v < 0 || v > it[2]); });
-    if (bad > -1) { toast('درجة «' + ME_ITEMS[bad][1] + '» يجب أن تكون بين ٠ و' + arD(ME_ITEMS[bad][2]), false); document.querySelectorAll('#meItems .me-it')[bad].scrollIntoView({ block: 'center' }); return; }
+    if (bad > -1) { if (auto) return fail('درجة غير صحيحة'); toast('درجة «' + ME_ITEMS[bad][1] + '» يجب أن تكون بين ٠ و' + arD(ME_ITEMS[bad][2]), false); document.querySelectorAll('#meItems .me-it')[bad].scrollIntoView({ block: 'center' }); return false; }
     const empty = req.data.sc.filter(x => x === '').length;
-    if (empty === ME_ITEMS.length) return toast('اكتبي درجات البنود', false);
-    if (empty && !confirm('توجد ' + arD(empty) + ' بنود بدون درجة (تُحسب صفراً). هل تريدين الحفظ؟')) return;
+    if (empty === ME_ITEMS.length) return fail('اكتبي درجات البنود', false);
+    if (empty && (auto || !confirm('توجد ' + arD(empty) + ' بنود بدون درجة (تُحسب صفراً). هل تريدين الحفظ؟'))) return fail('توجد بنود بدون درجة');
   } else if (kind === 'halls') {
     Object.assign(req, hlCollect(true));
     req.data = Object.assign(req.data, dateData);
-    if (!req.center) return toast('اختاري اسم المركز', false);
-    if (!req.data.floors.some(f => f.halls.length)) return toast('أضيفي قاعة واحدة على الأقل', false);
+    if (!req.center) return fail('اختاري اسم المركز', false);
+    if (!req.data.floors.some(f => f.halls.length)) return fail('أضيفي قاعة واحدة على الأقل', false);
   } else if (kind === 'monthly') {
     Object.assign(req, imCollect(true), {});
     req.data = Object.assign(req.data, dateData);
-    if (!req.center) return toast('اختاري اسم المركز', false);
-    if (!req.period) return toast('اختاري الفترة (صباحي أو مسائي)', false);
-    if (!req.data.ev.some(e => (e.a || []).some(Boolean))) return toast('قيّمي بنداً واحداً على الأقل', false);
+    if (!req.center) return fail('اختاري اسم المركز', false);
+    if (!req.period) return fail('اختاري الفترة (صباحي أو مسائي)', false);
+    if (!req.data.ev.some(e => (e.a || []).some(Boolean))) return fail('قيّمي بنداً واحداً على الأقل', false);
   } else if (kind === 'program') {
     const data = Object.assign({}, dateData);
     ['content', 'plan', 'method', 'tools', 'results', 'ratio'].forEach(k => { data[k] = $('ip' + k[0].toUpperCase() + k.slice(1)).value.trim(); });
     Object.assign(req, { center: $('ipCenter').value, supName: $('ipSupName').value.trim(), data });
-    if (!req.center) return toast('اختاري المركز', false);
-    if (!data.content && !data.plan && !data.results) return toast('اكتبي المحتوى أو التخطيط أو النتائج', false);
+    if (!req.center) return fail('اختاري المركز', false);
+    if (!data.content && !data.plan && !data.results) return fail('اكتبي المحتوى أو التخطيط أو النتائج', false);
   } else {
     Object.assign(req, { sem: $('isSem').value, year: $('isYear').value.trim(), period: periodGet('isPeriod'),
       supName: $('isSupName').value.trim(), data: Object.assign({ rows: idRowsGet('isRows') }, dateData) });
-    if (!req.data.rows.length) return toast('اكتبي اقتراحاً أو صعوبة واحدة على الأقل', false);
+    if (!req.data.rows.length) return fail('اكتبي اقتراحاً أو صعوبة واحدة على الأقل', false);
   }
   // التواقيع: صورة جديدة، أو «keep» لإبقاء التوقيع السابق في وضع التعديل
   const oldHas = (idEdit && idEdit.data && idEdit.data.sigs) || {};
   req.sigs = {};
   Object.keys(SIGS_OF[kind]).forEach(k => { const v = SIGW[SIGS_OF[kind][k]].get(); req.sigs[k] = v || (idEdit && oldHas[k] ? 'keep' : ''); });
 
-  setBtnBusy(btn, true);
+  if (btn) setBtnBusy(btn, true);
   try {
     const res = await api('saveIdari', req);
     Object.keys(SIGS_OF[kind]).forEach(k => SIGW[SIGS_OF[kind][k]].commit());
     AD.done(FORM_OF[kind], idEdit && idEdit.id);
-    toast(idEdit ? 'تم حفظ التعديل' : 'تم حفظ النموذج');
+    toast(auto ? 'حُفظ النموذج تلقائياً عند الخروج' : idEdit ? 'تم حفظ التعديل' : 'تم حفظ النموذج');
     const rec = { id: res.id, kind, center: req.center || '', sem: req.sem || '', year: req.year || '', period: req.period || '', date: req.date || '',
       day: res.day || dayOf(req.date), visitNo: req.visitNo || '', supName: req.supName || '', mgrName: req.mgrName || '',
       data: Object.assign({}, req.data, { sigs: res.sigs || {} }), at: idEdit ? idEdit.at : '' };
@@ -610,9 +618,10 @@ async function idSave(kind, btn, sendAfter) {
     idEdit = null; idKind = kind;
     show('idListView'); renderIdari();
     loadIdari(true);
-    idAfterSave(rec);
-  } catch (e) { toast(e.message, false); }
-  finally { setBtnBusy(btn, false); }
+    if (!auto) idAfterSave(rec);
+    return true;
+  } catch (e) { toast(auto ? 'تعذّر الحفظ التلقائي (' + e.message + ')، وبقي النموذج مسودة في هذا الجهاز' : e.message, false); return false; }
+  finally { if (btn) setBtnBusy(btn, false); }
 }
 
 /* ======================= استمارة المتابعة الإدارية الشهرية ======================= */
@@ -1015,7 +1024,7 @@ function idCollect(kind) {
   if (kind === 'monthly' || kind === 'mgreval' || kind === 'halls') { const o = (kind === 'monthly' ? imCollect : kind === 'mgreval' ? meCollect : hlCollect)(false); o.data = Object.assign(o.data, dateData); return o; }
   if (kind === 'visit') return { center: $('ivCenter').value, sem: $('ivSem').value, year: $('ivYear').value, period: periodGet('ivPeriod'), visitNo: $('ivVisitNo').value,
     mgrName: $('ivMgrName').value, supName: $('ivSupName').value,
-    data: Object.assign({ vtype: $('ivType').value, about: $('ivAbout').value, notes: ivNotesGet(), recText: $('ivRec').value, mgrPhone: $('ivMgrPhone').value }, dateData) };
+    data: Object.assign({ vtype: $('ivType').value, about: $('ivAbout').value, notes: ivNotesGet(), recs: ivRecsGet(), mgrPhone: $('ivMgrPhone').value }, dateData) };
   if (kind === 'program') {
     const data = Object.assign({}, dateData);
     ['content', 'plan', 'method', 'tools', 'results', 'ratio'].forEach(k => { data[k] = $('ip' + k[0].toUpperCase() + k.slice(1)).value; });

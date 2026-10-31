@@ -71,7 +71,9 @@
       <h2>التفاصيل</h2>
       <label for="mgSup" style="margin-top:0">تصفية حسب المشرفة</label>
       <select id="mgSup" onchange="mgRender()"></select>
-      <div class="ev-tabs" id="mgTabs">
+      <label for="mgIcon">الأيقونة</label>
+      <select id="mgIcon" onchange="mgIconSet()"></select>
+      <div class="ev-tabs hidden" id="mgTabs">
         <button class="on" data-t="visits" onclick="mgTabSet('visits')">كشف الخروج</button>
         <button data-t="evals" onclick="mgTabSet('evals')">الاستمارات</button>
         <button data-t="rpt" onclick="mgTabSet('rpt')">خلاصة التقارير</button>
