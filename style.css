@@ -373,3 +373,11 @@ img.vsig{display:block;margin:0 auto;max-height:44px;max-width:120px}
 .mc-ptbl td.no{color:#8a1f2b;font-weight:800}
 .mc-ptbl tr.mc-tot td{background:#f6f0f2;font-weight:800}
 .mc-tbl tr.mc-gh td{background:#f6f0f2;color:#7a1f2b;font-weight:800;text-align:right}
+
+/* ===== منع الرمشة والحركة عند فتح الصفحات ===== */
+.pg-wait body{opacity:0}
+body{transition:opacity .15s ease-out}
+.has-sess #loginView{display:none!important}
+/* على الجوال: لمس الأيقونة لا يحرّكها (الحركة للفأرة فقط) */
+@media (hover:none){.tile:hover{transform:none;border-color:var(--line)}}
+.tile:active{transform:none}

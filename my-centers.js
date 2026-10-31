@@ -85,7 +85,7 @@ function mcSavedRender() {
     : '<p class="empty">لم تحددي المراكز بعد. افتحي «اختيار المراكز» أعلاه.</p>';
 }
 const MC_CSS = `
-.im-page.mcp{width:794px;height:1123px;overflow:hidden;position:relative;background:#fff;font-size:16px}
+.im-page.mcp{width:1123px;height:794px;overflow:hidden;position:relative;background:#fff;font-size:16px}
 .im-page.mcp .idc-body{padding:0 40px}
 .im-page.mcp .idc-title{font-size:22px;margin:14px 0 10px}
 .im-page.mcp .mc-meta{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px 18px;font-weight:700;margin:0 0 10px}
@@ -114,7 +114,7 @@ async function mcPdf(btn) {
       items.push({ h: 1, html: '<tr class="mc-gh"><td colspan="2">' + g.title + '</td></tr>' });
       g.list.forEach((c, k) => items.push({ html: '<tr><td class="idc-n">' + idDigits(k + 1) + '</td><td class="r">' + esc(mcName(c)) + '</td></tr>' }));
     });
-    const per = 20, pages = [];
+    const per = 11, pages = [];   // صفحة أفقية مثل تقرير الزيارة
     let cur = [];
     items.forEach(it => {
       if (cur.length >= per) { const carry = cur[cur.length - 1].h ? [cur.pop()] : []; pages.push(cur.map(x => x.html).join('')); cur = carry; }
@@ -128,7 +128,7 @@ async function mcPdf(btn) {
       '<div class="mc-meta" style="justify-content:flex-start;gap:30px"><span>الفترة الصباحية: ' + val(idDigits(L.filter(c => mcPeriod(c) === 'am').length)) + '</span><span>الفترة المسائية: ' + val(idDigits(L.filter(c => mcPeriod(c) === 'pm').length)) + '</span></div>' +
       '<table><colgroup><col style="width:70px"><col></colgroup>' + rows + '</table></div>' +
       (pages.length > 1 ? '<div class="mc-pg">صفحة ' + idDigits(i + 1) + ' من ' + idDigits(pages.length) + '</div>' : '') + '</div>');
-    idSaveBlob(await idPagesPdf(html, MC_CSS, true), 'المراكز_المشرفة_عليها.pdf');
+    idSaveBlob(await idPagesPdf(html, MC_CSS, false), 'المراكز_المشرفة_عليها.pdf');
     toast('تم التحميل');
   } catch (e) { toast(e.message || 'تعذّر تحميل PDF', false); }
   finally { setBtnBusy(btn, false); }
@@ -136,7 +136,7 @@ async function mcPdf(btn) {
 function mcXlsx(btn) {
   const L = mcSorted();
   if (!L.length) return toast('لا توجد مراكز محفوظة', false);
-  exRun({ title: 'المراكز المشرفة عليها', file: 'المراكز_المشرفة_عليها', landscape: false,
+  exRun({ title: 'المراكز المشرفة عليها', file: 'المراكز_المشرفة_عليها', landscape: true,
     info: [['المشرفة', mcMyName()], ['عدد المراكز', String(L.length)],
       ['الفترة الصباحية', String(L.filter(c => mcPeriod(c) === 'am').length)], ['الفترة المسائية', String(L.filter(c => mcPeriod(c) === 'pm').length)]],
     cols: ['م', ''], widths: [8, 70], sections: mcGroups(L).map(g => ({ title: g.title, rows: g.list.map((c, i) => [i + 1, mcName(c)]) })), totals: [], notes: [] }, btn);

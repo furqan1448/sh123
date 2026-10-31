@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>/* منع الرمشة عند فتح الصفحة: تظهر الصفحة بعد تجهيزها، ولا تظهر شاشة الدخول لحظةً لمن هي داخلة أصلاً */
+(function(){var d=document.documentElement;d.classList.add('pg-wait');try{if(sessionStorage.getItem('furqan_session')&&['mush_pw','ctr_pw','tch_pw','mgr_pw'].some(function(k){return localStorage.getItem(k)}))d.classList.add('has-sess')}catch(e){}setTimeout(function(){d.classList.remove('pg-wait','has-sess')},1500)})();</script>
 <title>مشرفات وحدة تحفيظ الصغار — منظومة مشرفات مكتب إشراف الداخل</title>
 <link rel="preconnect" href="https://script.google.com">
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
@@ -60,7 +62,7 @@
 </head>
 <body id="sigharPage">
 <div class="topbar">
-  <img class="logo" alt="شعار فرقان">
+  <img class="logo" src="furqan-logo.png" alt="شعار فرقان">
   <h1>مشرفات</h1>
   <p>وحدة تحفيظ الصغار</p>
 </div>
