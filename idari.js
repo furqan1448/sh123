@@ -5,7 +5,7 @@ const VIEW_KEY = 'idari_view', NAME_KEY = 'idari_name', KIND_KEY = 'idari_kind';
 let LISTS = { centers: [], types: [], typesIdari: [] };
 let VISITS = [], IDR = [], idKind = 'visit', idEdit = null;
 
-const ALL_VIEWS = ['loginView', 'homeView', 'visitsView', 'idListView', 'mcView', 'idVisitForm', 'idProgramForm', 'idSuggestForm', 'idMonthlyForm', 'idMgrEvalForm', 'idHallsForm', 'atView'];
+const ALL_VIEWS = ['loginView', 'homeView', 'visitsView', 'idListView', 'mcView', 'idVisitForm', 'idProgramForm', 'idSuggestForm', 'idMonthlyForm', 'idMgrEvalForm', 'idHallsForm', 'atView', 'mnListView', 'mnForm'];
 const FORM_OF = { visit: 'idVisitForm', program: 'idProgramForm', suggest: 'idSuggestForm', monthly: 'idMonthlyForm', mgreval: 'idMgrEvalForm', halls: 'idHallsForm' };
 const ID_PFX = { visit: 'iv', program: 'ip', suggest: 'is', monthly: 'im', mgreval: 'me', halls: 'hl' };
 

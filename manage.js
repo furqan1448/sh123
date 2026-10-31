@@ -9,10 +9,11 @@ const MG_ICONS = {
     ['sge', 'sgh', 'eval', 'استمارات التقييم'], ['stf', 'sgh', 'stf', 'إجراءات الموظفات'], ['min', 'min', '', 'محاضر الاجتماعات'], ['files', 'files', '', 'المرفقات']],
   'وحدة الإشراف الإداري': [['visits', 'visits', '', 'كشف الخروج'], ['iv', 'idari', 'visit', 'تقرير زيارة المشرفة'], ['ip', 'idari', 'program', 'برنامج مشرفة مقيمة'],
     ['is', 'idari', 'suggest', 'الاقتراحات والصعوبات'], ['im', 'idari', 'monthly', 'المتابعة الإدارية الشهرية'], ['me', 'idari', 'mgreval', 'استمارة تقييم المديرة'],
-    ['hl', 'idari', 'halls', 'حصر القاعات في المراكز'], ['files', 'files', '', 'المرفقات']]
+    ['hl', 'idari', 'halls', 'حصر القاعات في المراكز'], ['min', 'min', '', 'محاضر الاجتماعات'], ['files', 'files', '', 'المرفقات']]
 };
 const MG_ICONS_DEF = [['visits', 'visits', '', 'كشف الخروج'], ['min', 'min', '', 'محاضر الاجتماعات'], ['files', 'files', '', 'المرفقات']];
-const mgIconsOf = u => MG_ICONS[u] || MG_ICONS_DEF;
+// «جميع المستندات» أولاً، ثم أيقونات الوحدة
+const mgIconsOf = u => [['all', 'all', '', 'جميع المستندات']].concat(MG_ICONS[u] || MG_ICONS_DEF);
 function mgIconSet() {
   const unit = document.getElementById('mgUnit').value, k = document.getElementById('mgIcon').value;
   const it = mgIconsOf(unit).find(x => x[0] === k) || mgIconsOf(unit)[0];
@@ -312,6 +313,27 @@ function mgRender() {
       (isSum(x) ? arDigitsN((x.data && x.data.rows || []).length) + ' معلمات' : esc(x.teacher)) + '</td><td>' + (isSum(x) ? esc([x.sem, x.year].filter(Boolean).join(' ')) : esc(x.center)) + '</td><td>' + esc(x.period) + '</td><td>' + esc(x.lesson || '—') +
       '</td><td>' + esc((x.data && x.data.dayName) || x.day) + ' ' + idHDate(x) + '</td><td>' + esc(idDigits(x.visitNo)) + '</td><td>' + tSt(x) + '</td><td style="white-space:nowrap">' + b('عرض', 'mgSgOpen(\'' + esc(x.id) + '\')') +
       b('PDF', 'mgSgDo(\'' + esc(x.id) + '\', this, \'pdf\')') + b('مشاركة', 'mgSgDo(\'' + esc(x.id) + '\', this, \'share\')') + '</td></tr>').join('');
+  } else if (mgTab === 'all') {
+    // جميع المستندات في جدول واحد (الأحدث أولاً)
+    const b = (t, fn) => '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="' + fn + '">' + t + '</button> ';
+    const hd = x => x.data && x.data.hy ? idHDate(x) : '';
+    const sgName = x => x.kind === 'sum' ? 'خلاصة التقارير التعليمية' : x.kind === 'stf' ? (x.formName || 'إجراء موظفة') : x.kind === 'eval' ? 'استمارة ' + (x.formName || '') : 'تقرير زيارة';
+    const all = [];
+    vs.filter(mine).forEach(x => all.push({ x, t: 'كشف الخروج', c: esc(x.center || '—'), d: esc(x.date || '') + ' ' + esc(x.day || ''), k: String(x.at || x.date || ''), act: mgLink(x.signature, 'التوقيع') }));
+    mgEvList().forEach(([r, i]) => all.push({ x: r, t: (MG_FT[r.formType] || 'استمارة') + ' (' + mgFinalLbl(r) + ')', c: esc(r.center || '') + (r.teacher ? ' — ' + esc(r.teacher) : ''), d: esc(r.date || ''), k: String(r.at || r.date || ''),
+      act: b('عرض', 'evView(' + i + ')') + b('PDF', 'pdfRow(' + i + ', this)') }));
+    ids.filter(mine).forEach(x => all.push({ x, t: ID_KINDS[x.kind] || 'نموذج', c: esc(x.center || [x.sem, x.year].filter(Boolean).join(' ') || '—'), d: esc(idDayName(x)) + ' ' + idHDate(x), k: String(x.date || x.at || ''),
+      act: b('عرض', 'mgIdOpen(\'' + esc(x.id) + '\')') + b('PDF', 'mgIdDo(\'' + esc(x.id) + '\', this, \'pdf\')') }));
+    sgs.filter(mine).forEach(x => all.push({ x, t: sgName(x), c: esc(x.center || '') + (x.teacher ? ' — ' + esc(x.teacher) : ''), d: hd(x), k: String(x.date || x.at || ''),
+      act: b('عرض', 'mgSgOpen(\'' + esc(x.id) + '\')') + b('PDF', 'mgSgDo(\'' + esc(x.id) + '\', this, \'pdf\')') }));
+    mins.filter(mine).forEach(x => all.push({ x, t: 'محضر اجتماع رقم ( ' + esc(idDigits(x.no)) + ' )', c: esc(x.center || '—'), d: esc(x.dayName || '') + ' ' + esc(idDigits(x.hijri || '')), k: String(x.at || ''),
+      act: b('عرض', 'mgMinDo(\'' + esc(x.id) + '\', this, \'view\')') + b('PDF', 'mgMinDo(\'' + esc(x.id) + '\', this, \'pdf\')') }));
+    rpts.filter(mine).forEach(x => all.push({ x, t: 'خلاصة التقارير', c: esc(x.title || ''), d: esc(x.at || ''), k: String(x.at || ''), act: '' }));
+    fs.filter(mine).forEach(x => all.push({ x, t: 'مرفق', c: esc(x.title || ''), d: esc(x.at || ''), k: String(x.at || ''), act: mgLink(x.url, 'فتح') }));
+    all.sort((a, z) => z.k.localeCompare(a.k));
+    n = all.length;
+    head = '<tr><th>المشرفة</th><th>المستند</th><th>المركز / العنوان</th><th>التاريخ</th><th></th></tr>';
+    body = all.slice(0, MG_LIMIT).map(o => '<tr><td>' + who(o.x) + '</td><td>' + o.t + '</td><td>' + o.c + '</td><td>' + o.d + '</td><td style="white-space:nowrap">' + o.act + '</td></tr>').join('');
   } else {
     const L = fs.filter(mine); n = L.length;
     head = '<tr><th>المشرفة</th><th>العنوان</th><th>الملف</th><th>وقت الرفع</th><th>المشاركة مع المعلمات</th></tr>';

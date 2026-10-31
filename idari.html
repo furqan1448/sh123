@@ -102,6 +102,7 @@
       <button class="tile" onclick="idOpenList('mgreval')"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7.5" r="3.5"/><path d="M5.5 20c.6-3.6 3.3-6 6.5-6s5.9 2.4 6.5 6"/><path d="M16.5 3.5l1 2 2.2.3-1.6 1.5.4 2.2-2-1-2 1"/></svg><b>استمارة تقييم المديرة</b></button>
       <button class="tile" onclick="idOpenList('halls')"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 20.5h17"/><path d="M5 20.5V8l7-4.5L19 8v12.5"/><path d="M9 20.5v-4h6v4"/><path d="M8.5 10.5h2M13.5 10.5h2M8.5 13.5h2M13.5 13.5h2"/></svg><b>حصر القاعات في المراكز</b></button>
       <button class="tile" onclick="hsiOpen()" style="position:relative"><span class="hsi-badge hidden" id="hsiBadge">0</span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 20.5h17"/><path d="M5 20.5V8l7-4.5L19 8v12.5"/><path d="M9.5 20.5v-4.5h5v4.5"/><path d="M9 10.5h6"/></svg><b>الوارد من المراكز</b></button>
+      <button class="tile" onclick="mnOpenList()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="2.5"/><circle cx="16" cy="8" r="2.5"/><path d="M3.5 18c0-2.8 2-4.5 4.5-4.5s4.5 1.7 4.5 4.5"/><path d="M11.5 18c0-2.8 2-4.5 4.5-4.5s4.5 1.7 4.5 4.5"/><path d="M3 21h18"/></svg><b>محاضر الاجتماعات</b></button>
       <button class="tile" onclick="atOpen()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5l-8 8a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L9.7 17.2a1.7 1.7 0 0 1-2.4-2.4L15 7"/></svg><b>المرفقات</b></button>
     </div>
     <p style="text-align:center;margin-top:22px"><button class="btn light" onclick="logout()">تسجيل الخروج</button></p>
@@ -428,6 +429,12 @@
   </div>
 
   <!-- عرض نموذج -->
+  <div id="sgModal" class="modal hidden" onclick="if (event.target === this) sgCloseModal()">
+    <div class="modal-box" style="max-width:860px">
+      <button class="btn light" style="margin-bottom:10px" onclick="sgCloseModal()">إغلاق ✕</button>
+      <div id="sgModalBody"></div>
+    </div>
+  </div>
   <div id="idModal" class="modal hidden" onclick="if (event.target === this) idCloseModal()">
     <div class="modal-box" style="max-width:1140px">
       <button class="btn light" style="margin-bottom:10px" onclick="idCloseModal()">إغلاق ✕</button>
@@ -466,6 +473,8 @@
 <script src="autosave.js"></script>
 <script src="export.js"></script>
 <script src="idari-print.js"></script>
+<script src="sighar-print.js"></script>
+<script src="minutes.js"></script>
 <script src="attach.js"></script>
 <script src="my-centers.js"></script>
 <script src="idari.js"></script>

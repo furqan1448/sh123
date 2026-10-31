@@ -1,6 +1,8 @@
 /* ===== محاضر الاجتماعات (الإشراف التربوي وتحفيظ الصغار) =====
    تكتب المشرفة المحضر وتنشره لكل المعلمات أو لمعلمات محددات، فيصل لهن في أيقونة «المعلمات» ويضغطن «تم الاطلاع».
    بدون تواقيع. العرض و PDF بالكليشة الحمراء (صفحة A4 طولية). يُحمَّل بعد idari-print.js و sighar-print.js. */
+// الإشراف الإداري: المحضر بلا ربط مع المعلمات (يُحفظ ويُطبع ويُرسل للمركز فقط)
+const MN_NO_T = !!(document.body && document.body.id === 'idariPage');
 const MN_DAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
 /* ---------- شكل المحضر (نفس النموذج الورقي بدون تواقيع) ---------- */
@@ -118,6 +120,12 @@ const mn$ = id => document.getElementById(id);
       <div id="mnAckBody"></div>
     </div>
   </div>`;
+  if (MN_NO_T) {   // الإشراف الإداري: لا نشر للمعلمات
+    const hint = div.querySelector('#mnListView .rp-hint'); if (hint) hint.textContent = 'تكتب المشرفة محضر الاجتماع وتحفظه، ثم تعرضه أو تحمّله PDF أو ترسله للمركز.';
+    const h2 = div.querySelectorAll('#mnListView h2')[1]; if (h2) h2.textContent = 'المحاضر المحفوظة';
+    const pick = div.querySelector('#mnMode'); if (pick) { const card = pick.closest('.card'); card.querySelector('h2').remove(); pick.remove(); card.querySelector('#mnSomeBox').remove(); }
+    const sb = div.querySelector('#mnSaveBtn'); if (sb) { sb.textContent = 'حفظ المحضر'; sb.style.marginTop = '0'; }
+  }
   while (div.firstElementChild) wrap.appendChild(div.firstElementChild);
   mn$('mnDay').innerHTML = MN_DAYS.map(x => '<option>' + x + '</option>').join('');
   let dd = '', mm = '';
@@ -126,10 +134,12 @@ const mn$ = id => document.getElementById(id);
   mn$('mnHD').innerHTML = dd; mn$('mnHM').innerHTML = mm;
   const syncDay = () => { const g = idHToG(mn$('mnHY').value, mn$('mnHM').value, mn$('mnHD').value); if (g) { const p = g.split('-'); mn$('mnDay').value = MN_DAYS[new Date(+p[0], +p[1] - 1, +p[2]).getDay()]; } };
   ['mnHD', 'mnHM', 'mnHY'].forEach(id => mn$(id).addEventListener('change', syncDay));
-  mn$('mnMode').addEventListener('change', () => mn$('mnSomeBox').classList.toggle('hidden', mnMode() === 'all'));
-  mn$('mnSearch').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); mnPick(); } });
+  if (!MN_NO_T) {
+    mn$('mnMode').addEventListener('change', () => mn$('mnSomeBox').classList.toggle('hidden', mnMode() === 'all'));
+    mn$('mnSearch').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); mnPick(); } });
+  }
 })();
-const mnMode = () => (document.querySelector('#mnMode input:checked') || {}).value || 'some';
+const mnMode = () => MN_NO_T ? 'some' : ((document.querySelector('#mnMode input:checked') || {}).value || 'some');
 
 /* ---------- الأسطر (نقاط، نتائج، مشاركات) ---------- */
 function mnAdd(box, v, names) {
@@ -186,16 +196,16 @@ async function mnLoad() {
 }
 function mnRender() {
   const box = mn$('mnList'); if (!box) return;
-  if (!MN.length) { box.innerHTML = '<p class="empty">لا توجد محاضر منشورة</p>'; return; }
+  if (!MN.length) { box.innerHTML = '<p class="empty">' + (MN_NO_T ? 'لا توجد محاضر محفوظة' : 'لا توجد محاضر منشورة') + '</p>'; return; }
   if (typeof rcCard === 'function') {   // نفس شكل بطاقات باقي القوائم
     rcStart();
     box.className = 'rc-list';
     box.innerHTML = MN.map((r, i) => {
       const tg = (r.data && r.data.target) || {}, n = tg.all ? null : (tg.ids || []).length, a = (r.acks || []).length, id = esc(r.id);
       return rcCard({ no: idDigits(i + 1), title: 'محضر اجتماع رقم ( ' + esc(idDigits(r.no)) + ' )', sub: esc(r.center || ''),
-        meta: [rcM('التاريخ', esc((r.dayName || '') + ' ' + idDigits(r.hijri || '')).trim()), rcM('يصل إلى', tg.all ? 'كل المعلمات' : idDigits(n) + ' معلمة')],
-        tags: '<span class="tag ' + (n != null && a >= n ? 'ok' : 'warn') + '">اطّلعت: ' + idDigits(a) + (n != null ? ' من ' + idDigits(n) : '') + '</span>' + (typeof scTag === 'function' ? scTag('min', r.id) : ''),
-        main: [['عرض', 'mnView(\'' + id + '\')'], ['PDF', 'mnDo(\'' + id + '\', this, \'pdf\')'], typeof scAct === 'function' ? scAct('min', r.id) : null, ['من اطّلعت', 'mnAcks(\'' + id + '\')']],
+        meta: [rcM('التاريخ', esc((r.dayName || '') + ' ' + idDigits(r.hijri || '')).trim())].concat(MN_NO_T ? [] : [rcM('يصل إلى', tg.all ? 'كل المعلمات' : idDigits(n) + ' معلمة')]),
+        tags: (MN_NO_T ? '' : '<span class="tag ' + (n != null && a >= n ? 'ok' : 'warn') + '">اطّلعت: ' + idDigits(a) + (n != null ? ' من ' + idDigits(n) : '') + '</span>') + (typeof scTag === 'function' ? scTag('min', r.id) : ''),
+        main: [['عرض', 'mnView(\'' + id + '\')'], ['PDF', 'mnDo(\'' + id + '\', this, \'pdf\')'], typeof scAct === 'function' ? scAct('min', r.id) : null, MN_NO_T ? null : ['من اطّلعت', 'mnAcks(\'' + id + '\')']],
         more: [['🔗 مشاركة', 'mnDo(\'' + id + '\', this, \'share\')'], '-', ['✏️ تعديل', 'mnEditRec(\'' + id + '\')'], ['✕ حذف', 'mnDel(\'' + id + '\')', 'danger']] });
     }).join('');
     return;
@@ -249,9 +259,10 @@ function mnFill(r) {
   mn$('mnHD').value = h.d; mn$('mnHM').value = h.m; mn$('mnHY').value = h.y;
   mn$('mnDay').value = r.dayName || MN_DAYS[new Date().getDay()];
   mnSet('mnPoints', d.points); mnSet('mnOuts', d.outs); mnSet('mnParts', d.parts, true);
+  mnPicked = (tg.ids || []).map((id, i) => ({ id, name: (tg.names || [])[i] || id }));
+  if (MN_NO_T) return;
   document.querySelectorAll('#mnMode input').forEach(i => { i.checked = i.value === (tg.all ? 'all' : 'some'); });
   mn$('mnSomeBox').classList.toggle('hidden', !!tg.all);
-  mnPicked = (tg.ids || []).map((id, i) => ({ id, name: (tg.names || [])[i] || id }));
   mnRenderPicked();
   mnLoadDir();
 }
@@ -267,12 +278,12 @@ async function mnSave(btn) {
       target: { all, ids: all ? [] : mnPicked.map(t => t.id), names: all ? [] : mnPicked.map(t => t.name) } } };
   if (!req.no) return toast('اكتبي رقم الاجتماع', false);
   if (!req.data.points.length) return toast('اكتبي نقطة واحدة على الأقل من نقاط الاجتماع', false);
-  if (!all && !mnPicked.length) return toast('حدّدي المعلمات اللاتي يصلهن المحضر، أو اختاري «كل المعلمات»', false);
-  setBtnBusy(btn, true, 'جارِ النشر...');
+  if (!MN_NO_T && !all && !mnPicked.length) return toast('حدّدي المعلمات اللاتي يصلهن المحضر، أو اختاري «كل المعلمات»', false);
+  setBtnBusy(btn, true, MN_NO_T ? 'جارِ الحفظ...' : 'جارِ النشر...');
   try {
     const res = await api('saveMinute', req);
     if (typeof AD !== 'undefined') AD.done('mnForm', mnEdit && mnEdit.id);
-    toast(mnEdit ? 'تم حفظ التعديل' : 'تم نشر المحضر');
+    toast(mnEdit ? 'تم حفظ التعديل' : MN_NO_T ? 'تم حفظ المحضر' : 'تم نشر المحضر');
     const rec = { id: res.id, kind: 'min', no: req.no, dayName: req.dayName, hijri: req.data.hd + '/' + req.data.hm + '/' + hy + 'هـ', center: req.center, data: req.data, acks: mnEdit ? mnEdit.acks : [] };
     MN = MN.filter(r => r.id !== rec.id); MN.unshift(rec); cacheSet('minutes', MN);
     mnEdit = null; show('mnListView'); mnRender(); mnLoad();

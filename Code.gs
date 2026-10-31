@@ -1860,8 +1860,9 @@ function saveMinute_(r) {
   const d = r.data && typeof r.data === 'object' ? r.data : {};
   const list = (a, n, len) => (Array.isArray(a) ? a : []).map(x => s(x, len)).filter(Boolean).slice(0, n);
   const tg = d.target && typeof d.target === 'object' ? d.target : {};
-  const target = { all: !!tg.all, ids: tg.all ? [] : list(tg.ids, 400, 40), names: tg.all ? [] : list(tg.names, 400, 120) };
-  if (!target.all && !target.ids.length) throw new Error('حدّدي المعلمات اللاتي يصلهن المحضر، أو اختاري «كل المعلمات»');
+  const noT = me.unit === IDARI_UNIT;   // الإشراف الإداري: المحضر لا يُنشر للمعلمات
+  const target = noT ? { all: false, ids: [], names: [] } : { all: !!tg.all, ids: tg.all ? [] : list(tg.ids, 400, 40), names: tg.all ? [] : list(tg.names, 400, 120) };
+  if (!noT && !target.all && !target.ids.length) throw new Error('حدّدي المعلمات اللاتي يصلهن المحضر، أو اختاري «كل المعلمات»');
   const data = { points: list(d.points, 40, 1000), outs: list(d.outs, 40, 1000), parts: list(d.parts, 80, 120), target: target,
     hd: s(d.hd, 2), hm: s(d.hm, 2), hy: s(d.hy, 4) };
   if (!data.points.length) throw new Error('اكتبي نقطة واحدة على الأقل من نقاط الاجتماع');

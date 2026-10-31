@@ -1,6 +1,6 @@
 // ===== الإعدادات =====
 // الصقي هنا رابط الـ Web App بعد النشر (ينتهي بـ /exec)
-const API_URL = "https://script.google.com/macros/s/AKfycbynUmuHUXTRZBxD_Qv26Y_d7HUJ3EmRFo6ow2CVhVkOKpmdzWFcmFjIPX2M0Qsev9qBVA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxiqg4FzYOkKHECh8UKt2xN4-Tg0OcZJYSthY1ypf9fPAiAUKh0eX0CZ_32__xblkfVug/exec";
 
 const PW_KEY = 'mush_pw';
 const USER_KEY = 'mush_user';
@@ -439,3 +439,55 @@ function pdfBusy(on) {
   }
   o.style.display = PDF_BUSY_N ? 'flex' : 'none';
 }
+
+/* ===== التواريخ: تظهر في كل الصفحات بترتيب ثابت وصحيح من اليمين لليسار (اليوم ثم الشهر ثم السنة) =====
+   التاريخ المكتوب نصاً (مثل 2026-10-28 أو ١٤٤٨/٥/٧ أو ٧/٥/١٤٤٨) قد تنقلب أجزاؤه بجانب النص العربي حسب نوع الأرقام والفاصل،
+   فنعزله ونرتّبه: السنة يساراً واليوم يميناً، فيُقرأ من اليمين: اليوم / الشهر / السنة. */
+(function () {
+  const D = '0-9٠-٩';
+  const RE = new RegExp('([' + D + ']{1,4})(\\s?[-/]\\s?)([' + D + ']{1,2})(\\s?[-/]\\s?)([' + D + ']{1,4})', 'g');
+  const SKIP = /^(SCRIPT|STYLE|TEXTAREA|INPUT|OPTION|SELECT|BDI|CODE)$/;
+  const num = t => parseInt(String(t).replace(/[٠-٩]/g, d => d.charCodeAt(0) - 0x660), 10);
+  function fixText(node) {
+    const t = node.nodeValue;
+    if (!t || t.length < 6 || !/[-/]/.test(t)) return;
+    RE.lastIndex = 0;
+    if (!RE.test(t)) return;
+    RE.lastIndex = 0;
+    const frag = document.createDocumentFragment();
+    let last = 0, m, changed = false;
+    while ((m = RE.exec(t))) {
+      const [all, a, s1, b, s2, c] = m;
+      let y, mo, d, sy, sd;
+      if (a.length === 4 && c.length <= 2) { y = a; mo = b; d = c; sy = s1; sd = s2; }
+      else if (c.length === 4 && a.length <= 2) { y = c; mo = b; d = a; sy = s2; sd = s1; }
+      else continue;
+      const mv = num(mo), dv = num(d);
+      if (!(mv >= 1 && mv <= 12 && dv >= 1 && dv <= 31)) continue;
+      frag.appendChild(document.createTextNode(t.slice(last, m.index)));
+      // كل جزء معزول وحده، والترتيب من اليمين: اليوم ثم الشهر ثم السنة (مهما كان نوع الأرقام أو الفاصل)
+      const el = document.createElement('bdi');
+      el.className = 'dt-fix'; el.dir = 'rtl';
+      const part = v => { const x = document.createElement('bdi'); x.textContent = v; return x; };
+      el.appendChild(part(d)); el.appendChild(document.createTextNode(sd.trim() || sd)); el.appendChild(part(mo)); el.appendChild(document.createTextNode(sy.trim() || sy)); el.appendChild(part(y));
+      frag.appendChild(el);
+      last = m.index + all.length; changed = true;
+    }
+    if (!changed) return;
+    frag.appendChild(document.createTextNode(t.slice(last)));
+    node.parentNode.replaceChild(frag, node);
+  }
+  function walk(root) {
+    if (!root) return;
+    if (root.nodeType === 3) { if (root.parentNode && !SKIP.test(root.parentNode.nodeName) && !(root.parentNode.closest && root.parentNode.closest('bdi,[contenteditable="true"],#vHijri,[data-nodt]'))) fixText(root); return; }
+    if (root.nodeType !== 1 || SKIP.test(root.nodeName) || root.isContentEditable) return;
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => (n.parentNode && !SKIP.test(n.parentNode.nodeName) && !n.parentNode.closest('bdi,[contenteditable="true"],#vHijri,[data-nodt]')) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT });
+    const list = []; while (w.nextNode()) list.push(w.currentNode);
+    list.forEach(fixText);
+  }
+  const start = () => {
+    walk(document.body);
+    new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(walk))).observe(document.body, { childList: true, subtree: true });
+  };
+  if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+})();
