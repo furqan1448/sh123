@@ -231,6 +231,10 @@ function route_(r) {
     case 'getDrafts': return { ok: true, data: getDrafts_(r.username) };
     case 'saveDraft': return withLock_(() => saveDraft_(r));
     case 'deleteDraft': return withLock_(() => deleteDraft_(r));
+    // مسودات كل النماذج (autosave.js): تظهر للمشرفة من أي جهاز
+    case 'adList': return { ok: true, data: adList_(r) };
+    case 'adSave': return withLock_(() => adSave_(r));
+    case 'adDel': return withLock_(() => adDel_(r));
     case 'addEval': return withLock_(() => addEval_(r));
     case 'updateEval': return withLock_(() => updateEval_(r));
     case 'deleteEval': return withLock_(() => { const o = deleteById_(SHEET.EVALS, r.id, true, EVAL_URL_COL); sigDel_(r.id); evalsBump_(); return o; });
@@ -943,6 +947,55 @@ function deleteDraft_(r) {
   return { ok: true };
 }
 
+
+/* ============ مسودات النماذج (كل الوحدات) ============
+   ما تكتبه المشرفة في أي نموذج ولم تحفظه بعد: يُحفظ في جهازها وهنا أيضاً، فيظهر لها من أي جهاز.
+   ورقة «مسودات النماذج»: المستخدم | النموذج | آخر تعديل | البيانات — وتُحذف المسودة بعد حفظ النموذج. (التواقيع لا تُحفظ في المسودات) */
+const ADR_SHEET = 'مسودات النماذج';
+const ADR_HEADERS = ['المستخدم', 'النموذج', 'آخر تعديل', 'البيانات'];
+function adrSheet_() {
+  const ss = ss_();
+  let sh = ss.getSheetByName(ADR_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(ADR_SHEET);
+    sh.getRange(1, 1, 1, ADR_HEADERS.length).setValues([ADR_HEADERS]);
+    styleHeader_(sh, ADR_HEADERS.length);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+function adrRow_(sh, u, key) {
+  const last = sh.getLastRow();
+  if (last < 2) return 0;
+  const v = sh.getRange(2, 1, last - 1, 2).getValues();
+  for (let i = 0; i < v.length; i++) if (String(v[i][0]) === u && String(v[i][1]) === key) return i + 2;
+  return 0;
+}
+function adList_(r) {
+  const sh = ss_().getSheetByName(ADR_SHEET);
+  if (!sh || sh.getLastRow() < 2) return [];
+  const u = norm_(r.username).toLowerCase();
+  return sh.getRange(2, 1, sh.getLastRow() - 1, ADR_HEADERS.length).getValues()
+    .filter(x => String(x[0]) === u && x[1]).map(x => ({ key: String(x[1]), t: Number(x[2]) || 0, data: String(x[3] || '') }));
+}
+function adSave_(r) {
+  const u = norm_(r.username).toLowerCase(), key = String(r.key || '').slice(0, 150), data = String(r.data || ''), t = Number(r.t) || Date.now();
+  if (!key || !data) throw new Error('مسودة غير صالحة');
+  if (data.length > 45000) return { ok: true, skipped: true };   // كبيرة: تبقى في الجهاز فقط
+  const sh = adrSheet_();
+  const row = adrRow_(sh, u, key);
+  if (row && Number(sh.getRange(row, 3).getValue()) > t) return { ok: true, stale: true };   // نسخة أحدث محفوظة من جهاز آخر
+  sh.getRange(row || sh.getLastRow() + 1, 1, 1, ADR_HEADERS.length).setNumberFormat('@').setValues([[u, key, String(t), data]]);
+  return { ok: true };
+}
+function adDel_(r) {
+  const sh = ss_().getSheetByName(ADR_SHEET);
+  if (!sh) return { ok: true };
+  const keys = (Array.isArray(r.keys) ? r.keys : [r.key]).map(k => String(k || '')).filter(Boolean);
+  const u = norm_(r.username).toLowerCase();
+  keys.forEach(k => { const row = adrRow_(sh, u, k); if (row) sh.deleteRow(row); });
+  return { ok: true };
+}
 
 /* شغّليها مرة واحدة من Apps Script لإزالة قيود التحقق القديمة من ورقة «كشف الخروج» */
 function fixVisitValidation() {
