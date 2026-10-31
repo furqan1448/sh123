@@ -1,6 +1,6 @@
 // ===== الإعدادات =====
 // الصقي هنا رابط الـ Web App بعد النشر (ينتهي بـ /exec)
-const API_URL = "https://script.google.com/macros/s/AKfycbxkSAFrUFDPQU-Vz3UiPU7Uv-NQiwkIAwvnO0elYEEztY37AJGqyXDlif4mHCSWGR-5jA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxiqg4FzYOkKHECh8UKt2xN4-Tg0OcZJYSthY1ypf9fPAiAUKh0eX0CZ_32__xblkfVug/exec";
 
 const PW_KEY = 'mush_pw';
 const USER_KEY = 'mush_user';
@@ -492,14 +492,8 @@ function pdfBusy(on) {
   if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
 })();
 
-/* ===== إظهار الصفحة بعد تجهيزها (الخط والصفحة المناسبة: الدخول أو الرئيسية) دفعة واحدة دون رمشة ===== */
+/* بعد تجهيز الصفحة: تظهر شاشة الدخول لمن لم تدخل (كانت مخفية فقط لمن هي داخلة) */
 (function () {
-  const d = document.documentElement;
-  const reveal = () => requestAnimationFrame(() => d.classList.remove('pg-wait', 'has-sess'));
-  const ready = () => {
-    let done = false; const go = () => { if (!done) { done = true; reveal(); } };
-    try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(go); else go(); } catch (e) { go(); }
-    setTimeout(go, 700);   // لا ننتظر الخط أكثر من ذلك
-  };
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready); else ready();
+  const go = () => document.documentElement.classList.remove('has-sess');
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
 })();
