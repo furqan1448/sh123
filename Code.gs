@@ -1077,7 +1077,16 @@ function getManage_(me) {
   users.concat(visits, evals, files, idari, sgh, minutes).forEach(x => { seen[x.unit] = 1; });
   if (!all) seen[me.unit] = 1;
   const reports = reportsList_().filter(x => inScope(x.unit)).map(x => Object.assign(x, { unit: U(x.unit) }));
-  return { ok: true, me: me, units: Object.keys(seen).sort(), users: users, visits: visits, evals: evals, files: files, idari: idari, sgh: sgh, minutes: minutes, reports: reports };
+  // المراكز المشرفة عليها لكل مشرفة (لإنجازات الزيارات في صفحة إدارة الوحدات): { اسم المستخدم: [{ name, period }] }
+  const uIn = {}; users.forEach(u => { uIn[u.username] = 1; });
+  const myc = {};
+  try {
+    if (ss_().getSheetByName(MYC_SHEET_)) mycAll_(mycSheet_()).forEach(r => {
+      const u = String(r[3]).trim().toLowerCase(), c = String(r[0]).trim();
+      if (uIn[u] && c) (myc[u] = myc[u] || []).push({ name: c, period: String(r[1]).trim() });
+    });
+  } catch (e) {}
+  return { ok: true, me: me, units: Object.keys(seen).sort(), users: users, visits: visits, evals: evals, files: files, idari: idari, sgh: sgh, minutes: minutes, reports: reports, myc: myc };
 }
 
 

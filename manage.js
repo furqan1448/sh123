@@ -29,7 +29,7 @@ const $ = id => document.getElementById(id);
 const MG_USER = 'mgr_user', MG_PW = 'mgr_pw';   // مفاتيح مستقلة عن صفحة المشرفات (لا يتداخل الحسابان)
 
 function show(id) {
-  ['loginView', 'manageView'].forEach(v => $(v).classList.add('hidden'));
+  ['loginView', 'manageView', 'achView'].forEach(v => { const el = $(v); if (el) el.classList.add('hidden'); });
   $(id).classList.remove('hidden');
   window.scrollTo(0, 0);
 }
@@ -251,11 +251,14 @@ function mgRender() {
   mgKnown = known; mgSupSel = sup; mgFrom = from; mgTo = to; mgUnitSel = unit;
 
   // ملخص أعلى الصفحة
+  const myc = (MG && MG.myc) || {};
+  const mycN = users.reduce((n, u) => n + ((myc[u.username] || []).length), 0);
+  const stat = (n, l, d) => '<div><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg></div><div><b>' + n + '</b><span>' + l + '</span></div></div>';
   document.getElementById('mgStats').innerHTML =
-    '<div class="stat"><b>' + users.length + '</b><span>المشرفات</span></div>' +
-    '<div class="stat"><b>' + vs.length + '</b><span>الزيارات</span></div>' +
-    '<div class="stat"><b>' + (es.length + ids.length + sgs.length + mins.length) + '</b><span>' + ((ids.length || sgs.length) && !es.length ? (sgs.length && !ids.length ? 'تقارير الزيارة' : 'النماذج') : (ids.length || sgs.length) ? 'الاستمارات والنماذج' : 'الاستمارات') + '</span></div>' +
-    '<div class="stat"><b>' + fs.length + '</b><span>المرفقات</span></div>';
+    stat(users.length, 'المشرفات', '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.4A4.6 4.6 0 0 1 21 19"/>') +
+    stat(vs.length, 'الزيارات', '<path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4"/><path d="M10 13l2 2 3.5-4"/>') +
+    stat(mycN, 'المراكز المشرفة عليها', '<path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-5h6v5"/><path d="M9.5 11l1.8 1.8 3.2-3.3"/>') +
+    stat(mins.length, 'الاجتماعات', '<circle cx="8" cy="8" r="2.5"/><circle cx="16" cy="8" r="2.5"/><path d="M3.5 18c0-2.8 2-4.5 4.5-4.5s4.5 1.7 4.5 4.5"/><path d="M11.5 18c0-2.8 2-4.5 4.5-4.5s4.5 1.7 4.5 4.5"/>');
 
   // جدول المشرفات
   document.getElementById('mgSum').innerHTML = rows.length ? rows.map(r => {
@@ -344,4 +347,57 @@ function mgRender() {
   document.getElementById('mgHead').innerHTML = head;
   document.getElementById('mgBody').innerHTML = body || '<tr><td colspan="9" class="empty">لا توجد سجلات</td></tr>';
   if (n > MG_LIMIT) document.getElementById('mgBody').insertAdjacentHTML('beforeend', '<tr><td colspan="6" class="empty">يظهر أحدث ' + MG_LIMIT + ' سجل من ' + n + '، استخدمي التاريخ لتضييق العرض</td></tr>');
+}
+
+/* ===================== الإنجازات: زيارات كل مشرفة للمراكز المشرفة عليها ===================== */
+// مطابقة المركز: الاسم (بدون «الفترة ...» وبتوحيد الهمزات) + الفترة
+const achName = c => String(c || '').replace(/\s*[-–—]?\s*(ال)?فتر(ة|تين|تان)\s+.*$/, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/[\s\u0640]+/g, '').trim();   // بدون مسافات (عبدالله = عبد الله)
+const achPer = t => { t = String(t || ''); const m = /مسائ|عصر/.test(t), s = /صباح/.test(t); return m && s ? 'b' : m ? 'p' : s ? 'a' : ''; };
+// «مركز واحد / مركزان / ٣ مراكز / ١١ مركزاً»
+const achCnt = n => n === 1 ? 'مركز واحد' : n === 2 ? 'مركزان' : idDigits(n) + (n >= 3 && n <= 10 ? ' مراكز' : ' مركزاً');
+const achShow = c => String(c.name || '') + (c.period ? ' (' + c.period + ')' : '');
+function achOpen() { show('achView'); achRender(); }
+function achRender() {
+  if (!MG) return;
+  const unit = document.getElementById('mgUnit').value;
+  const from = document.getElementById('mgFrom').value, to = document.getElementById('mgTo').value;
+  const inR = d => { d = String(d || '').slice(0, 10); return (!from || (d && d >= from)) && (!to || (d && d <= to)); };
+  const users = MG.users.filter(u => u.unit === unit), myc = MG.myc || {};
+  // الزيارات المحسوبة (تمت الزيارة) لكل مشرفة: مفتاح المركز ← عدد الزيارات
+  const byU = {};
+  MG.visits.filter(v => v.unit === unit && v.counted && v.center && inR(v.date)).forEach(v => {
+    const k = achName(v.center) + '|' + achPer(v.center);
+    const m = byU[v.owner] = byU[v.owner] || {}; m[k] = (m[k] || 0) + 1;
+  });
+  const list = users.map(u => {
+    const C = myc[u.username] || [], seen = byU[u.username] || {};
+    const visited = [], rest = [];
+    C.forEach(c => { const k = achName(c.name) + '|' + achPer(c.period); (seen[k] || seen[achName(c.name) + '|'] ? visited : rest).push(c); });
+    const pct = C.length ? Math.round(visited.length * 100 / C.length) : 0;
+    return { u, C, visited, rest, pct, done: C.length > 0 && !rest.length };
+  }).sort((a, b) => (b.done - a.done) || (b.pct - a.pct) || a.u.name.localeCompare(b.u.name, 'ar'));
+  const D = n => idDigits(n);
+  const tot = list.reduce((o, x) => { o.c += x.C.length; o.v += x.visited.length; return o; }, { c: 0, v: 0 });
+  const doneN = list.filter(x => x.done).length;
+  const range = from || to ? 'من ' + (from || '—') + ' إلى ' + (to || '—') : 'كل الفترات';
+  const R = 32, L = 2 * Math.PI * R;
+  const ring = p => '<div class="ach-ring"><svg viewBox="0 0 76 76"><circle class="bg" cx="38" cy="38" r="' + R + '" fill="none" stroke-width="8"/><circle class="fg" cx="38" cy="38" r="' + R + '" fill="none" stroke-width="8" stroke-dasharray="' + L.toFixed(1) + '" stroke-dashoffset="' + (L * (1 - p / 100)).toFixed(1) + '"/></svg><em>' + D(p) + '٪</em></div>';
+  const check = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.6 2.6L16 9.6"/></svg>';
+  const card = x => {
+    const ini = String(x.u.name || '?').trim().charAt(0);
+    let h = '<div class="ach-card' + (x.done ? ' done' : '') + '"><div class="ach-top"><div class="ach-av">' + esc(ini) + '</div><div class="ach-nm"><b>' + esc(x.u.name) + '</b><small>' +
+      (x.C.length ? achCnt(x.C.length) + ' تشرف عليها' : 'لم تحدد مراكزها بعد') + '</small></div>' + (x.C.length ? ring(x.pct) : '') + '</div>';
+    if (!x.C.length) return h + '<div class="ach-none">لم تحدد المشرفة «المراكز المشرفة عليها» بعد</div></div>';
+    h += '<div class="ach-nums"><div><b>' + D(x.C.length) + '</b><span>المراكز</span></div><div class="v"><b>' + D(x.visited.length) + '</b><span>تمت زيارتها</span></div><div class="r"><b>' + D(x.rest.length) + '</b><span>المتبقي</span></div></div>' +
+      '<div class="ach-bar"><i style="width:' + x.pct + '%"></i></div>';
+    if (x.done) h += '<div class="ach-done">' + check + 'تمت زيارة جميع المراكز</div>';
+    else h += '<details class="ach-rest"><summary>المراكز المتبقية (' + D(x.rest.length) + ') ▾</summary><div class="ach-chips">' + x.rest.map(c => '<span>' + esc(achShow(c)) + '</span>').join('') + '</div></details>';
+    if (x.visited.length && !x.done) h += '<details class="ach-rest"><summary>تمت زيارتها (' + D(x.visited.length) + ') ▾</summary><div class="ach-chips ok">' + x.visited.map(c => '<span>' + esc(achShow(c)) + '</span>').join('') + '</div></details>';
+    return h + '</div>';
+  };
+  $('achBody').innerHTML = '<div class="ach-hero"><h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>إنجازات المشرفات</h2>' +
+    '<p>' + esc(unit) + ' — ' + esc(range) + ' — حسب «المراكز المشرفة عليها» وكشف الخروج</p>' +
+    '<div class="ach-sum"><div><b>' + D(users.length) + '</b><span>المشرفات</span></div><div><b>' + D(doneN) + '</b><span>أتمّت زيارة جميع مراكزها</span></div>' +
+    '<div><b>' + D(tot.v) + ' / ' + D(tot.c) + '</b><span>المراكز التي تمت زيارتها</span></div><div><b>' + D(tot.c ? Math.round(tot.v * 100 / tot.c) : 0) + '٪</b><span>نسبة الإنجاز</span></div></div></div>' +
+    (list.length ? '<div class="ach-grid">' + list.map(card).join('') + '</div>' : '<p class="empty">لا توجد مشرفات في هذه الوحدة</p>');
 }

@@ -8,6 +8,60 @@
 <title>إدارة الوحدات — منظومة مشرفات مكتب إشراف الداخل</title>
 <link rel="preconnect" href="https://script.google.com">
 <link rel="stylesheet" href="style.css">
+<style>
+/* ===== بطاقات الأرقام ===== */
+.mg-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.mg-stats>div{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 10px rgba(122,31,43,.06)}
+.mg-stats .ic{width:46px;height:46px;border-radius:12px;background:#f6f0f2;color:var(--primary);display:flex;align-items:center;justify-content:center;flex:none}
+.mg-stats .ic svg{width:26px;height:26px}
+.mg-stats b{display:block;font-size:26px;color:var(--primary);line-height:1.1}
+.mg-stats span{font-size:13.5px;color:var(--muted);font-weight:700}
+@media(max-width:760px){.mg-stats{grid-template-columns:repeat(2,1fr)}}
+.ach-open{display:flex;align-items:center;gap:14px;width:100%;background:linear-gradient(135deg,#fffaf0,#fff);border:1.5px solid var(--gold);border-radius:18px;padding:14px 18px;margin-bottom:16px;cursor:pointer;font:inherit;text-align:right;color:var(--primary);box-shadow:0 4px 16px rgba(201,162,75,.15)}
+.ach-open .tr{width:50px;height:50px;border-radius:14px;background:linear-gradient(135deg,#d8b45a,#b08a2e);color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
+.ach-open .tr svg{width:28px;height:28px}
+.ach-open b{display:block;font-size:17px}.ach-open small{color:var(--muted);font-weight:600;font-size:13px}
+.ach-open .go{margin-inline-start:auto;font-size:22px;color:var(--gold)}
+/* ===== الإنجازات ===== */
+.ach-hero{position:relative;overflow:hidden;background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;border-radius:22px;padding:22px;margin-bottom:18px;border-bottom:4px solid var(--gold)}
+.ach-hero:after{content:"";position:absolute;inset-inline-start:-40px;top:-60px;width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,.06)}
+.ach-hero h2{color:#fff;font-size:21px;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+.ach-hero h2 svg{width:28px;height:28px;color:#f2d38a}
+.ach-hero p{color:#ecd3d7;font-size:13.5px;margin:0}
+.ach-sum{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px;position:relative;z-index:1}
+.ach-sum>div{background:rgba(255,255,255,.1);border-radius:14px;padding:12px 8px;text-align:center}
+.ach-sum b{display:block;font-size:26px}.ach-sum span{font-size:12.5px;color:#ecd3d7;font-weight:700}
+@media(max-width:620px){.ach-sum{grid-template-columns:repeat(2,1fr)}}
+.ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.ach-card{position:relative;background:#fff;border:1.5px solid var(--line);border-radius:20px;padding:18px;box-shadow:0 4px 18px rgba(122,31,43,.06)}
+.ach-card.done{border-color:#d8b45a;background:linear-gradient(160deg,#fffaf0 0%,#fff 55%)}
+.ach-top{display:flex;align-items:center;gap:12px}
+.ach-av{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--primary),#a8404f);color:#fff;font-weight:800;font-size:19px;display:flex;align-items:center;justify-content:center;flex:none}
+.ach-card.done .ach-av{background:linear-gradient(135deg,#d8b45a,#b08a2e)}
+.ach-nm b{display:block;font-size:16.5px;color:var(--text)}.ach-nm small{color:var(--muted);font-weight:600}
+.ach-ring{margin-inline-start:auto;position:relative;width:76px;height:76px;flex:none}
+.ach-ring svg{width:76px;height:76px;transform:rotate(-90deg)}
+.ach-ring .bg{stroke:#f1e7e9}.ach-ring .fg{stroke:var(--primary);stroke-linecap:round;transition:stroke-dashoffset .6s}
+.ach-card.done .ach-ring .fg{stroke:#c9a24b}
+.ach-ring em{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:800;font-size:17px;color:var(--primary)}
+.ach-card.done .ach-ring em{color:#9a7424}
+.ach-nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.ach-nums>div{border-radius:12px;padding:9px 6px;text-align:center;background:#faf6f7}
+.ach-nums b{display:block;font-size:20px}.ach-nums span{font-size:12px;color:var(--muted);font-weight:700}
+.ach-nums .v b{color:#1f7a4d}.ach-nums .r b{color:var(--primary)}
+.ach-bar{height:8px;border-radius:99px;background:#f1e7e9;overflow:hidden;margin-top:12px}
+.ach-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#a8404f,var(--primary))}
+.ach-card.done .ach-bar i{background:linear-gradient(90deg,#e2c271,#c9a24b)}
+.ach-done{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;background:linear-gradient(135deg,#d8b45a,#b08a2e);color:#fff;border-radius:12px;padding:10px;font-weight:800;font-size:15px}
+.ach-done svg{width:22px;height:22px}
+.ach-rest{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}
+.ach-rest summary{cursor:pointer;font-weight:800;color:var(--primary);font-size:14px;list-style:none}
+.ach-rest summary::-webkit-details-marker{display:none}
+.ach-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ach-chips span{background:#fbeef0;color:#8a1f2b;border-radius:999px;padding:4px 11px;font-size:12.5px;font-weight:700}
+.ach-chips.ok span{background:#e4f4ec;color:#1f6b40}
+.ach-none{margin-top:14px;background:#f7f3f4;border-radius:12px;padding:12px;color:var(--muted);font-weight:700;text-align:center;font-size:14px}
+</style>
 </head>
 <body>
 <div class="topbar">
@@ -56,7 +110,8 @@
       </div>
     </div>
 
-    <div class="stats" id="mgStats"></div>
+    <div class="mg-stats" id="mgStats"></div>
+    <button class="ach-open" onclick="achOpen()"><span class="tr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg></span><span><b>الإنجازات</b><small>زيارات كل مشرفة للمراكز المشرفة عليها، والمتبقي منها</small></span><span class="go">‹</span></button>
 
     <div class="card">
       <h2>المشرفات</h2>
@@ -92,6 +147,12 @@
         </table>
       </div>
     </div>
+  </div>
+
+  <!-- الإنجازات -->
+  <div id="achView" class="hidden">
+    <button class="back" onclick="show('manageView')">← رجوع</button>
+    <div id="achBody"></div>
   </div>
 
 </div>
