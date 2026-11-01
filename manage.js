@@ -251,6 +251,7 @@ function mgRender() {
   mgKnown = known; mgSupSel = sup; mgFrom = from; mgTo = to; mgUnitSel = unit;
 
   // ملخص أعلى الصفحة
+  if (mgPaneCur === 'ach') setTimeout(achRender, 0);   // تغيّر الوحدة أو التاريخ: تتحدث الإنجازات أيضاً
   const myc = (MG && MG.myc) || {};
   const mycN = users.reduce((n, u) => n + ((myc[u.username] || []).length), 0);
   const stat = (n, l, d) => '<div><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg></div><div><b>' + n + '</b><span>' + l + '</span></div></div>';
@@ -356,7 +357,17 @@ const achPer = t => { t = String(t || ''); const m = /مسائ|عصر/.test(t), 
 // «مركز واحد / مركزان / ٣ مراكز / ١١ مركزاً»
 const achCnt = n => n === 1 ? 'مركز واحد' : n === 2 ? 'مركزان' : idDigits(n) + (n >= 3 && n <= 10 ? ' مراكز' : ' مركزاً');
 const achShow = c => String(c.name || '') + (c.period ? ' (' + c.period + ')' : '');
-function achOpen() { show('achView'); achRender(); }
+// مفتاح «الملخص | الإنجازات» أعلى الصفحة
+let mgPaneCur = 'sum';
+function mgPane(k) {
+  mgPaneCur = k;
+  document.querySelectorAll('#mgSeg button').forEach(b => b.classList.toggle('on', b.dataset.p === k));
+  $('mgPaneSum').classList.toggle('hidden', k !== 'sum');
+  $('mgPaneAch').classList.toggle('hidden', k !== 'ach');
+  $('mgStats').classList.toggle('hidden', k !== 'sum');   // للإنجازات ملخصها الخاص
+  if (k === 'ach') achRender();
+}
+function achOpen() { mgPane('ach'); }
 function achRender() {
   if (!MG) return;
   const unit = document.getElementById('mgUnit').value;
