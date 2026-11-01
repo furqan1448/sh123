@@ -1,6 +1,6 @@
 // ===== الإعدادات =====
 // الصقي هنا رابط الـ Web App بعد النشر (ينتهي بـ /exec)
-const API_URL = "https://script.google.com/macros/s/AKfycby0rvlQ-3a1Z_Rcx-6HdLAxCzxhT4vyTNmDsFW5_ru5aMLGfjmKUCA2M0KqWRTDJcYWqg/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbz8ghu2zywp4gtLSVf3_sV5qC_dxo8tNH617mvE7pmz4LD1bfAJyUiWDUVOxLD3Wd4_4g/exec";
 
 const PW_KEY = 'mush_pw';
 const USER_KEY = 'mush_user';
