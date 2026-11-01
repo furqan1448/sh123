@@ -71,6 +71,7 @@
     <div class="t-hello" id="tHello" style="text-align:center;margin:4px 0 16px"></div>
     <div class="grid">
       <button class="tile" onclick="tShow('reportsView')"><span class="t-tbadge hidden" id="tileBadge">0</span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V6a2 2 0 0 1 2-2h9l5 5v10.5a.5.5 0 0 1-.5.5H6a2 2 0 0 1-2-2z"/><path d="M14 4v5h5"/><path d="M7.5 16.5c1.2-1.6 2.2-1.6 3 0s1.8 1.6 3 0"/></svg><b>الوارد من المشرفات</b></button>
+      <button class="tile" onclick="tpOpenMine()"><span class="tp-new hidden" id="tpNewBadge">جديد</span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="11" r="2.3"/><path d="M5.8 16.2c.6-1.8 1.8-2.7 3.2-2.7s2.6.9 3.2 2.7"/><path d="M14.5 10h3.5"/><path d="M14.5 13.5h3.5"/></svg><b>بياناتي الشخصية</b></button>
       <button class="tile" onclick="tCertOpen()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="17" height="12" rx="1.5"/><path d="M7 8h10"/><path d="M8.5 11.5h7"/><circle cx="12" cy="17.5" r="2.5"/><path d="M10.6 19.6 10 22l2-1 2 1-.6-2.4"/></svg><b>شهادتي</b></button>
       <button class="tile" onclick="tMinOpen()"><span class="t-tbadge hidden" id="minBadge">0</span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="2.5"/><circle cx="16" cy="8" r="2.5"/><path d="M3.5 18c0-2.8 2-4.5 4.5-4.5s4.5 1.7 4.5 4.5"/><path d="M11.5 18c0-2.8 2-4.5 4.5-4.5s4.5 1.7 4.5 4.5"/><path d="M3 21h18"/></svg><b>محاضر الاجتماعات</b></button>
       <button class="tile" onclick="tFilesOpen()"><span class="t-tbadge hidden" id="filesBadge">0</span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5l-8 8a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L9.7 17.2a1.7 1.7 0 0 1-2.4-2.4L15 7"/></svg><b>المرفقات</b></button>
@@ -94,6 +95,18 @@
       <div id="signedList"><p class="empty">جارِ التحميل...</p></div>
     </div>
     <p style="text-align:center"><button class="btn light" onclick="tLoad()">تحديث</button></p>
+  </div>
+
+  <!-- بياناتي الشخصية -->
+  <div id="profView" class="hidden">
+    <button class="back" onclick="tShow('homeView')">← رجوع</button>
+    <div class="card">
+      <h2>بياناتي الشخصية</h2>
+      <div class="tp-note">بعد حفظ بياناتكِ تظهر تلقائياً لمديرة مركزكِ ولمشرفاتكِ، ويمكنكِ تعديلها في أي وقت. الخانات المعلَّمة بـ <b style="color:#b3261e">*</b> مطلوبة.</div>
+      <div id="tpForm"></div>
+      <button id="tpSaveBtn" class="btn block" style="margin-top:18px" onclick="tpSaveMine(this)">حفظ البيانات</button>
+      <p class="tp-at" id="tpAt"></p>
+    </div>
   </div>
 
   <!-- شهادتي (نفس شهادة موقع الشهادات) -->
@@ -194,5 +207,6 @@
 <script>window.MN_NO_UI = 1;</script>
 <script src="minutes.js"></script>
 <script src="teachers.js"></script>
+<script src="teacher-profile.js"></script>
 </body>
 </html>
