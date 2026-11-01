@@ -406,9 +406,18 @@ function achRender() {
     if (x.visited.length && !x.done) h += '<details class="ach-rest"><summary>تمت زيارتها (' + D(x.visited.length) + ') ▾</summary><div class="ach-chips ok">' + x.visited.map(c => '<span>' + esc(achShow(c)) + '</span>').join('') + '</div></details>';
     return h + '</div>';
   };
-  $('achBody').innerHTML = '<div class="ach-hero"><h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>إنجازات المشرفات</h2>' +
-    '<p>' + esc(unit) + ' — ' + esc(range) + ' — حسب «المراكز المشرفة عليها» وكشف الخروج</p>' +
-    '<div class="ach-sum"><div><b>' + D(users.length) + '</b><span>المشرفات</span></div><div><b>' + D(doneN) + '</b><span>أتمّت زيارة جميع مراكزها</span></div>' +
-    '<div><b>' + D(tot.v) + ' / ' + D(tot.c) + '</b><span>المراكز التي تمت زيارتها</span></div><div><b>' + D(tot.c ? Math.round(tot.v * 100 / tot.c) : 0) + '٪</b><span>نسبة الإنجاز</span></div></div></div>' +
+  const pctAll = tot.c ? Math.round(tot.v * 100 / tot.c) : 0;
+  const IC = {
+    u: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.8-3.2 3-5 5.5-5s4.7 1.8 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.3c2.3.2 4 1.8 4.7 4.7"/></svg>',
+    s: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.8z"/></svg>',
+    c: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V9l8-5 8 5v11"/><path d="M9 20v-6h6v6"/></svg>',
+    r: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>'
+  };
+  const tile = (ic, n, t, g) => '<div' + (g ? ' class="g"' : '') + '><span class="ic">' + ic + '</span><div><b>' + n + '</b><span>' + t + '</span></div></div>';
+  $('achBody').innerHTML = '<div class="ach-hero"><div><h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>إنجازات المشرفات</h2>' +
+    '<p>' + esc(unit) + ' — ' + esc(range) + '</p>' +
+    '<div class="ach-big">' + D(pctAll) + '٪<small>نسبة إنجاز الوحدة</small></div><div class="ach-hbar"><i style="width:' + pctAll + '%"></i></div></div>' +
+    '<div class="ach-tiles">' + tile(IC.u, D(users.length), 'المشرفات') + tile(IC.s, D(doneN), 'أتمّت جميع مراكزها', 1) +
+    tile(IC.c, D(tot.v) + ' / ' + D(tot.c), 'تمت زيارتها') + tile(IC.r, D(tot.c - tot.v), 'المتبقي', 1) + '</div></div>' +
     (list.length ? '<div class="ach-grid">' + list.map(card).join('') + '</div>' : '<p class="empty">لا توجد مشرفات في هذه الوحدة</p>');
 }
