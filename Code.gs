@@ -257,6 +257,7 @@ function route_(r) {
     case 'deleteMinute': return withLock_(() => deleteMinute_(r));
     case 'teacherPhone': return { ok: true, phone: teacherPhoneById_(r.tid) };   // جوال المعلمة لتنبيهها في واتساب بعد إرسال التقرير
     case 'teacherDir': return { ok: true, data: certRows_(false).map(t => ({ id: t.id, name: t.name })) };
+    case 'tchProfiles': return tpForSup_(r.username);   // بيانات المعلمات في المراكز المشرفة عليها
     case 'getReports': return { ok: true, data: getReportsFor_(r.username) };
     case 'getReport': return { ok: true, data: getReport_(r) };
     case 'saveReport': return withLock_(() => saveReport_(r));
@@ -1608,7 +1609,9 @@ function teacherRoute_(r) {
       return t ? { ok: true, name: t.name.split(/\s+/).slice(0, 2).join(' ') } : { ok: false, error: 'رقم الجوال غير موجود في سجل المعلمات' };
     }
     const t = teacherAuth_(r);
-    if (r.action === 't_login' || r.action === 't_list') return { ok: true, teacher: { id: t.id, name: t.name, category: t.cat }, data: teacherReports_(t), minutes: minutesFor_(t), files: filesForTeacher_(t), inbox: teacherInbox_(t) };
+    if (r.action === 't_login' || r.action === 't_list') return { ok: true, teacher: { id: t.id, name: t.name, category: t.cat, prof: !!tpGet_(t.id) }, data: teacherReports_(t), minutes: minutesFor_(t), files: filesForTeacher_(t), inbox: teacherInbox_(t) };
+    if (r.action === 't_prof') return { ok: true, data: tpGet_(t.id), phone: t.phone, name: t.name, cat: t.cat || '', centers: getLists_().centers };   // بياناتي الشخصية
+    if (r.action === 't_prof_save') return withLock_(() => tpSave_(t, r));
     if (r.action === 't_file') { const x = outRows_().find(y => y.id === String(r.id || '') && y.to === 't' && y.tid === t.id); if (!x) throw new Error('هذا النموذج ليس لكِ'); return outFile_(x, r.fmt); }
     if (r.action === 't_done') return withLock_(() => centerDone_({ tid: t.id, name: t.name }, Object.assign({}, r, { signer: t.name })));
     if (r.action === 't_ack') return withLock_(() => minuteAck_(t, r));
@@ -1653,6 +1656,88 @@ function teacherSign_(t, r) {
 function testTeacherRegistry() {
   const rows = certRows_(true);
   Logger.log('عدد المعلمات في سجل الشهادات: ' + rows.length + (rows[0] ? ' — مثال: ' + rows[0].name : ''));
+}
+
+
+/* ============ «بياناتي الشخصية» في صفحة المعلمات ============
+   تعبّئ المعلمة بياناتها من حسابها، فتُحفظ في ورقة «بيانات المعلمات» (صف واحد لكل معلمة، يُحدَّث عند التعديل)،
+   وتظهر تلقائياً لمديرة مركزها (أيقونة «بيانات المعلمات» في صفحة المراكز)
+   ولمشرفاتها (حسب «المراكز المشرفة عليها» في الإشراف التربوي وتحفيظ الصغار — ولا تظهر في الإشراف الإداري). */
+const TP_SHEET = 'بيانات المعلمات';
+const TP_COLS = [['tid', 'Teacher ID'], ['name', 'الاسم الرباعي'], ['nid', 'رقم الهوية / الإقامة'], ['nat', 'الجنسية'], ['birth', 'تاريخ الميلاد'],
+  ['phone', 'رقم الجوال'], ['phone2', 'رقم جوال آخر'],
+  ['qual', 'المؤهل العلمي'], ['major', 'التخصص'], ['hifz', 'مقدار الحفظ (بالأجزاء)'], ['ijaza', 'الإجازة في القرآن الكريم'], ['exp', 'عدد سنوات الخبرة'],
+  ['skills', 'مهارات تمتلكها المعلمة'], ['other', 'خبرات أخرى'],
+  ['center', 'المركز'], ['period', 'الفترة'], ['job', 'العمل في المركز'], ['cat', 'فئة التدريس'],
+  ['at', 'آخر تحديث']];
+const TP_REQ = { name: 'الاسم الرباعي', nid: 'رقم الهوية / الإقامة', nat: 'الجنسية', qual: 'المؤهل العلمي', hifz: 'مقدار الحفظ', center: 'المركز', period: 'الفترة' };
+function tpSheet_() {
+  const ss = ss_();
+  let sh = ss.getSheetByName(TP_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(TP_SHEET);
+    sh.getRange(1, 1, 1, TP_COLS.length).setValues([TP_COLS.map(c => c[1])]);
+    styleHeader_(sh, TP_COLS.length);
+    sh.setFrozenRows(1);
+    sh.setRightToLeft(true);
+    sh.setColumnWidths(1, TP_COLS.length, 150);
+    sh.setColumnWidth(2, 240);
+  } else {   // تغيّرت الخانات: تحديث صف العناوين
+    const h = sh.getRange(1, 1, 1, TP_COLS.length).getDisplayValues()[0];
+    if (TP_COLS.some((c, i) => String(h[i]).trim() !== c[1])) { sh.getRange(1, 1, 1, TP_COLS.length).setValues([TP_COLS.map(c => c[1])]); styleHeader_(sh, TP_COLS.length); }
+  }
+  return sh;
+}
+function tpAll_() {
+  const c = CacheService.getScriptCache(), hit = c.get('tp_v1');
+  if (hit) { try { return JSON.parse(hit); } catch (e) {} }
+  const sh = ss_().getSheetByName(TP_SHEET);
+  const v = sh && sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, TP_COLS.length).getDisplayValues() : [];
+  const out = v.filter(r => String(r[0]).trim()).map(r => { const o = {}; TP_COLS.forEach((k, i) => o[k[0]] = String(r[i] == null ? '' : r[i]).trim()); return o; });
+  try { c.put('tp_v1', JSON.stringify(out), 300); } catch (e) {}
+  return out;
+}
+function tpGet_(tid) { return tpAll_().find(p => p.tid === String(tid)) || null; }
+function tpSave_(t, r) {
+  const d = r.data || {}, cut = (v, n) => String(v == null ? '' : v).replace(/[\r\n]+/g, ' ').trim().slice(0, n || 200);
+  const o = {};
+  TP_COLS.forEach(k => o[k[0]] = cut(d[k[0]], k[0] === 'skills' || k[0] === 'other' ? 1000 : 200));
+  if (o.center) {   // «المركز - الفترة الصباحية» ← المركز | الفترة
+    const x = mycSplit_(o.center); o.center = x.name;
+    if (!o.period) o.period = x.period;
+  }
+  o.nid = o.nid.replace(/[٠-٩]/g, ch => '٠١٢٣٤٥٦٧٨٩'.indexOf(ch)).replace(/\D/g, '');
+  Object.keys(TP_REQ).forEach(k => { if (!o[k]) throw new Error('أكملي خانة «' + TP_REQ[k] + '»'); });
+  if (o.nid.length !== 10) throw new Error('رقم الهوية / الإقامة يتكون من ١٠ أرقام');
+  o.tid = t.id; o.phone = t.phone; o.at = nowStr_();
+  const sh = tpSheet_(), row = TP_COLS.map(k => o[k[0]]);
+  const n = sh.getLastRow() - 1, ids = n > 0 ? sh.getRange(2, 1, n, 1).getDisplayValues() : [];
+  let at = -1;
+  for (let i = 0; i < ids.length; i++) if (String(ids[i][0]).trim() === t.id) { at = i + 2; break; }
+  if (at < 0) at = sh.getLastRow() + 1;
+  sh.getRange(at, 1, 1, row.length).setNumberFormat('@').setValues([row]);
+  try { CacheService.getScriptCache().remove('tp_v1'); } catch (e) {}
+  return { ok: true, data: o };
+}
+// هل المعلمة تابعة لهذا المركز؟ (الاسم بعد التوحيد، والفترة إن كانت محددة في الطرفين)
+function tpPerSet_(p) { const t = String(p || '').replace(/[أإآ]/g, 'ا'); const m = /صباح/.test(t), e = /مسائ/.test(t); return { m: m || !e, e: e || !m }; }
+function tpMatch_(p, centerName, period) {
+  if (!p.center || cKey_(p.center) !== cKey_(centerName)) return false;
+  const a = tpPerSet_(p.period), b = tpPerSet_(period);
+  return (a.m && b.m) || (a.e && b.e);
+}
+// لمديرة المركز: معلمات مركزها وفترته
+function tpForCenter_(acc) {
+  const x = mycSplit_(acc.name);
+  return tpAll_().filter(p => tpMatch_(p, x.name, x.period)).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+}
+// للمشرفة: معلمات المراكز المشرفة عليها (عدا الإشراف الإداري)
+function tpForSup_(username) {
+  if (profileOf_(username).unit === IDARI_UNIT) throw new Error('بيانات المعلمات غير متاحة لوحدة الإشراف الإداري');
+  const mine = myCentersGet_(username).map(mycSplit_);
+  if (!mine.length) return { ok: true, data: [], noCenters: true };
+  return { ok: true, data: tpAll_().filter(p => mine.some(c => tpMatch_(p, c.name, c.period)))
+    .sort((a, b) => a.center.localeCompare(b.center, 'ar') || a.name.localeCompare(b.name, 'ar')) };
 }
 
 
@@ -2090,6 +2175,7 @@ function centerRoute_(r) {
     if (r.action === 'c_file') { const x = outRows_().find(y => y.id === String(r.id || '') && y.to === 'c' && y.center === acc.name); if (!x) throw new Error('هذا النموذج لا يخص مركزكم'); return outFile_(x, r.fmt); }
     if (r.action === 'c_done') return withLock_(() => centerDone_(acc, r));
     if (r.action === 'c_sups') return { ok: true, data: listNames_('users', IDARI_UNIT).map(x => ({ u: x.u, n: x.n })) };   // مشرفات الإشراف الإداري
+    if (r.action === 'c_teachers') return { ok: true, data: tpForCenter_(acc) };   // بيانات معلمات المركز
     if (r.action === 'c_hasr') return { ok: true, data: hasrFor_(x => x.center === acc.name) };
     if (r.action === 'c_hasr_save') return withLock_(() => hasrSave_(acc, r));
     if (r.action === 'c_hasr_del') return withLock_(() => hasrDel_(acc, r));
