@@ -23,7 +23,6 @@ const TP_F = [
   { s: 'العمل في الجمعية' },
   { k: 'center', l: 'المركز', req: 1, center: 1 },
   { k: 'period', l: 'الفترة', req: 1, opts: ['الصباحية', 'المسائية', 'الصباحية والمسائية'] },
-  { k: 'job', l: 'العمل في المركز', opts: ['معلمة', 'معلمة صغار', 'مديرة', 'وكيلة', 'إدارية', 'أخرى'] },
   { k: 'cat', l: 'فئة التدريس' }
 ];
 const TP_KEYS = TP_F.filter(f => f.k);
@@ -177,7 +176,7 @@ function tpCard(p) {
   if (open) body += '</div>';
   body += '<p class="tp-at" style="text-align:start">آخر تحديث من المعلمة: ' + tpAt(p.at) + '</p>';
   return '<details class="tp-card"><summary><div class="tp-av">' + esc(ini) + '</div><div class="tp-hd"><b>' + esc(p.name) + '</b><small>' +
-    esc(p.job || 'معلمة') + (TP_CTX.byCenter ? '' : ' — الفترة ' + esc(p.period)) + ' — الجوال: <span dir="ltr">' + esc(tpD(p.phone)) + '</span></small></div><span class="tp-arw">▾</span></summary>' +
+    (p.cat ? esc(p.cat) : 'معلمة') + (TP_CTX.byCenter ? '' : ' — الفترة ' + esc(p.period)) + ' — الجوال: <span dir="ltr">' + esc(tpD(p.phone)) + '</span></small></div><span class="tp-arw">▾</span></summary>' +
     '<div class="tp-body">' + body + '</div></details>';
 }
 function tpFiltered() {
@@ -235,7 +234,7 @@ function tpHDate() {
 }
 const tpSorted = () => tpFiltered().slice();
 // PDF أفقي بالكليشة: أهم البيانات في جدول
-const TP_PDF_COLS = [['name', 'الاسم'], ['nid', 'رقم الهوية'], ['phone', 'الجوال'], ['center', 'المركز'], ['period', 'الفترة'], ['job', 'العمل'],
+const TP_PDF_COLS = [['name', 'الاسم'], ['nid', 'رقم الهوية'], ['phone', 'الجوال'], ['center', 'المركز'], ['period', 'الفترة'],
   ['cat', 'فئة التدريس'], ['qual', 'المؤهل'], ['major', 'التخصص'], ['hifz', 'الحفظ'], ['exp', 'الخبرة']];
 const TP_CSS = `
 .im-page.tpp{width:1123px;height:794px;overflow:hidden;position:relative;background:#fff}
@@ -256,7 +255,7 @@ async function tpPdf(btn) {
   try {
     const per = 13, pages = [];
     for (let i = 0; i < L.length; i += per) pages.push(L.slice(i, i + per));
-    const W = { name: 150, nid: 92, phone: 92, center: 120, period: 70, job: 72, cat: 90, qual: 72, major: 90, hifz: 46, exp: 46 };
+    const W = { name: 150, nid: 92, phone: 92, center: 140, period: 76, cat: 100, qual: 72, major: 90, hifz: 46, exp: 46 };
     const val = (p, k) => k === 'hifz' || k === 'exp' ? esc(tpD(p[k])) : esc(/nid|phone/.test(k) ? tpD(p[k]) : p[k] || '');
     const html = pages.map((rows, pi) => '<div class="im-page tpp"><img class="idc-lh" src="' + ID_LETTERHEAD + '" width="2000" height="351" alt=""><div class="idc-body">' +
       '<div class="idc-title">' + esc(TP_CTX.title || 'بيانات المعلمات') + '</div>' +
