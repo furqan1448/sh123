@@ -416,7 +416,7 @@ function achRender() {
   const tile = (ic, n, t, g) => '<div' + (g ? ' class="g"' : '') + '><span class="ic">' + ic + '</span><div><b>' + n + '</b><span>' + t + '</span></div></div>';
   $('achBody').innerHTML = '<div class="ach-hero"><div><h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>إنجازات المشرفات</h2>' +
     '<p>' + esc(unit) + ' — ' + esc(range) + '</p>' +
-    '<div class="ach-big">' + D(pctAll) + '٪<small>نسبة إنجاز الوحدة</small></div><div class="ach-hbar"><i style="width:' + pctAll + '%"></i></div></div>' +
+    '<div class="ach-big">' + D(pctAll) + '<span class="pc">٪</span><small>نسبة إنجاز الوحدة</small></div><div class="ach-hbar"><i style="width:' + pctAll + '%"></i></div></div>' +
     '<div class="ach-tiles">' + tile(IC.u, D(users.length), 'المشرفات') + tile(IC.s, D(doneN), 'أتمّت جميع مراكزها', 1) +
     tile(IC.c, D(tot.v) + ' / ' + D(tot.c), 'تمت زيارتها') + tile(IC.r, D(tot.c - tot.v), 'المتبقي', 1) + '</div></div>' +
     (list.length ? '<div class="ach-grid">' + list.map(card).join('') + '</div>' : '<p class="empty">لا توجد مشرفات في هذه الوحدة</p>');

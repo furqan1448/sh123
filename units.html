@@ -7,6 +7,9 @@
 (function(){var d=document.documentElement;try{if(sessionStorage.getItem('furqan_session')&&['mush_pw','ctr_pw','tch_pw','mgr_pw'].some(function(k){return localStorage.getItem(k)}))d.classList.add('has-sess')}catch(e){}setTimeout(function(){d.classList.remove('has-sess')},1500)})();</script>
 <title>إدارة الوحدات — منظومة مشرفات مكتب إشراف الداخل</title>
 <link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Readex+Pro:wght@600&display=swap">
 <link rel="stylesheet" href="style.css">
 <style>
 /* ===== بطاقات الأرقام ===== */
@@ -26,7 +29,7 @@
 .ach-hero h2{margin:0;font-size:20px;color:var(--primary);display:flex;align-items:center;gap:8px}
 .ach-hero h2 svg{width:24px;height:24px;color:var(--gold)}
 .ach-hero p{margin:4px 0 14px;color:var(--muted);font-size:13px}
-.ach-big{font-size:46px;font-weight:800;color:var(--primary);line-height:1}.ach-big small{font-size:14px;color:var(--muted);font-weight:700;margin-inline-start:8px}
+.ach-big{font-family:'Readex Pro','Tajawal',sans-serif;font-size:42px;font-weight:600;color:var(--primary);line-height:1;display:flex;align-items:baseline;gap:4px}.ach-big .pc{font-size:.6em}.ach-big small{font-family:'Tajawal',sans-serif;font-size:14px;color:var(--muted);font-weight:700;margin-inline-start:8px}
 .ach-hbar{height:12px;border-radius:99px;background:#f1e7e9;overflow:hidden;margin-top:10px}.ach-hbar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--primary),#b04a5a)}
 .ach-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .ach-tiles>div{background:#faf6f7;border:1px solid #f1e7e9;border-radius:16px;padding:12px;display:flex;align-items:center;gap:10px}
