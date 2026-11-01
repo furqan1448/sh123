@@ -64,15 +64,20 @@ function tpVal(p, f) {
 .tp-done{display:inline-block;background:#e4f4ec;color:#1f6b40;border-radius:20px;padding:2px 12px;font-size:13px;font-weight:800}
 .tp-new{position:absolute;top:10px;left:10px;background:var(--gold);color:#fff;border-radius:20px;padding:1px 9px;font-size:12px;font-weight:800}
 .tp-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 12px}
-@media(max-width:560px){.tp-tools input{flex-basis:100%}.tp-tools .btn{flex:1}}
 .tp-tools input{flex:1;min-width:180px;margin:0}
 .tp-tools .btn{padding:9px 14px;font-size:14px}
+@media(max-width:560px){.tp-tools input{flex-basis:100%}.tp-tools .btn{flex:1}}
 .tp-cnt{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
 .tp-cnt span{background:#fbeef0;color:var(--primary);border-radius:20px;padding:3px 12px;font-weight:800;font-size:13.5px}
 .tp-gh{font-weight:800;color:#fff;background:linear-gradient(135deg,var(--primary),var(--primary-dark));border-radius:12px;padding:8px 14px;margin:16px 0 10px;display:flex;justify-content:space-between;align-items:center}
 .tp-gh small{background:rgba(255,255,255,.18);border-radius:20px;padding:1px 10px}
 .tp-card{border:1.5px solid var(--line);border-radius:16px;background:#fff;margin-bottom:10px;overflow:hidden}
-.tp-card summary{list-style:none;cursor:pointer;padding:12px 14px;display:flex;align-items:center;gap:12px}
+.tp-row{cursor:pointer;padding:12px 14px;display:flex;align-items:center;gap:12px}
+.tp-row:hover{background:#fcf8f9}
+.tp-open{padding:7px 12px;font-size:13.5px;white-space:nowrap}
+@media(max-width:480px){.tp-open{padding:6px 9px;font-size:12.5px}}
+.tpd-fit{overflow:hidden;border:1.5px solid var(--line);border-radius:12px;background:#fff;margin-top:10px;position:relative}
+.tpd-in{width:794px;transform-origin:top right;position:absolute;top:0;right:0}
 .tp-card summary::-webkit-details-marker{display:none}
 .tp-av{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--primary),#a8404f);color:#fff;font-weight:800;font-size:17px;display:flex;align-items:center;justify-content:center;flex:none}
 .tp-hd{flex:1;min-width:0}
@@ -167,17 +172,89 @@ async function tpSaveMine(btn) {
 /* ===================== المديرة والمشرفات: عرض بيانات المعلمات ===================== */
 let TP_LIST = [], TP_CTX = {};
 function tpCard(p) {
-  const ini = String(p.name || '?').trim().charAt(0);
-  let body = '', open = false;
-  TP_F.forEach(f => {
-    if (f.s) { if (open) body += '</div>'; body += '<h4>' + f.s + '</h4><div class="tp-kv">'; open = true; return; }
-    body += '<div' + (f.wide ? ' class="wide"' : '') + '><span>' + f.l + '</span><b>' + tpVal(p, f) + '</b></div>';
-  });
-  if (open) body += '</div>';
-  body += '<p class="tp-at" style="text-align:start">آخر تحديث من المعلمة: ' + tpAt(p.at) + '</p>';
-  return '<details class="tp-card"><summary><div class="tp-av">' + esc(ini) + '</div><div class="tp-hd"><b>' + esc(p.name) + '</b><small>' +
-    (p.cat ? esc(p.cat) : 'معلمة') + (TP_CTX.byCenter ? '' : ' — الفترة ' + esc(p.period)) + ' — الجوال: <span dir="ltr">' + esc(tpD(p.phone)) + '</span></small></div><span class="tp-arw">▾</span></summary>' +
-    '<div class="tp-body">' + body + '</div></details>';
+  const ini = String(p.name || '?').trim().charAt(0), i = TP_LIST.indexOf(p);
+  return '<div class="tp-card"><div class="tp-row" onclick="tpDocOpen(' + i + ')"><div class="tp-av">' + esc(ini) + '</div><div class="tp-hd"><b>' + esc(p.name) + '</b><small>' +
+    (p.cat ? esc(p.cat) : 'معلمة') + (TP_CTX.byCenter ? '' : ' — الفترة ' + esc(p.period)) + ' — الجوال: <span dir="ltr">' + esc(tpD(p.phone)) + '</span></small></div>' +
+    '<button type="button" class="btn light tp-open">عرض الاستمارة</button></div></div>';
+}
+/* ---------- استمارة بيانات المعلمة (مثل باقي الاستمارات: عرض ثم حفظ PDF أو Excel) ---------- */
+const TPD_CSS = `
+.im-page.tpd{width:794px;min-height:1123px;position:relative;background:#fff}
+.im-page.tpd .idc-body{padding:0 36px 30px}
+.im-page.tpd .idc-title{font-size:24px;margin:14px 0 12px}
+.im-page.tpd table{table-layout:fixed;margin-bottom:12px}
+.im-page.tpd th.tpd-sec{background:#f2dbdb;color:#000;font-size:16px;text-align:right;padding:7px 12px}
+.im-page.tpd td{font-size:14.5px;padding:7px 10px;height:38px;text-align:right}
+.im-page.tpd td.idc-lbl{width:auto;background:#f2f2f2;font-weight:800}
+.im-page.tpd td.tpd-long{height:64px;vertical-align:top;white-space:pre-wrap}
+.im-page.tpd .tpd-at{font-size:12.5px;color:#666;margin-top:6px}
+`;
+function tpDocPlain(p, f) {
+  const v = p[f.k];
+  if (!v) return '';
+  if (f.type === 'date') return tpDate(v);
+  if (f.k === 'hifz') return esc(tpD(v)) + ' جزءاً';
+  return esc(f.num || f.ro ? tpD(v) : v);
+}
+function tpDocHtml(p) {
+  const secs = []; let cur = null;
+  TP_F.forEach(f => { if (f.s) { cur = { t: f.s, f: [] }; secs.push(cur); } else cur.f.push(f); });
+  const tbl = sec => {
+    let rows = '', pair = [];
+    const flush = () => { if (!pair.length) return; rows += '<tr>' + pair.map(f => '<td class="idc-lbl">' + f.l + '</td><td>' + tpDocPlain(p, f) + '</td>').join('') + (pair.length === 1 ? '<td class="idc-lbl"></td><td></td>' : '') + '</tr>'; pair = []; };
+    sec.f.forEach(f => {
+      if (f.wide) { flush(); rows += '<tr><td class="idc-lbl">' + f.l + '</td><td class="tpd-long" colspan="3">' + tpDocPlain(p, f) + '</td></tr>'; return; }
+      pair.push(f); if (pair.length === 2) flush();
+    });
+    flush();
+    return '<table><colgroup><col style="width:25%"><col style="width:25%"><col style="width:25%"><col style="width:25%"></colgroup><tr><th class="tpd-sec" colspan="4">' + sec.t + '</th></tr>' + rows + '</table>';
+  };
+  return '<div class="im-page tpd"><img class="idc-lh" src="' + ID_LETTERHEAD + '" width="2000" height="351" alt=""><div class="idc-body">' +
+    '<div class="idc-title">استمارة بيانات معلمة</div>' + secs.map(tbl).join('') +
+    '<div class="tpd-at">آخر تحديث من المعلمة: ' + tpAt(p.at) + '</div></div></div>';
+}
+let TP_DOC = null;
+function tpDocOpen(i) {
+  const p = TP_LIST[i]; if (!p) return;
+  TP_DOC = p;
+  document.getElementById('tpListPane').classList.add('hidden');
+  const d = document.getElementById('tpDocPane'); d.classList.remove('hidden');
+  d.innerHTML = '<button class="back" type="button" onclick="tpDocClose()">← قائمة المعلمات</button>' +
+    '<div class="ex-bar">' + (typeof dxBar === 'function' ? dxBar('tpdPdf', 'tpdXls') : '<button class="btn light" id="tpdPdf">حفظ PDF</button>') + '</div>' +
+    '<div class="tpd-fit"><div class="tpd-in"><style>' + ID_CSS + TPD_CSS + '</style><div class="idoc ptdoc" style="width:794px;padding:0">' + tpDocHtml(p) + '</div></div></div>';
+  document.getElementById('tpdPdf').onclick = e => tpDocPdf(e.currentTarget);
+  const x = document.getElementById('tpdXls'); if (x) x.onclick = e => tpDocXlsx(e.currentTarget);
+  tpDocFit();
+  window.scrollTo(0, 0);
+}
+function tpDocClose() {
+  const d = document.getElementById('tpDocPane'), l = document.getElementById('tpListPane');
+  if (d) d.classList.add('hidden');
+  if (l) l.classList.remove('hidden');
+}
+// الاستمارة بعرض الشاشة (تصغير على الجوال)
+function tpDocFit() {
+  const w = document.querySelector('.tpd-fit'), inn = w && w.querySelector('.tpd-in'); if (!inn) return;
+  const r = Math.min(1, w.clientWidth / 794);
+  inn.style.transform = 'scale(' + r + ')';
+  inn.style.right = Math.max(0, (w.clientWidth - 794 * r) / 2) + 'px';   // في الوسط على الشاشات الواسعة
+  w.style.height = Math.ceil(inn.offsetHeight * r) + 'px';
+}
+window.addEventListener('resize', () => { const d = document.getElementById('tpDocPane'); if (TP_DOC && d && !d.classList.contains('hidden')) tpDocFit(); });
+const tpDocName = p => 'استمارة_بيانات_' + String(p.name || 'معلمة').trim().replace(/\s+/g, '_');
+async function tpDocPdf(btn) {
+  if (!TP_DOC) return;
+  setBtnBusy(btn, true, 'جارِ التجهيز...');
+  try { idSaveBlob(await idPagesPdf([tpDocHtml(TP_DOC)], TPD_CSS, true), tpDocName(TP_DOC) + '.pdf'); toast('تم التحميل'); }
+  catch (e) { toast(e.message || 'تعذّر تحميل PDF', false); }
+  finally { setBtnBusy(btn, false); }
+}
+async function tpDocXlsx(btn) {
+  if (!TP_DOC) return;
+  setBtnBusy(btn, true, 'جارِ التجهيز...');
+  try { dxSave(await docXlsxBlob('<style>' + ID_CSS + TPD_CSS + '.idoc{width:794px;padding:0}</style><div class="idoc ptdoc">' + tpDocHtml(TP_DOC) + '</div>', { width: 794 }), tpDocName(TP_DOC) + '.xlsx'); toast('تم التحميل'); }
+  catch (e) { toast(e.message || 'تعذّر تحميل Excel', false); }
+  finally { setBtnBusy(btn, false); }
 }
 function tpFiltered() {
   const q = (document.getElementById('tpQ') || {}).value || '';
@@ -202,16 +279,17 @@ function tpShell(boxId) {
   const el = document.getElementById(boxId);
   if (el.dataset.built) return;
   el.dataset.built = '1';
-  el.innerHTML = '<div class="tp-tools"><input id="tpQ" placeholder="بحث بالاسم أو المركز أو الجوال أو الهوية" oninput="tpRenderList()">' +
+  el.innerHTML = '<div id="tpListPane"><div class="tp-tools"><input id="tpQ" placeholder="بحث بالاسم أو المركز أو الجوال أو الهوية" oninput="tpRenderList()">' +
     '<button class="btn light" id="tpPdfBtn" onclick="tpPdf(this)">' + (typeof DX_ICO_PDF !== 'undefined' ? DX_ICO_PDF : '') + 'حفظ PDF</button>' +
     (typeof exRun === 'function' ? '<button class="btn light" onclick="tpXlsx(this)">' + (typeof DX_ICO_XLS !== 'undefined' ? DX_ICO_XLS : '') + 'حفظ Excel</button>' : '') + '</div>' +
-    '<div class="tp-cnt" id="tpCnt"></div><div id="tpList"><p class="empty">جارِ التحميل...</p></div>';
+    '<div class="tp-cnt" id="tpCnt"></div><div id="tpList"><p class="empty">جارِ التحميل...</p></div></div><div id="tpDocPane" class="hidden"></div>';
 }
 // load: دالة تجلب القائمة؛ ctx: { byCenter, who, title }
 async function tpLoadView(boxId, load, ctx) {
   TP_CTX = ctx || {};
   tpShell(boxId);
   document.getElementById('tpQ').value = '';
+  tpDocClose();
   const ck = 'tp_list_' + (TP_CTX.who || '');
   try { const c = JSON.parse(sessionStorage.getItem(ck) || 'null'); if (c) { TP_LIST = c; tpRenderList(); } } catch (e) {}
   try {
