@@ -164,6 +164,8 @@ function doPost(e) {
     const req = JSON.parse(e.postData.contents);
     if (req.action === 'listNames') {   // قائمة الأسماء لشاشة الدخول (أسماء فقط، بلا كلمات مرور)
       out = { ok: true, data: listNames_(req.kind, req.unit, req.exclude) };
+    } else if (req.action === 'survey') {   // استبانة ملاحظات التجربة (survey.html) — رابط عام بدون تسجيل دخول
+      out = withLock_(() => surveySave_(req));
     } else if (req.action === 'feedback') {   // نموذج ملاحظات التجربة في صفحة «دليل المنظومة» (بدون تسجيل دخول)
       out = withLock_(() => feedbackSave_(req));
     } else if (req.action === 'getManage' || req.action === 'mgrReport' || (req.action === 'getSigs' && req.mgr)) {   // صفحة إدارة الوحدات لها دخول مستقل (ورقة «مديرات الوحدات»)
@@ -209,6 +211,38 @@ function feedbackSave_(r) {
   const at = sh.getLastRow() + 1;
   sh.getRange(at, 1, 1, row.length).setNumberFormat('@').setValues([row]);
   sh.getRange(at, 5).setWrap(true);
+  return { ok: true };
+}
+
+/* ============ استبانة ملاحظات التجربة (صفحة survey.html) ============
+   ورقة «استبانة التجربة» تُنشأ تلقائياً، وكل إرسال في صف: البيانات، والتقييم، والملاحظات، وبنود التأكد من الربط (الحالة والملاحظة لكل بند). */
+const SV_SHEET = 'استبانة التجربة';
+const SV_LINKS = ['تقرير زيارة الإداري للمركز وتوقيع المديرة', 'النماذج المرسلة للمركز', 'حصر الغياب من المركز للمشرفة', 'بيانات المعلمات للمديرة والمشرفات',
+  'درجة تقييم المديرة في الخلاصة', 'تقارير المشرفات للمعلمة', 'الزيارات والإنجازات في إدارة الوحدات', 'المستندات والخلاصات في إدارة الوحدات'];
+function surveySave_(r) {
+  const cut = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
+  const name = cut(r.name, 100), unit = cut(r.unit, 80), notes = cut(r.notes, 6000);
+  if (!name) throw new Error('اكتبي اسمكِ');
+  if (!unit) throw new Error('اختاري الوحدة أو الجهة');
+  if (!notes) throw new Error('اكتبي الملاحظات');
+  const head = ['وقت الإرسال', 'الاسم', 'الوحدة / الجهة', 'الصفة', 'التقييم العام', 'الأجزاء التي جُرّبت', 'الملاحظات والتعديلات المطلوبة', 'اقتراحات إضافية']
+    .concat(SV_LINKS.reduce((a, t, i) => a.concat(['الربط ' + (i + 1) + ': ' + t, 'ملاحظة الربط ' + (i + 1)]), [])).concat(['الجهاز']);
+  const ss = ss_();
+  let sh = ss.getSheetByName(SV_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(SV_SHEET);
+    sh.getRange(1, 1, 1, head.length).setValues([head]);
+    styleHeader_(sh, head.length);
+    sh.setFrozenRows(1); sh.setRightToLeft(true);
+    sh.setColumnWidths(1, head.length, 140); sh.setColumnWidth(7, 420);
+  }
+  const L = Array.isArray(r.links) ? r.links : [];
+  const row = [Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm'), name, unit, cut(r.role, 80), cut(r.rate, 30),
+    (Array.isArray(r.parts) ? r.parts : []).map(x => cut(x, 60)).join('، '), notes, cut(r.ideas, 3000)]
+    .concat(SV_LINKS.reduce((a, _, i) => a.concat([cut(L[i] && L[i].s, 20), cut(L[i] && L[i].n, 500)]), [])).concat([cut(r.device, 20)]);
+  const at = sh.getLastRow() + 1;
+  sh.getRange(at, 1, 1, row.length).setNumberFormat('@').setValues([row]);
+  sh.getRange(at, 7).setWrap(true);
   return { ok: true };
 }
 

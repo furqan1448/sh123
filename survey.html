@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>استبانة ملاحظات التجربة — منظومة مشرفات مكتب إشراف الداخل</title>
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>
+  .sv-intro{background:#fffbf2;border:1.5px solid var(--gold);border-radius:var(--radius);padding:14px 16px;line-height:1.9;margin-bottom:14px;font-size:15px}
+  .sv-intro b{color:var(--primary)}
+  .sv-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 12px}
+  @media(max-width:640px){.sv-grid{grid-template-columns:1fr}}
+  .sv-grid label .rq,label .rq{color:#b3261e;margin-inline-start:3px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{display:flex;align-items:center;gap:6px;border:1.5px solid var(--line);border-radius:999px;padding:7px 14px;margin:0;cursor:pointer;font-weight:600;font-size:14px;background:#fff}
+  .chip input{width:auto;margin:0;accent-color:var(--primary)}
+  .chip:has(input:checked){border-color:var(--primary);background:#f6f0f2;color:var(--primary)}
+  .sv-item{border:1.5px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:10px;background:#fff}
+  .sv-item .t{font-weight:700;font-size:14.5px;line-height:1.7;display:flex;gap:8px}
+  .sv-item .t span{flex:none;width:26px;height:26px;border-radius:50%;background:#f3e6e8;color:var(--primary);font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center}
+  .sv-item .chips{margin:8px 0 6px}
+  .sv-item .chip{padding:5px 12px;font-size:13.5px}
+  .sv-item input[type=text]{margin:0;padding:8px 10px;font-size:14px}
+  .sv-done{text-align:center;padding:30px 16px}
+  .sv-done .ok{width:70px;height:70px;border-radius:50%;background:#e4f4ec;color:#1f7a45;font-size:38px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
+  .sv-done h2{justify-content:center}
+  .sv-draft{background:#eef8f1;border:1.5px solid #9fd3b2;color:#1f6b40;border-radius:12px;padding:8px 12px;font-size:13.5px;font-weight:700;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <img class="logo" src="furqan-logo.png" alt="شعار فرقان">
+  <h1>استبانة ملاحظات التجربة</h1>
+  <p>منظومة مشرفات مكتب إشراف الداخل</p>
+</div>
+
+<div class="wrap" style="max-width:820px">
+  <div id="svForm">
+    <div class="sv-intro">نرجو بعد تجربة المنظومة كتابة <b>الملاحظات والتعديلات المطلوبة</b> لوحدتكِ أو جهتكِ، والتأكد من <b>الربط بين إدارة المراكز والوحدات</b>. تصل إجاباتكِ مباشرة إلى المسؤولة عن المنظومة.</div>
+    <div id="svDraft" class="sv-draft hidden">✔ استُعيد ما كتبتِه سابقاً ولم يُرسل بعد.</div>
+
+    <div class="card">
+      <h2>البيانات</h2>
+      <div class="sv-grid">
+        <div><label for="svName">الاسم<span class="rq">*</span></label><input id="svName" autocomplete="name"></div>
+        <div><label for="svUnit">الوحدة / الجهة<span class="rq">*</span></label>
+          <select id="svUnit"><option value="">اختاري</option><option>وحدة الإشراف التربوي</option><option>وحدة تحفيظ الصغار</option><option>وحدة الإشراف الإداري</option><option>إدارة المراكز (مديرة مركز)</option><option>معلمة</option><option>إدارة الوحدات</option></select></div>
+        <div><label for="svRole">الصفة</label><input id="svRole" placeholder="مشرفة، مديرة وحدة، مديرة مركز..."></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>ملاحظات التجربة</h2>
+      <label>التقييم العام للمنظومة<span class="rq">*</span></label>
+      <div class="chips" id="svRate"><label class="chip"><input type="radio" name="svRate" value="ممتاز"><span>ممتاز</span></label><label class="chip"><input type="radio" name="svRate" value="جيد جداً"><span>جيد جداً</span></label><label class="chip"><input type="radio" name="svRate" value="جيد"><span>جيد</span></label><label class="chip"><input type="radio" name="svRate" value="يحتاج تعديل"><span>يحتاج تعديل</span></label></div>
+      <label for="svParts">الأجزاء التي جرّبتِها</label>
+      <div class="chips" id="svParts">
+        <label class="chip"><input type="checkbox" value="كشف الخروج"><span>كشف الخروج</span></label>
+        <label class="chip"><input type="checkbox" value="الاستمارات والتقارير"><span>الاستمارات والتقارير</span></label>
+        <label class="chip"><input type="checkbox" value="المراكز المشرفة عليها"><span>المراكز المشرفة عليها</span></label>
+        <label class="chip"><input type="checkbox" value="خلاصة التقارير"><span>خلاصة التقارير</span></label>
+        <label class="chip"><input type="checkbox" value="محاضر الاجتماعات"><span>محاضر الاجتماعات</span></label>
+        <label class="chip"><input type="checkbox" value="المرفقات"><span>المرفقات</span></label>
+        <label class="chip"><input type="checkbox" value="إدارة المراكز"><span>إدارة المراكز</span></label>
+        <label class="chip"><input type="checkbox" value="بوابة المعلمات"><span>بوابة المعلمات</span></label>
+        <label class="chip"><input type="checkbox" value="إدارة الوحدات"><span>إدارة الوحدات</span></label>
+      </div>
+      <label for="svNotes">الملاحظات والتعديلات المطلوبة<span class="rq">*</span></label>
+      <textarea id="svNotes" rows="5" placeholder="اكتبي كل ملاحظة في سطر، مع ذكر الصفحة أو النموذج إن أمكن"></textarea>
+      <label for="svIdeas">اقتراحات إضافية (اختياري)</label>
+      <textarea id="svIdeas" rows="3"></textarea>
+    </div>
+
+    <div class="card">
+      <h2>التأكد من الربط بين إدارة المراكز والوحدات</h2>
+      <p class="rp-hint" style="margin-top:0">اختاري لكل بند ما ينطبق، واكتبي الملاحظة إن وُجدت. البنود التي لا تخصكِ اختاري لها «لم أجرّبه».</p>
+      <div id="svLinks"></div>
+    </div>
+
+    <div class="card">
+      <button id="svSend" class="btn block" onclick="svSubmit(this)">إرسال الاستبانة</button>
+    </div>
+  </div>
+
+  <div id="svThanks" class="card sv-done hidden">
+    <div class="ok">✔</div>
+    <h2>شكراً لكِ، تم إرسال الاستبانة</h2>
+    <p class="rp-hint">وصلت ملاحظاتكِ، وستُراجع وتُعدَّل المنظومة بناءً عليها.</p>
+    <button class="btn light" style="margin-top:12px" onclick="svAgain()">إرسال استبانة أخرى</button>
+  </div>
+</div>
+
+<script src="logo-config.js"></script>
+<script src="config.js"></script>
+<script>
+const SV_LINKS = [
+  'وصول تقرير زيارة مشرفة الإشراف الإداري إلى حساب المركز، وتوقيع المديرة عليه.',
+  'وصول النماذج المرسلة من المشرفات بزر «إرسال للمركز» إلى المديرة، واطلاعها أو توقيعها.',
+  'إرسال «حصر الغياب والتأخير والاستئذان» من المركز ووصوله لمشرفة الإشراف الإداري.',
+  'ظهور بيانات المعلمات (من «بياناتي الشخصية») لمديرة المركز ولمشرفات المراكز.',
+  'جلب درجة «استمارة تقييم المعلمة» التي عبّأتها المديرة في خلاصة تقارير المشرفة.',
+  'وصول تقارير المشرفات للمعلمة في حسابها، واطلاعها وتوقيعها عليها.',
+  'ظهور زيارات المشرفات (كشف الخروج) والإنجازات حسب «المراكز المشرفة عليها» في إدارة الوحدات.',
+  'ظهور مستندات الوحدات والخلاصات في إدارة الوحدات، وتحميلها PDF وExcel.'
+];
+const svQ = id => document.getElementById(id);
+svQ('svLinks').innerHTML = SV_LINKS.map((t, i) => '<div class="sv-item"><div class="t"><span>' + (i + 1) + '</span>' + t + '</div><div class="chips">' +
+  ['يعمل', 'لا يعمل', 'لم أجرّبه'].map(v => '<label class="chip"><input type="radio" name="svL' + i + '" value="' + v + '"><span>' + v + '</span></label>').join('') +
+  '</div><input type="text" id="svLN' + i + '" placeholder="ملاحظة (اختياري)"></div>').join('');
+
+function svCollect() {
+  const pick = n => { const x = document.querySelector('input[name="' + n + '"]:checked'); return x ? x.value : ''; };
+  return { name: svQ('svName').value.trim(), unit: svQ('svUnit').value, role: svQ('svRole').value.trim(), rate: pick('svRate'),
+    parts: [...document.querySelectorAll('#svParts input:checked')].map(x => x.value), notes: svQ('svNotes').value.trim(), ideas: svQ('svIdeas').value.trim(),
+    links: SV_LINKS.map((_, i) => ({ s: pick('svL' + i), n: svQ('svLN' + i).value.trim() })) };
+}
+function svApply(d) {
+  svQ('svName').value = d.name || ''; svQ('svUnit').value = d.unit || ''; svQ('svRole').value = d.role || '';
+  const set = (n, v) => document.querySelectorAll('input[name="' + n + '"]').forEach(x => { x.checked = x.value === v; });
+  set('svRate', d.rate); svQ('svNotes').value = d.notes || ''; svQ('svIdeas').value = d.ideas || '';
+  document.querySelectorAll('#svParts input').forEach(x => { x.checked = (d.parts || []).indexOf(x.value) > -1; });
+  (d.links || []).forEach((l, i) => { set('svL' + i, l.s); if (svQ('svLN' + i)) svQ('svLN' + i).value = l.n || ''; });
+}
+// مسودة: ما يُكتب يُحفظ في الجهاز حتى الإرسال
+const SV_KEY = 'sv_draft';
+let svT = 0;
+svQ('svForm').addEventListener('input', () => { clearTimeout(svT); svT = setTimeout(() => { try { localStorage.setItem(SV_KEY, JSON.stringify(svCollect())); } catch (e) {} }, 400); });
+svQ('svForm').addEventListener('change', () => { try { localStorage.setItem(SV_KEY, JSON.stringify(svCollect())); } catch (e) {} });
+try { const d = JSON.parse(localStorage.getItem(SV_KEY) || 'null'); if (d && (d.name || d.notes)) { svApply(d); svQ('svDraft').classList.remove('hidden'); } } catch (e) {}
+
+async function svSubmit(btn) {
+  const d = svCollect();
+  if (!d.name) { svQ('svName').focus(); return toast('اكتبي اسمكِ', false); }
+  if (!d.unit) { svQ('svUnit').focus(); return toast('اختاري الوحدة أو الجهة', false); }
+  if (!d.rate) return toast('اختاري التقييم العام', false);
+  if (!d.notes) { svQ('svNotes').focus(); return toast('اكتبي الملاحظات والتعديلات المطلوبة', false); }
+  setBtnBusy(btn, true, 'جارِ الإرسال...');
+  try {
+    const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(Object.assign({ action: 'survey', device: /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'جوال' : 'حاسب' }, d)) });
+    const out = await res.json();
+    if (!out.ok) throw new Error(out.error || 'تعذّر الإرسال');
+    try { localStorage.removeItem(SV_KEY); } catch (e) {}
+    svQ('svForm').classList.add('hidden'); svQ('svThanks').classList.remove('hidden'); window.scrollTo(0, 0);
+  } catch (e) { toast(e.message || 'تعذّر الإرسال، تأكدي من الإنترنت', false); }
+  finally { setBtnBusy(btn, false); }
+}
+function svAgain() {
+  svApply({}); svQ('svDraft').classList.add('hidden');
+  svQ('svThanks').classList.add('hidden'); svQ('svForm').classList.remove('hidden'); window.scrollTo(0, 0);
+}
+</script>
+</body>
+</html>
