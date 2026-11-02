@@ -1710,12 +1710,14 @@ function tpSave_(t, r) {
     if (!o.period) o.period = x.period;
   }
   // مراكز أخرى تعمل فيها المعلمة: «المركز - الفترة الصباحية؛ مركز آخر - الفترة المسائية»
+  // كل مركز: «المركز - الفترة المسائية (فئة التدريس: أمهات)»
   const more = (Array.isArray(d.more) ? d.more : String(d.more || '').split('؛')).map(x => {
-    const c = typeof x === 'object' && x ? x : { center: x };
-    const sp = mycSplit_(String(c.center || '').trim().slice(0, 150));
-    const per = String(c.period || sp.period || '').trim().slice(0, 40);
-    return sp.name ? sp.name + (per ? ' - الفترة ' + per.replace(/^الفترة\s*/, '') : '') : '';
-  }).filter(Boolean).filter(x => cKey_(x) !== cKey_(o.center) || mycSplit_(x).period !== o.period).slice(0, 6);
+    const c = typeof x === 'object' && x ? x : tpItemSplit_(x);
+    const sp = tpItemSplit_(String(c.center || c.name || '').trim().slice(0, 150));
+    const per = String(c.period || sp.period || '').trim().slice(0, 40).replace(/^الفترة\s*/, '');
+    const cat = String(c.cat || sp.cat || '').replace(/[()]/g, '').trim().slice(0, 60);
+    return sp.name ? sp.name + (per ? ' - الفترة ' + per : '') + (cat ? ' (فئة التدريس: ' + cat + ')' : '') : '';
+  }).filter(Boolean).filter(x => { const y = tpItemSplit_(x); return cKey_(y.name) !== cKey_(o.center) || y.period !== o.period; }).slice(0, 6);
   o.more = more.join('؛ ');
   o.nid = o.nid.replace(/[٠-٩]/g, ch => '٠١٢٣٤٥٦٧٨٩'.indexOf(ch)).replace(/\D/g, '');
   Object.keys(TP_REQ).forEach(k => { if (!o[k]) throw new Error('أكملي خانة «' + TP_REQ[k] + '»'); });
@@ -1733,9 +1735,14 @@ function tpSave_(t, r) {
 // هل المعلمة تابعة لهذا المركز؟ (الاسم بعد التوحيد، والفترة إن كانت محددة في الطرفين)
 function tpPerSet_(p) { const t = String(p || '').replace(/[أإآ]/g, 'ا'); const m = /صباح/.test(t), e = /مسائ/.test(t); return { m: m || !e, e: e || !m }; }
 // كل مراكز المعلمة: الأساسي ثم «مراكز أخرى»
+function tpItemSplit_(x) {
+  const t = String(x || '').trim(), m = /\(\s*فئة التدريس:\s*([^)]*)\)\s*$/.exec(t);
+  const sp = mycSplit_(m ? t.slice(0, m.index).trim() : t);
+  return { name: sp.name, period: sp.period, cat: m ? m[1].trim() : '' };
+}
 function tpCenters_(p) {
-  const L = p.center ? [{ name: p.center, period: p.period }] : [];
-  String(p.more || '').split('؛').map(x => x.trim()).filter(Boolean).forEach(x => L.push(mycSplit_(x)));
+  const L = p.center ? [{ name: p.center, period: p.period, cat: p.cat }] : [];
+  String(p.more || '').split('؛').map(x => x.trim()).filter(Boolean).forEach(x => L.push(tpItemSplit_(x)));
   return L;
 }
 function tpMatch1_(c, centerName, period) {
@@ -1788,7 +1795,7 @@ function tpForManage_(users, myc) {
     const units = {};
     tpCenters_(p).forEach(c => uc.forEach(x => { if (tpMatch1_(c, x.name, x.period)) units[x.unit] = 1; }));
     return Object.assign({}, p, { units: Object.keys(units) });
-  }).filter(p => p.units.length);
+  });   // كل معلمة سجّلت بياناتها تظهر في إدارة الوحدات
 }
 
 

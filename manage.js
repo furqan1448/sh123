@@ -252,7 +252,10 @@ function mgRender() {
 
   // ملخص أعلى الصفحة
   if (mgPaneCur === 'ach') setTimeout(achRender, 0);
-  if (mgPaneCur === 'tch') setTimeout(mgTchRender, 0);   // تغيّر الوحدة أو التاريخ: تتحدث الإنجازات أيضاً
+  const segT = $('mgSegTch'), idariU = unit === 'وحدة الإشراف الإداري';   // بيانات المعلمات لا تظهر في الإشراف الإداري
+  if (segT) segT.classList.toggle('hidden', idariU);
+  if (idariU && mgPaneCur === 'tch') setTimeout(() => mgPane('sum'), 0);
+  else if (mgPaneCur === 'tch') setTimeout(mgTchRender, 0);   // تغيّر الوحدة أو التاريخ: تتحدث الإنجازات أيضاً
   const myc = (MG && MG.myc) || {};
   const mycN = users.reduce((n, u) => n + ((myc[u.username] || []).length), 0);
   const stat = (n, l, d) => '<div><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg></div><div><b>' + n + '</b><span>' + l + '</span></div></div>';
@@ -370,16 +373,35 @@ function mgPane(k) {
   if (k === 'ach') achRender();
   if (k === 'tch') mgTchRender();
 }
-// بيانات المعلمات في الوحدة المختارة (حسب «المراكز المشرفة عليها» لمشرفاتها) — لا تخص الإشراف الإداري
-let mgTchUnit = null;
+// بيانات المعلمات: كل معلمة سجّلت بياناتها من «بياناتي الشخصية»،
+// والبحث بالاسم يشمل أيضاً من لم تسجّل وعبّأت المشرفة بياناتها في الاستمارات (من آخر استمارة لها)
+const mgTN = s => String(s || '').replace(/\s*\(\s*[٠-٩0-9]+\s*\)\s*$/, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/\s+/g, '');
+const mgCName = c => String(c || '').replace(/\s*[-–—]?\s*(ال)?فتر(ة|تين|تان)\s+.*$/, '').trim() || String(c || '').trim();
+const mgPer = p => { p = String(p || ''); return /صباح/.test(p) && /مسائ/.test(p) ? 'الصباحية والمسائية' : /مسائ/.test(p) ? 'المسائية' : /صباح/.test(p) ? 'الصباحية' : ''; };
+function mgFormTeachers(reg) {
+  const have = {}; reg.forEach(p => { have[mgTN(p.name)] = 1; });
+  const best = {};
+  const add = (name, o, when) => {
+    const k = mgTN(name); if (!k || have[k]) return;
+    if (!best[k] || String(when) > String(best[k]._w)) best[k] = Object.assign({ name: String(name).replace(/\s*\(\s*[٠-٩0-9]+\s*\)\s*$/, '').trim(), src: 'form', _w: when }, o);
+  };
+  (MG.evals || []).forEach(r => add(r.teacher, { center: mgCName(r.center), period: mgPer(r.period || r.center), qq: r.qual || '', cat: r.cat || '', exp: r.years || '',
+    srcLabel: 'آخر استمارة تقييم (الإشراف التربوي)' + (r.date ? ' بتاريخ ' + r.date : '') }, (r.date || '') + (r.at || '')));
+  (MG.sgh || []).forEach(r => { const f = (r.data && r.data.f) || {};
+    add(r.teacher, { center: mgCName(r.center), period: mgPer(r.period || r.center), qq: f.quranQual || '', qual: f.qual || '', cat: f.cat || '', exp: f.years || '',
+      srcLabel: 'آخر ' + (r.kind === 'eval' ? 'استمارة' : 'تقرير') + ' (تحفيظ الصغار)' + (r.date ? ' بتاريخ ' + r.date : '') }, (r.date || '') + (r.at || '')); });
+  return Object.keys(best).map(k => best[k]).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+}
+let mgTchKey = null;
 function mgTchRender() {
   if (!MG || typeof tpLoadView !== 'function') return;
-  const unit = $('mgUnit').value, idari = unit === 'وحدة الإشراف الإداري';
-  const list = idari ? [] : (MG.tprof || []).filter(p => (p.units || []).indexOf(unit) > -1);
-  if (mgTchUnit === unit && $('tpBox').dataset.built) { TP_LIST = list; tpRenderList(); return; }   // نفس الوحدة: تحديث القائمة فقط دون إغلاق الاستمارة المفتوحة
-  mgTchUnit = unit;
-  tpLoadView('tpBox', () => Promise.resolve({ data: list }), { byCenter: 1, title: 'بيانات معلمات ' + unit, who: unit, whoLabel: 'الوحدة: ',
-    empty: idari ? 'بيانات المعلمات لا تخص وحدة الإشراف الإداري.' : 'لا توجد بيانات معلمات في مراكز مشرفات هذه الوحدة بعد.' });
+  const list = (MG.tprof || []).slice().sort((a, b) => String(a.center).localeCompare(String(b.center), 'ar') || String(a.name).localeCompare(String(b.name), 'ar'));
+  const extra = mgFormTeachers(list);
+  const key = list.length + '|' + extra.length + '|' + list.map(p => p.at).join();
+  if (mgTchKey && $('tpBox').dataset.built) { TP_LIST = list; TP_CTX.extra = extra; if (key !== mgTchKey) tpRenderList(); mgTchKey = key; return; }   // تحديث دون إغلاق الاستمارة المفتوحة
+  mgTchKey = key;
+  tpLoadView('tpBox', () => Promise.resolve({ data: list }), { byCenter: 1, title: 'بيانات المعلمات', who: '', extra,
+    empty: 'لم تسجّل أي معلمة بياناتها بعد. ويمكنكِ البحث باسم المعلمة لعرض بياناتها من الاستمارات.' });
 }
 function achOpen() { mgPane('ach'); }
 function achRender() {

@@ -11,6 +11,15 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Amiri:wght@400;700&display=optional">
 <link rel="stylesheet" href="style.css">
+<style>
+/* بيانات المعلمة في الاستمارات: ظاهرة دائماً بخانات صغيرة متصلة بالبيانات الأساسية */
+.ev-tdata{display:grid;grid-template-columns:repeat(4,1fr);gap:0 10px;margin-top:2px}
+.ev-tdata .row2{display:contents}
+.ev-tdata>label,.ev-tdata>input,.ev-tdata>select{grid-column:1/-1}
+.ev-tdata label{font-size:13px;margin:8px 0 4px}
+.ev-tdata input,.ev-tdata select{padding:7px 10px;font-size:14px;min-height:0;height:38px}
+@media(max-width:700px){.ev-tdata{grid-template-columns:1fr 1fr}}
+</style>
 </head>
 <body>
 <div class="topbar">
@@ -237,8 +246,7 @@
         <div><label for="evTeacher">اسم المعلمة</label><input id="evTeacher" list="teacherList" autocomplete="off" placeholder="اختاري من القائمة أو اكتبي"></div>
         <div><label for="evDate">التاريخ</label><input id="evDate" type="date" onchange="evDateChange()"></div>
       </div>
-      <details class="ev-extra">
-        <summary>بيانات المعلمة</summary>
+      <div class="ev-tdata">
         <div class="row2">
           <div><label for="evDay">اليوم</label><select id="evDay"></select></div>
           <div><label for="evVisitNo">رقم الزيارة</label><input id="evVisitNo" inputmode="numeric"></div>
@@ -257,7 +265,7 @@
           <div><label for="evTotalN">العدد الكلي</label><input id="evTotalN" inputmode="numeric"></div>
           <div><label for="evPresent">العدد الحاضر</label><input id="evPresent" inputmode="numeric"></div>
         </div>
-      </details>
+      </div>
     </div>
 
     <div style="margin-bottom:12px"><button type="button" class="btn light" style="width:100%" onclick="evFillMax()">تعبئة البنود الفارغة بالدرجة الكاملة ثم التعديل</button></div>
@@ -344,8 +352,7 @@
         <div><label for="efTeacher">اسم المعلمة</label><input id="efTeacher" list="teacherList" autocomplete="off" placeholder="اختاري من القائمة أو اكتبي"></div>
         <div><label for="efDate">التاريخ</label><input id="efDate" type="date" onchange="efDateChange()"></div>
       </div>
-      <details class="ev-extra">
-        <summary>بيانات المعلمة</summary>
+      <div class="ev-tdata">
         <div class="row2">
           <div><label for="efDay">اليوم</label><select id="efDay"></select></div>
           <div><label for="efVisitNo">رقم الزيارة</label><input id="efVisitNo" inputmode="numeric"></div>
@@ -374,7 +381,7 @@
         <input id="efLesson">
         <label for="efSupervisor">اسم المشرفة</label>
         <input id="efSupervisor">
-      </details>
+      </div>
     </div>
 
     <div style="margin-bottom:12px"><button type="button" class="btn light" style="width:100%" onclick="efFillMax()">تعبئة البنود الفارغة بالدرجة الكاملة ثم التعديل</button></div>
@@ -416,8 +423,7 @@
         <div><label for="tbTeacher">اسم المعلمة</label><input id="tbTeacher" list="teacherList" autocomplete="off" placeholder="اختاري من القائمة أو اكتبي"></div>
         <div><label for="tbDate">التاريخ</label><input id="tbDate" type="date" onchange="tbDateChange()"></div>
       </div>
-      <details class="ev-extra">
-        <summary>بيانات المعلمة</summary>
+      <div class="ev-tdata">
         <div class="row2">
           <div><label for="tbDay">اليوم</label><select id="tbDay"></select></div>
           <div><label for="tbKind">نوعها</label><input id="tbKind"></div>
@@ -444,7 +450,7 @@
         </div>
         <label for="tbLesson">عنوان الدرس</label>
         <input id="tbLesson">
-      </details>
+      </div>
     </div>
 
     <div style="margin-bottom:12px"><button type="button" class="btn light" style="width:100%" onclick="tbFillMax()">تعبئة البنود الفارغة بالدرجة الكاملة ثم التعديل</button></div>
@@ -488,8 +494,7 @@
         <div><label for="tjTeacher">اسم المعلمة</label><input id="tjTeacher" list="teacherList" autocomplete="off" placeholder="اختاري من القائمة أو اكتبي"></div>
         <div><label for="tjDate">التاريخ</label><input id="tjDate" type="date" onchange="tjDateChange()"></div>
       </div>
-      <details class="ev-extra">
-        <summary>بيانات المعلمة</summary>
+      <div class="ev-tdata">
         <div class="row2">
           <div><label for="tjDay">اليوم</label><select id="tjDay"></select></div>
           <div><label for="tjKind">نوعها</label><input id="tjKind"></div>
@@ -516,7 +521,7 @@
         </div>
         <label for="tjLesson">عنوان الدرس</label>
         <input id="tjLesson">
-      </details>
+      </div>
     </div>
 
     <div style="margin-bottom:12px"><button type="button" class="btn light" style="width:100%" onclick="tjFillMax()">تعبئة البنود الفارغة بالدرجة الكاملة ثم التعديل</button></div>

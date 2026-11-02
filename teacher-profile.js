@@ -23,8 +23,8 @@ const TP_F = [
   { s: 'العمل في الجمعية' },
   { k: 'center', l: 'المركز', req: 1, center: 1 },
   { k: 'period', l: 'الفترة', req: 1, opts: ['الصباحية', 'المسائية', 'الصباحية والمسائية'] },
-  { k: 'more', l: 'مراكز أخرى تعملين فيها', more: 1, wide: 1 },
-  { k: 'cat', l: 'فئة التدريس', list: ['أمهات', 'متعلمات', 'ناشئة', 'أمهات ومتعلمات', 'متعلمات وناشئة', 'أمهات وناشئة', 'جميع الفئات'] }
+  { k: 'cat', l: 'فئة التدريس الأساسية', list: ['أمهات', 'متعلمات', 'ناشئة', 'أمهات ومتعلمات', 'متعلمات وناشئة', 'أمهات وناشئة', 'جميع الفئات'] },
+  { k: 'more', l: 'مراكز أخرى تعملين فيها', more: 1, wide: 1 }
 ];
 const TP_KEYS = TP_F.filter(f => f.k);
 const tpD = s => String(s == null ? '' : s).replace(/[0-9]/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
@@ -53,10 +53,11 @@ function tpVal(p, f) {
 (function tpCss() {
   const st = document.createElement('style');
   st.textContent = `
-.tp-mrow{display:grid;grid-template-columns:1fr 150px 44px;gap:8px;margin-bottom:8px;align-items:center}
+.tp-mrow{display:grid;grid-template-columns:1fr 140px 170px 44px;gap:8px;margin-bottom:8px;align-items:center}
+.tp-mrow input{margin:0}
 .tp-mrow select{margin:0}
 .tp-mrow .btn{padding:8px 0}
-@media(max-width:560px){.tp-mrow{grid-template-columns:1fr 1fr 40px}}
+@media(max-width:560px){.tp-mrow{grid-template-columns:1fr 1fr 40px}.tp-mrow .tp-mc{grid-column:1/-1}}
 .tp-addc{padding:8px 14px;font-size:14px}
 .tp-draft{background:#eef8f1;border:1.5px solid #9fd3b2;color:#1f6b40;border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:14px;font-weight:700;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 .tp-draft .btn{padding:5px 12px;font-size:13px}
@@ -78,6 +79,8 @@ function tpVal(p, f) {
 .tp-cnt{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
 .tp-cnt span{background:#fbeef0;color:var(--primary);border-radius:20px;padding:3px 12px;font-weight:800;font-size:13.5px}
 .tp-gh{font-weight:800;color:#fff;background:linear-gradient(135deg,var(--primary),var(--primary-dark));border-radius:12px;padding:8px 14px;margin:16px 0 10px;display:flex;justify-content:space-between;align-items:center}
+.tp-gx{background:linear-gradient(135deg,#8a7a7d,#6b5c60)}
+.tp-card.tp-form{border-style:dashed}
 .tp-gh small{background:rgba(255,255,255,.18);border-radius:20px;padding:1px 10px}
 .tp-card{border:1.5px solid var(--line);border-radius:16px;background:#fff;margin-bottom:10px;overflow:hidden}
 .tp-row{cursor:pointer;padding:12px 14px;display:flex;align-items:center;gap:12px}
@@ -138,27 +141,32 @@ const tpFindCenter = (name, per) => {
   const k = s => String(s || '').replace(/\s+/g, '');
   return TP_CENTERS.find(c => k(cpName(c)) === k(name) && (!per || !cpPer(c) || c.indexOf(per) > -1)) || TP_CENTERS.find(c => k(cpName(c)) === k(name)) || name;
 };
-function tpMoreAdd(center, period) {
+// عنصر «مراكز أخرى»: «المركز - الفترة المسائية (فئة التدريس: أمهات)»
+function tpItem(x) {
+  const t = String(x || '').trim(), m = /\(\s*فئة التدريس:\s*([^)]*)\)\s*$/.exec(t), c = m ? t.slice(0, m.index).trim() : t;
+  const per = /مسائ/.test(c) && /صباح/.test(c) ? 'الصباحية والمسائية' : /مسائ/.test(c) ? 'المسائية' : /صباح/.test(c) ? 'الصباحية' : '';
+  return { center: cpName(c), period: per, cat: m ? m[1].trim() : '' };
+}
+function tpMoreAdd(center, period, cat) {
   const box = document.getElementById('tpMore'); if (!box) return;
   const row = document.createElement('div');
   row.className = 'tp-mrow';
   row.innerHTML = '<select class="tp-mc" onchange="tpCenterPick(this, this.parentNode.querySelector(\'.tp-mp\'))">' + centerOpts(TP_CENTERS, 'اختاري المركز', null) + '</select>' +
     '<select class="tp-mp"><option value="">الفترة</option>' + TP_PERS.map(x => '<option>' + x + '</option>').join('') + '</select>' +
+    '<input class="tp-mcat" list="tp_cat_l" placeholder="فئة التدريس" autocomplete="off">' +
     '<button type="button" class="btn danger" title="حذف" onclick="this.parentNode.remove(); tpDraftSave()">✕</button>';
   box.appendChild(row);
   if (center) selSet(row.querySelector('.tp-mc'), tpFindCenter(center, period));
   if (period) row.querySelector('.tp-mp').value = period;
+  if (cat) row.querySelector('.tp-mcat').value = cat;
 }
 function tpMoreGet() {
-  return [...document.querySelectorAll('#tpMore .tp-mrow')].map(r => ({ center: r.querySelector('.tp-mc').value, period: r.querySelector('.tp-mp').value })).filter(x => x.center);
+  return [...document.querySelectorAll('#tpMore .tp-mrow')].map(r => ({ center: r.querySelector('.tp-mc').value, period: r.querySelector('.tp-mp').value, cat: r.querySelector('.tp-mcat').value.trim() })).filter(x => x.center);
 }
 function tpMoreSet(v) {
   const box = document.getElementById('tpMore'); if (!box) return;
   box.innerHTML = '';
-  (Array.isArray(v) ? v : String(v || '').split('؛').map(x => x.trim()).filter(Boolean).map(x => {
-    const per = /مسائ/.test(x) && /صباح/.test(x) ? 'الصباحية والمسائية' : /مسائ/.test(x) ? 'المسائية' : /صباح/.test(x) ? 'الصباحية' : '';
-    return { center: cpName(x), period: per };
-  })).forEach(x => tpMoreAdd(x.center, x.period));
+  (Array.isArray(v) ? v : String(v || '').split('؛').map(x => x.trim()).filter(Boolean).map(tpItem)).forEach(x => tpMoreAdd(x.center, x.period, x.cat));
 }
 /* ---------- مسودة النموذج: كل ما تكتبه المعلمة يُحفظ في جهازها حتى تحفظ البيانات ---------- */
 const tpDraftKey = () => 'tp_draft_' + (localStorage.getItem('tch_phone') || '');
@@ -241,10 +249,14 @@ async function tpSaveMine(btn) {
 
 /* ===================== المديرة والمشرفات: عرض بيانات المعلمات ===================== */
 let TP_LIST = [], TP_CTX = {};
+// كل البطاقات المعروضة (المسجّلات + من الاستمارات عند البحث)
+const tpAllV = () => TP_LIST.concat(TP_CTX.extra || []);
 function tpCard(p) {
-  const ini = String(p.name || '?').trim().charAt(0), i = TP_LIST.indexOf(p);
-  return '<div class="tp-card"><div class="tp-row" onclick="tpDocOpen(' + i + ')"><div class="tp-av">' + esc(ini) + '</div><div class="tp-hd"><b>' + esc(p.name) + '</b><small>' +
-    (p.cat ? esc(p.cat) : 'معلمة') + (TP_CTX.byCenter ? '' : ' — الفترة ' + esc(p.period)) + ' — الجوال: <span dir="ltr">' + esc(tpD(p.phone)) + '</span></small></div>' +
+  const ini = String(p.name || '?').trim().charAt(0), i = tpAllV().indexOf(p);
+  const sub = p.src === 'form' ? esc(p.srcLabel || 'من الاستمارات') + (p.center ? ' — ' + esc(p.center) : '')
+    : (p.cat ? esc(p.cat) : 'معلمة') + (TP_CTX.byCenter ? '' : ' — الفترة ' + esc(p.period)) + ' — الجوال: <span dir="ltr">' + esc(tpD(p.phone)) + '</span>';
+  return '<div class="tp-card' + (p.src === 'form' ? ' tp-form' : '') + '"><div class="tp-row" onclick="tpDocOpen(' + i + ')"><div class="tp-av">' + esc(ini) + '</div><div class="tp-hd"><b>' + esc(p.name) + '</b><small>' +
+    sub + '</small></div>' +
     '<button type="button" class="btn light tp-open">عرض الاستمارة</button></div></div>';
 }
 /* ---------- استمارة بيانات المعلمة (مثل باقي الاستمارات: عرض ثم حفظ PDF أو Excel) ---------- */
@@ -262,6 +274,7 @@ const TPD_CSS = `
 function tpDocPlain(p, f) {
   const v = p[f.k];
   if (!v) return '';
+  if (f.k === 'more') return String(v).split('؛').map(x => esc(x.trim())).filter(Boolean).join('<br>');
   if (f.type === 'date') return tpDate(v);
   if (f.k === 'hifz') return esc(tpD(v)) + ' جزءاً';
   return esc(f.num || f.ro ? tpD(v) : v);
@@ -281,11 +294,11 @@ function tpDocHtml(p) {
   };
   return '<div class="im-page tpd"><img class="idc-lh" src="' + ID_LETTERHEAD + '" width="2000" height="351" alt=""><div class="idc-body">' +
     '<div class="idc-title">استمارة بيانات معلمة</div>' + secs.map(tbl).join('') +
-    '<div class="tpd-at">آخر تحديث من المعلمة: ' + tpAt(p.at) + '</div></div></div>';
+    '<div class="tpd-at">' + (p.src === 'form' ? 'لم تسجّل المعلمة بياناتها بعد — البيانات مأخوذة من ' + esc(p.srcLabel || 'آخر استمارة عبّأتها المشرفة') : 'آخر تحديث من المعلمة: ' + tpAt(p.at)) + '</div></div></div>';
 }
 let TP_DOC = null;
 function tpDocOpen(i) {
-  const p = TP_LIST[i]; if (!p) return;
+  const p = tpAllV()[i]; if (!p) return;
   TP_DOC = p;
   document.getElementById('tpListPane').classList.add('hidden');
   const d = document.getElementById('tpDocPane'); d.classList.remove('hidden');
@@ -326,23 +339,31 @@ async function tpDocXlsx(btn) {
   catch (e) { toast(e.message || 'تعذّر تحميل Excel', false); }
   finally { setBtnBusy(btn, false); }
 }
-function tpFiltered() {
+function tpFiltered(src) {
+  const L = src || TP_LIST;
   const q = (document.getElementById('tpQ') || {}).value || '';
   const n = s => String(s || '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/\s+/g, '');
   const k = n(q);
-  return k ? TP_LIST.filter(p => [p.name, p.center, p.phone, p.nid].some(v => n(v).indexOf(k) > -1)) : TP_LIST;
+  return k ? L.filter(p => [p.name, p.center, p.phone, p.nid].some(v => n(v).indexOf(k) > -1)) : L;
 }
 function tpRenderList() {
   const box = document.getElementById('tpList'); if (!box) return;
   const L = tpFiltered();
   const am = TP_LIST.filter(p => /صباح/.test(p.period) && !/مسائ/.test(p.period)).length, pm = TP_LIST.filter(p => /مسائ/.test(p.period) && !/صباح/.test(p.period)).length;
   document.getElementById('tpCnt').innerHTML = '<span>عدد المعلمات: ' + tpD(TP_LIST.length) + '</span>' + (am ? '<span>الفترة الصباحية: ' + tpD(am) + '</span>' : '') + (pm ? '<span>الفترة المسائية: ' + tpD(pm) + '</span>' : '');
-  if (!TP_LIST.length) { box.innerHTML = '<p class="empty">' + (TP_CTX.empty || 'لم تعبّئ أي معلمة بياناتها بعد') + '</p>'; return; }
-  if (!L.length) { box.innerHTML = '<p class="empty">لا توجد نتائج</p>'; return; }
-  if (!TP_CTX.byCenter) { box.innerHTML = L.map(tpCard).join(''); return; }
+  // البحث يشمل المعلمات اللاتي لم يسجّلن بياناتهن وعبّأت المشرفة بياناتهن في الاستمارات (عند وجودها)
+  const q = ((document.getElementById('tpQ') || {}).value || '').trim();
+  const X = q && TP_CTX.extra ? tpFiltered(TP_CTX.extra) : [];
+  const xh = X.length ? '<div class="tp-gh tp-gx"><span>من الاستمارات (لم تسجّل بياناتها)</span><small>' + tpD(X.length) + '</small></div>' + X.map(tpCard).join('') : '';
+  if (!TP_LIST.length && !xh) { box.innerHTML = '<p class="empty">' + (TP_CTX.empty || 'لم تعبّئ أي معلمة بياناتها بعد') + '</p>'; return; }
+  if (!L.length) { box.innerHTML = xh || '<p class="empty">لا توجد نتائج</p>'; return; }
+  if (xh) { box.innerHTML = (TP_CTX.byCenter ? tpGroupsHtml(L) : L.map(tpCard).join('')) + xh; return; }
+  box.innerHTML = TP_CTX.byCenter ? tpGroupsHtml(L) : L.map(tpCard).join('');
+}
+function tpGroupsHtml(L) {
   const groups = {};
   L.forEach(p => { const c = p.gc || p.center, per = p.gc ? p.gp : p.period, g = c + (per ? ' - الفترة ' + per : ''); (groups[g] = groups[g] || []).push(p); });
-  box.innerHTML = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'ar')).map(g => '<div class="tp-gh"><span>' + esc(g) + '</span><small>' + tpD(groups[g].length) + '</small></div>' + groups[g].map(tpCard).join('')).join('');
+  return Object.keys(groups).sort((a, b) => a.localeCompare(b, 'ar')).map(g => '<div class="tp-gh"><span>' + esc(g) + '</span><small>' + tpD(groups[g].length) + '</small></div>' + groups[g].map(tpCard).join('')).join('');
 }
 // يُبنى داخل عنصر الصفحة: أدوات البحث والتحميل + القائمة
 function tpShell(boxId) {

@@ -33,6 +33,19 @@ function tiCenterOpt(sel, name, per) {
   const want = /مسائ/.test(p) && /صباح/.test(p) ? 'both' : /مسائ/.test(p) ? 'pm' : /صباح/.test(p) ? 'am' : '';
   return (want && L.find(o => cpPer(o.value) === want)) || (L.length === 1 || !want ? L[0] : null) || null;
 }
+// فئة التدريس للمركز المختار: الأساسية للمركز الأول، ولكل «مركز آخر» فئته
+function tiCatFor(p, centerVal) {
+  if (!p) return '';
+  const nm = tiNorm(typeof cpName === 'function' ? cpName(centerVal || '') : centerVal);
+  const per = String(centerVal || '');
+  const L = String(p.more || '').split('؛').map(x => x.trim()).filter(Boolean).map(x => {
+    const m = /\(\s*فئة التدريس:\s*([^)]*)\)\s*$/.exec(x), c = m ? x.slice(0, m.index).trim() : x;
+    return { n: tiNorm(typeof cpName === 'function' ? cpName(c) : c), c, cat: m ? m[1].trim() : '' };
+  });
+  const hit = nm && L.find(x => x.n === nm && (!/صباح|مسائ/.test(per) || (/صباح/.test(per) === /صباح/.test(x.c) && /مسائ/.test(per) === /مسائ/.test(x.c))));
+  if (hit && hit.cat && tiNorm(cpName(p.center)) !== nm) return hit.cat;
+  return p.cat || '';
+}
 const tiPer = p => { p = String(p || ''); return /صباح/.test(p) && /مسائ/.test(p) ? '' : /مسائ/.test(p) ? 'مسائي' : /صباح/.test(p) ? 'صباحي' : ''; };
 const tiQual = q => q === 'دبلوم تأهيل منتهي بالتوظيف' ? 'دورة تأهيل منتهي بالتوظيف' : q;
 const tiDigits = v => String(v || '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
@@ -89,7 +102,7 @@ async function tiTarbawi(pf) {
     tiSet(g('Center'), tiCenterOpt(g('Center'), p.center, p.period), done);
     tiSet(g('Period'), tiPer(p.period), done);
     tiSet(g('Qual'), tiQual(p.qq), done);
-    tiSet(g('Cat'), p.cat, done);
+    tiSet(g('Cat'), tiCatFor(p, g('Center') && g('Center').value), done);
     tiSet(g('Years'), tiDigits(p.exp), done);
     if (g('Phone') && p.phone) { tiSet(g('Phone'), p.phone, done); if (g('Tid') && !g('Tid').value) g('Tid').value = p.tid || ''; }
     if (done.length > n0) from.push('«بياناتي الشخصية»');
@@ -109,7 +122,7 @@ async function tiTarbawi(pf) {
     tiSet(g('Groups'), ex.groups, done);
     if (done.length > n0) from.push('آخر استمارة قرآن لها');
   }
-  tiHint(top, pf + 'TiHint', done.length ? '✔ عُبّئت بيانات المعلمة تلقائياً من ' + from.join(' و') + ' (يمكن التعديل) — افتحي «بيانات المعلمة» للمراجعة.' : '');
+  tiHint(top, pf + 'TiHint', done.length ? '✔ عُبّئت بيانات المعلمة تلقائياً من ' + from.join(' و') + ' (يمكن التعديل).' : '');
   const calc = { ev: 'evCalc', tb: 'tbCalc', tj: 'tjCalc', ef: 'efCalc' }[pf];
   if (done.length && typeof window[calc] === 'function') try { window[calc](); } catch (e) {}
 }
@@ -144,7 +157,7 @@ async function tiSighar(p) {
     tiSet(f('quranQual'), prof.qq, done);
     tiSet(f('qual'), prof.qual, done);
     tiSet(f('years'), tiDigits(prof.exp), done);
-    tiSet(f('cat'), prof.cat, done);
+    tiSet(f('cat'), tiCatFor(prof, cEl && cEl.value), done);
   }
   if (done.length) {
     const h = document.getElementById(p + 'AutoHint');
