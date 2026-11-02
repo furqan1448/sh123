@@ -129,8 +129,8 @@ function tjOpenForm(type, fin) {
     document.getElementById('tjPeriod').innerHTML = evOpts(TJ.lists.period, 'اختاري الفترة');
     document.getElementById('tjQual').innerHTML = evOpts(TJ.lists.qual, 'اختاري المؤهل');
     document.getElementById('tjDay').innerHTML = evOpts(TJ.lists.day, 'اختاري اليوم');
-    document.getElementById('tjCat').innerHTML = evOpts(TJ.lists.cat, 'اختاري الفئة');
-    document.getElementById('tjCat2').innerHTML = evOpts(TJ.lists.cat, 'اختاري الفئة');
+    document.getElementById('tjCat').innerHTML = evOpts(TJ.lists.cat, 'اختاري فئة التدريس');
+    document.getElementById('tjCat2').innerHTML = evOpts(TJ.lists.cat, 'اختاري فئة التدريس');
     tjPad = makeSigWidget('tjSigW', { saved: true });
     tjBuilt = true;
   }
@@ -220,7 +220,7 @@ function tjView(r) {
   document.getElementById('evModalBody').innerHTML =
     '<h2>' + esc(r.center) + ' - ' + esc(r.teacher) + '</h2>' +
     '<div class="ev-info">' + f('نوع الاستمارة', (fin ? 'التجويد (النهائي) - ' : 'التجويد - ') + TJ_V[vt].label) + f('الفترة', r.period) + f('اليوم', r.day) + f('التاريخ', r.date) +
-    f('نوعها', ex.kind) + f('الفئة', r.cat) + f('العدد الكلي', r.total) + f('العدد الحاضر', r.present) +
+    f('نوعها', ex.kind) + f('فئة التدريس', r.cat) + f('العدد الكلي', r.total) + f('العدد الحاضر', r.present) +
     f('الفئة الثانية', ex.cat2) + f('العدد الكلي (2)', ex.total2) + f('العدد الحاضر (2)', ex.present2) +
     f('عدد المجموعات', ex.groups) + f('المؤهل في القرآن', r.qual) + f('سنوات الخبرة', r.years) +
     f('عنوان الدرس', r.lesson) + f('اسم المشرفة', r.supervisor) + '</div>' +

@@ -78,8 +78,8 @@ function efCalc() {
 /* ---------- فتح الاستمارة ---------- */
 function efFillCats() {
   const cur = document.getElementById('efCat').value, cur2 = document.getElementById('efCat2').value;
-  document.getElementById('efCat').innerHTML = evOpts(EF_CATS[efType], 'اختاري الفئة');
-  document.getElementById('efCat2').innerHTML = evOpts(EF_CATS[efType], 'اختاري الفئة');
+  document.getElementById('efCat').innerHTML = evOpts(EF_CATS[efType], 'اختاري فئة التدريس');
+  document.getElementById('efCat2').innerHTML = evOpts(EF_CATS[efType], 'اختاري فئة التدريس');
   evSetSel('efCat', cur); evSetSel('efCat2', cur2);
 }
 
@@ -206,7 +206,7 @@ function efView(r) {
   document.getElementById('evModalBody').innerHTML =
     '<h2>' + esc(r.center) + ' - ' + esc(r.teacher) + '</h2>' +
     '<div class="ev-info">' + f('نوع الاستمارة', 'القرآن الكريم (النهائي) - ' + EF_TYPES[r.formType === 'f_multi' ? 'multi' : 'single']) +
-    f('الفترة', r.period) + f('اليوم', r.day) + f('التاريخ', r.date) + f('نوعها', ex.kind) + f('الفئة', r.cat) + f('المؤهل', r.qual) +
+    f('الفترة', r.period) + f('اليوم', r.day) + f('التاريخ', r.date) + f('نوعها', ex.kind) + f('فئة التدريس', r.cat) + f('المؤهل', r.qual) +
     f('عنوان الدرس', r.lesson) + f('سنوات الخبرة', r.years) + f('العدد الكلي', r.total) + f('العدد الحاضر', r.present) +
     f('الفئة الثانية', ex.cat2) + f('العدد الكلي (2)', ex.total2) + f('العدد الحاضر (2)', ex.present2) + f('عدد المجموعات', ex.groups) +
     f('رقم الزيارة', r.visitNo) + f('اسم المشرفة', r.supervisor) + '</div>' +

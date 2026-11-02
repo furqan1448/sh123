@@ -55,7 +55,7 @@ function exFormModel(r) {
       : 'استمارة تقييم مادة التجويد ' + (fin ? 'النهائي' : 'الأسبوعي') + ' — ' + (single ? 'بدون تعدد المجموعات' : 'تعدد المجموعات');
     m.file = (isT ? 'التبيان' : 'التجويد') + (fin ? '_النهائي' : '') + '_' + exSafe(r.teacher) + '_' + exSafe(r.date);
     push('المركز', r.center); push('المعلمة', r.teacher); push('الفترة', r.period); push('اليوم', r.day); push('التاريخ', r.date);
-    push('نوعها', ex.kind); push('الفئة', r.cat); push('العدد الكلي', r.total); push('العدد الحاضر', r.present);
+    push('نوعها', ex.kind); push('فئة التدريس', r.cat); push('العدد الكلي', r.total); push('العدد الحاضر', r.present);
     push('الفئة الثانية', ex.cat2); push('العدد الكلي (الفئة الثانية)', ex.total2); push('العدد الحاضر (الفئة الثانية)', ex.present2);
     push('عدد المجموعات', ex.groups); push('المؤهل في القرآن', r.qual); push('سنوات الخبرة', r.years);
     push('عنوان الدرس', r.lesson); push('اسم المشرفة', r.supervisor);
@@ -72,7 +72,7 @@ function exFormModel(r) {
     m.title = 'استمارة تقييم القرآن الكريم (النهائي) — ' + (fm ? 'تعدد المجموعات' : 'بدون تعدد المجموعات');
     m.file = 'القرآن_النهائي_' + exSafe(r.teacher) + '_' + exSafe(r.date);
     push('المركز', r.center); push('المعلمة', r.teacher); push('الفترة', r.period); push('اليوم', r.day); push('التاريخ', r.date);
-    push('رقم الزيارة', r.visitNo); push('نوعها', ex.kind); push('الفئة', r.cat); push('المؤهل في القرآن', r.qual);
+    push('رقم الزيارة', r.visitNo); push('نوعها', ex.kind); push('فئة التدريس', r.cat); push('المؤهل في القرآن', r.qual);
     push('العدد الكلي', r.total); push('العدد الحاضر', r.present); push('عدد المجموعات', ex.groups);
     push('الفئة الثانية', ex.cat2); push('العدد الكلي (الفئة الثانية)', ex.total2); push('العدد الحاضر (الفئة الثانية)', ex.present2);
     push('سنوات الخبرة', r.years); push('عنوان الدرس', r.lesson); push('اسم المشرفة', r.supervisor);
@@ -98,7 +98,7 @@ function exFormModel(r) {
   m.title = 'استمارة تقييم القرآن الكريم — ' + (multi ? 'تعدد المجموعات' : 'بدون تعدد المجموعات');
   m.file = 'القرآن_' + exSafe(r.teacher) + '_' + exSafe(r.date);
   push('المركز', r.center); push('المعلمة', r.teacher); push('الفترة', r.period); push('اليوم', r.day); push('التاريخ', r.date);
-  push('الفئة', r.cat); push('المؤهل', r.qual); push('عنوان الدرس', r.lesson); push('سنوات الخبرة', r.years);
+  push('فئة التدريس', r.cat); push('المؤهل', r.qual); push('عنوان الدرس', r.lesson); push('سنوات الخبرة', r.years);
   push('العدد الكلي', r.total); push('العدد الحاضر', r.present); push('رقم الزيارة', r.visitNo); push('اسم المشرفة', r.supervisor);
   m.cols = ['م', 'البند', 'التنفيذ', 'الدرجة العظمى', 'الدرجة المكتسبة', 'سبب الخصم'];
   m.widths = [6, 44, 12, 14, 16, 46];

@@ -257,7 +257,8 @@ function route_(r) {
     case 'deleteMinute': return withLock_(() => deleteMinute_(r));
     case 'teacherPhone': return { ok: true, phone: teacherPhoneById_(r.tid) };   // جوال المعلمة لتنبيهها في واتساب بعد إرسال التقرير
     case 'teacherDir': return { ok: true, data: certRows_(false).map(t => ({ id: t.id, name: t.name })) };
-    case 'tchProfiles': return tpForSup_(r.username);   // بيانات المعلمات في المراكز المشرفة عليها
+    case 'tchProfiles': return tpForSup_(r.username);
+    case 'tpLookup': return tpLookup_(r);   // استيراد بيانات المعلمة في الاستمارات   // بيانات المعلمات في المراكز المشرفة عليها
     case 'getReports': return { ok: true, data: getReportsFor_(r.username) };
     case 'getReport': return { ok: true, data: getReport_(r) };
     case 'saveReport': return withLock_(() => saveReport_(r));
@@ -1087,7 +1088,9 @@ function getManage_(me) {
       if (uIn[u] && c) (myc[u] = myc[u] || []).push({ name: c, period: String(r[1]).trim() });
     });
   } catch (e) {}
-  return { ok: true, me: me, units: Object.keys(seen).sort(), users: users, visits: visits, evals: evals, files: files, idari: idari, sgh: sgh, minutes: minutes, reports: reports, myc: myc };
+  let tprof = [];
+  try { tprof = tpForManage_(users, myc); } catch (e) {}
+  return { ok: true, me: me, units: Object.keys(seen).sort(), users: users, visits: visits, evals: evals, files: files, idari: idari, sgh: sgh, minutes: minutes, reports: reports, myc: myc, tprof: tprof };
 }
 
 
@@ -1669,7 +1672,7 @@ const TP_COLS = [['tid', 'Teacher ID'], ['name', 'الاسم الرباعي'], [
   ['qual', 'المؤهل العلمي'], ['major', 'التخصص'], ['qq', 'المؤهل في القرآن الكريم'], ['hifz', 'مقدار الحفظ (بالأجزاء)'], ['ijaza', 'الإجازة في القرآن الكريم'], ['exp', 'عدد سنوات الخبرة في التدريس'],
   ['skills', 'مهارات تمتلكها المعلمة'], ['other', 'خبرات أخرى'],
   ['center', 'المركز'], ['period', 'الفترة'], ['cat', 'فئة التدريس'],
-  ['at', 'آخر تحديث']];
+  ['at', 'آخر تحديث'], ['more', 'مراكز أخرى']];   // «مراكز أخرى» في آخر عمود (لا تُزاح البيانات المحفوظة)
 const TP_REQ = { name: 'الاسم الرباعي', nid: 'رقم الهوية / الإقامة', nat: 'الجنسية', qual: 'المؤهل العلمي', hifz: 'مقدار الحفظ', center: 'المركز', period: 'الفترة' };
 function tpSheet_() {
   const ss = ss_();
@@ -1689,12 +1692,12 @@ function tpSheet_() {
   return sh;
 }
 function tpAll_() {
-  const c = CacheService.getScriptCache(), hit = c.get('tp_v1');
+  const c = CacheService.getScriptCache(), hit = c.get('tp_v2');
   if (hit) { try { return JSON.parse(hit); } catch (e) {} }
   const sh = ss_().getSheetByName(TP_SHEET);
   const v = sh && sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, TP_COLS.length).getDisplayValues() : [];
   const out = v.filter(r => String(r[0]).trim()).map(r => { const o = {}; TP_COLS.forEach((k, i) => o[k[0]] = String(r[i] == null ? '' : r[i]).trim()); return o; });
-  try { c.put('tp_v1', JSON.stringify(out), 300); } catch (e) {}
+  try { c.put('tp_v2', JSON.stringify(out), 300); } catch (e) {}
   return out;
 }
 function tpGet_(tid) { return tpAll_().find(p => p.tid === String(tid)) || null; }
@@ -1706,6 +1709,14 @@ function tpSave_(t, r) {
     const x = mycSplit_(o.center); o.center = x.name;
     if (!o.period) o.period = x.period;
   }
+  // مراكز أخرى تعمل فيها المعلمة: «المركز - الفترة الصباحية؛ مركز آخر - الفترة المسائية»
+  const more = (Array.isArray(d.more) ? d.more : String(d.more || '').split('؛')).map(x => {
+    const c = typeof x === 'object' && x ? x : { center: x };
+    const sp = mycSplit_(String(c.center || '').trim().slice(0, 150));
+    const per = String(c.period || sp.period || '').trim().slice(0, 40);
+    return sp.name ? sp.name + (per ? ' - الفترة ' + per.replace(/^الفترة\s*/, '') : '') : '';
+  }).filter(Boolean).filter(x => cKey_(x) !== cKey_(o.center) || mycSplit_(x).period !== o.period).slice(0, 6);
+  o.more = more.join('؛ ');
   o.nid = o.nid.replace(/[٠-٩]/g, ch => '٠١٢٣٤٥٦٧٨٩'.indexOf(ch)).replace(/\D/g, '');
   Object.keys(TP_REQ).forEach(k => { if (!o[k]) throw new Error('أكملي خانة «' + TP_REQ[k] + '»'); });
   if (o.nid.length !== 10) throw new Error('رقم الهوية / الإقامة يتكون من ١٠ أرقام');
@@ -1716,16 +1727,23 @@ function tpSave_(t, r) {
   for (let i = 0; i < ids.length; i++) if (String(ids[i][0]).trim() === t.id) { at = i + 2; break; }
   if (at < 0) at = sh.getLastRow() + 1;
   sh.getRange(at, 1, 1, row.length).setNumberFormat('@').setValues([row]);
-  try { CacheService.getScriptCache().remove('tp_v1'); } catch (e) {}
+  try { CacheService.getScriptCache().remove('tp_v2'); } catch (e) {}
   return { ok: true, data: o };
 }
 // هل المعلمة تابعة لهذا المركز؟ (الاسم بعد التوحيد، والفترة إن كانت محددة في الطرفين)
 function tpPerSet_(p) { const t = String(p || '').replace(/[أإآ]/g, 'ا'); const m = /صباح/.test(t), e = /مسائ/.test(t); return { m: m || !e, e: e || !m }; }
-function tpMatch_(p, centerName, period) {
-  if (!p.center || cKey_(p.center) !== cKey_(centerName)) return false;
-  const a = tpPerSet_(p.period), b = tpPerSet_(period);
+// كل مراكز المعلمة: الأساسي ثم «مراكز أخرى»
+function tpCenters_(p) {
+  const L = p.center ? [{ name: p.center, period: p.period }] : [];
+  String(p.more || '').split('؛').map(x => x.trim()).filter(Boolean).forEach(x => L.push(mycSplit_(x)));
+  return L;
+}
+function tpMatch1_(c, centerName, period) {
+  if (!c.name || cKey_(c.name) !== cKey_(centerName)) return false;
+  const a = tpPerSet_(c.period), b = tpPerSet_(period);
   return (a.m && b.m) || (a.e && b.e);
 }
+function tpMatch_(p, centerName, period) { return tpCenters_(p).some(c => tpMatch1_(c, centerName, period)); }
 // لمديرة المركز: معلمات مركزها وفترته
 function tpForCenter_(acc) {
   const x = mycSplit_(acc.name);
@@ -1736,8 +1754,41 @@ function tpForSup_(username) {
   if (profileOf_(username).unit === IDARI_UNIT) throw new Error('بيانات المعلمات غير متاحة لوحدة الإشراف الإداري');
   const mine = myCentersGet_(username).map(mycSplit_);
   if (!mine.length) return { ok: true, data: [], noCenters: true };
-  return { ok: true, data: tpAll_().filter(p => mine.some(c => tpMatch_(p, c.name, c.period)))
-    .sort((a, b) => a.center.localeCompare(b.center, 'ar') || a.name.localeCompare(b.name, 'ar')) };
+  const out = [];
+  tpAll_().forEach(p => {   // المعلمة تظهر تحت كل مركز من مراكز المشرفة تعمل فيه
+    tpCenters_(p).forEach(c => { if (mine.some(m => tpMatch1_(c, m.name, m.period))) out.push(Object.assign({}, p, { gc: c.name, gp: c.period })); });
+  });
+  return { ok: true, data: out.sort((a, b) => a.gc.localeCompare(b.gc, 'ar') || a.name.localeCompare(b.name, 'ar')) };
+}
+// بيانات المعلمة لاستيرادها في استمارات المشرفة (الإشراف التربوي وتحفيظ الصغار): بمعرّفها أو باسمها
+function tpLookup_(r) {
+  if (profileOf_(r.username).unit === IDARI_UNIT) return { ok: true, data: null };
+  const all = tpAll_(), tid = String(r.tid || '').trim();
+  const k = s => norm_(s).replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/\s+/g, '').replace(/\(\s*[٠-٩0-9]+\s*\)$/, '');
+  let p = tid ? all.find(x => x.tid === tid) : null;
+  if (!p && r.name) {
+    const n = k(r.name), L = all.filter(x => k(x.name) === n);
+    p = L.length === 1 ? L[0] : null;
+    if (!p) {   // الاسم المكتوب جزء من الاسم الرباعي (مثل «نورة العتيبي» أو الاسم الثلاثي)
+      const parts = norm_(r.name).split(/\s+/).filter(Boolean).map(k);
+      const M = parts.length >= 2 ? all.filter(x => { const xs = norm_(x.name).split(/\s+/).map(k); return xs[0] === parts[0] && parts.every(w => xs.indexOf(w) > -1); }) : [];
+      p = M.length === 1 ? M[0] : null;
+    }
+  }
+  if (!p) return { ok: true, data: null };
+  const pick = {}; ['tid', 'name', 'phone', 'center', 'period', 'more', 'qual', 'major', 'qq', 'exp', 'cat', 'hifz', 'ijaza'].forEach(f => pick[f] = p[f] || '');
+  return { ok: true, data: pick };
+}
+// لصفحة إدارة الوحدات: كل معلمة مع الوحدات التي تتبعها (حسب «المراكز المشرفة عليها» لمشرفات كل وحدة، عدا الإشراف الإداري)
+function tpForManage_(users, myc) {
+  const unitOf = {}; users.forEach(u => unitOf[u.username] = u.unit);
+  const uc = [];   // [{ unit, name, period }]
+  Object.keys(myc).forEach(u => { const un = unitOf[u]; if (!un || un === IDARI_UNIT) return; myc[u].forEach(c => uc.push({ unit: un, name: c.name, period: c.period })); });
+  return tpAll_().map(p => {
+    const units = {};
+    tpCenters_(p).forEach(c => uc.forEach(x => { if (tpMatch1_(c, x.name, x.period)) units[x.unit] = 1; }));
+    return Object.assign({}, p, { units: Object.keys(units) });
+  }).filter(p => p.units.length);
 }
 
 

@@ -251,7 +251,8 @@ function mgRender() {
   mgKnown = known; mgSupSel = sup; mgFrom = from; mgTo = to; mgUnitSel = unit;
 
   // ملخص أعلى الصفحة
-  if (mgPaneCur === 'ach') setTimeout(achRender, 0);   // تغيّر الوحدة أو التاريخ: تتحدث الإنجازات أيضاً
+  if (mgPaneCur === 'ach') setTimeout(achRender, 0);
+  if (mgPaneCur === 'tch') setTimeout(mgTchRender, 0);   // تغيّر الوحدة أو التاريخ: تتحدث الإنجازات أيضاً
   const myc = (MG && MG.myc) || {};
   const mycN = users.reduce((n, u) => n + ((myc[u.username] || []).length), 0);
   const stat = (n, l, d) => '<div><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg></div><div><b>' + n + '</b><span>' + l + '</span></div></div>';
@@ -364,8 +365,21 @@ function mgPane(k) {
   document.querySelectorAll('#mgSeg button').forEach(b => b.classList.toggle('on', b.dataset.p === k));
   $('mgPaneSum').classList.toggle('hidden', k !== 'sum');
   $('mgPaneAch').classList.toggle('hidden', k !== 'ach');
+  $('mgPaneTch').classList.toggle('hidden', k !== 'tch');
   $('mgStats').classList.toggle('hidden', k !== 'sum');   // للإنجازات ملخصها الخاص
   if (k === 'ach') achRender();
+  if (k === 'tch') mgTchRender();
+}
+// بيانات المعلمات في الوحدة المختارة (حسب «المراكز المشرفة عليها» لمشرفاتها) — لا تخص الإشراف الإداري
+let mgTchUnit = null;
+function mgTchRender() {
+  if (!MG || typeof tpLoadView !== 'function') return;
+  const unit = $('mgUnit').value, idari = unit === 'وحدة الإشراف الإداري';
+  const list = idari ? [] : (MG.tprof || []).filter(p => (p.units || []).indexOf(unit) > -1);
+  if (mgTchUnit === unit && $('tpBox').dataset.built) { TP_LIST = list; tpRenderList(); return; }   // نفس الوحدة: تحديث القائمة فقط دون إغلاق الاستمارة المفتوحة
+  mgTchUnit = unit;
+  tpLoadView('tpBox', () => Promise.resolve({ data: list }), { byCenter: 1, title: 'بيانات معلمات ' + unit, who: unit, whoLabel: 'الوحدة: ',
+    empty: idari ? 'بيانات المعلمات لا تخص وحدة الإشراف الإداري.' : 'لا توجد بيانات معلمات في مراكز مشرفات هذه الوحدة بعد.' });
 }
 function achOpen() { mgPane('ach'); }
 function achRender() {

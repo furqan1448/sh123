@@ -105,7 +105,7 @@
     <button class="back" onclick="show('homeView')">← رجوع</button>
     <div class="card">
       <h2>بيانات المعلمات</h2>
-      <p class="rp-hint">تظهر هنا تلقائياً بيانات معلمات «المراكز المشرفة عليها» بعد أن تعبّئها كل معلمة من أيقونة «بياناتي الشخصية» في صفحة المعلمات. اضغطي على اسم المعلمة لعرض استمارة بياناتها، ثم حفظها PDF أو Excel.</p>
+      <p class="rp-hint">اضغطي على اسم المعلمة لعرض استمارة بياناتها، ثم حفظها PDF أو Excel.</p>
       <div id="tpBox"></div>
     </div>
   </div>
@@ -442,5 +442,6 @@
 <script>function tpOpenSup() { show('tpView'); tpLoadView('tpBox', () => api('tchProfiles'), { byCenter: 1, title: 'بيانات معلمات المراكز المشرفة عليها', who: mcMyName(), whoLabel: 'المشرفة: ' }); }</script>
 <script src="sighar.js"></script>
 <script src="sighar-staff.js"></script>
+<script src="tch-import.js"></script>
 </body>
 </html>

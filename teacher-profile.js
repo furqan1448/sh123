@@ -23,7 +23,8 @@ const TP_F = [
   { s: 'العمل في الجمعية' },
   { k: 'center', l: 'المركز', req: 1, center: 1 },
   { k: 'period', l: 'الفترة', req: 1, opts: ['الصباحية', 'المسائية', 'الصباحية والمسائية'] },
-  { k: 'cat', l: 'فئة التدريس' }
+  { k: 'more', l: 'مراكز أخرى تعملين فيها', more: 1, wide: 1 },
+  { k: 'cat', l: 'فئة التدريس', list: ['أمهات', 'متعلمات', 'ناشئة', 'أمهات ومتعلمات', 'متعلمات وناشئة', 'أمهات وناشئة', 'جميع الفئات'] }
 ];
 const TP_KEYS = TP_F.filter(f => f.k);
 const tpD = s => String(s == null ? '' : s).replace(/[0-9]/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
@@ -52,6 +53,13 @@ function tpVal(p, f) {
 (function tpCss() {
   const st = document.createElement('style');
   st.textContent = `
+.tp-mrow{display:grid;grid-template-columns:1fr 150px 44px;gap:8px;margin-bottom:8px;align-items:center}
+.tp-mrow select{margin:0}
+.tp-mrow .btn{padding:8px 0}
+@media(max-width:560px){.tp-mrow{grid-template-columns:1fr 1fr 40px}}
+.tp-addc{padding:8px 14px;font-size:14px}
+.tp-draft{background:#eef8f1;border:1.5px solid #9fd3b2;color:#1f6b40;border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:14px;font-weight:700;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.tp-draft .btn{padding:5px 12px;font-size:13px}
 .tp-note{background:#f6f0f2;border-right:4px solid var(--primary);border-radius:10px;padding:10px 12px;margin-bottom:12px;line-height:1.8;font-size:14.5px}
 .tp-sec{font-weight:800;color:var(--primary);font-size:16px;margin:18px 0 2px;padding-bottom:6px;border-bottom:1.5px dashed var(--line)}
 .tp-sec:first-child{margin-top:4px}
@@ -106,6 +114,8 @@ function tpFormHtml() {
     if (f.s) { if (open) h += '</div>'; h += '<div class="tp-sec">' + f.s + '</div><div class="tp-grid">'; open = true; return; }
     const id = 'tp_' + f.k, lab = '<label for="' + id + '">' + f.l + (f.req ? '<span class="rq">*</span>' : '') + '</label>';
     let inp;
+    if (f.more) { h += '<div class="wide"><label>' + f.l + ' <small style="color:var(--muted);font-weight:500">(إن وُجدت)</small></label><div id="tpMore"></div>' +
+      '<button type="button" class="btn light tp-addc" onclick="tpMoreAdd()">＋ إضافة مركز آخر</button></div>'; return; }
     if (f.center) inp = '<select id="' + id + '" onchange="tpCenterPick(this)"></select>';
     else if (f.opts) inp = '<select id="' + id + '"><option value="">اختاري</option>' + f.opts.map(o => '<option>' + esc(o) + '</option>').join('') + '</select>';
     else if (f.area) inp = '<textarea id="' + id + '" rows="3" maxlength="1000"></textarea>';
@@ -117,15 +127,67 @@ function tpFormHtml() {
   return h + (open ? '</div>' : '');
 }
 // اختيار المركز: تُحدَّد الفترة تلقائياً من اسمه (ويمكن تغييرها)
-function tpCenterPick(sel) {
+function tpCenterPick(sel, perEl) {
   const o = sel.options[sel.selectedIndex], k = o && o.dataset ? o.dataset.p : '';
   const per = { am: 'الصباحية', pm: 'المسائية', both: 'الصباحية والمسائية' }[k];
-  if (per) document.getElementById('tp_period').value = per;
+  if (per) (perEl || document.getElementById('tp_period')).value = per;
+}
+// «مراكز أخرى»: صف لكل مركز (المركز + الفترة + حذف)
+const TP_PERS = ['الصباحية', 'المسائية', 'الصباحية والمسائية'];
+const tpFindCenter = (name, per) => {
+  const k = s => String(s || '').replace(/\s+/g, '');
+  return TP_CENTERS.find(c => k(cpName(c)) === k(name) && (!per || !cpPer(c) || c.indexOf(per) > -1)) || TP_CENTERS.find(c => k(cpName(c)) === k(name)) || name;
+};
+function tpMoreAdd(center, period) {
+  const box = document.getElementById('tpMore'); if (!box) return;
+  const row = document.createElement('div');
+  row.className = 'tp-mrow';
+  row.innerHTML = '<select class="tp-mc" onchange="tpCenterPick(this, this.parentNode.querySelector(\'.tp-mp\'))">' + centerOpts(TP_CENTERS, 'اختاري المركز', null) + '</select>' +
+    '<select class="tp-mp"><option value="">الفترة</option>' + TP_PERS.map(x => '<option>' + x + '</option>').join('') + '</select>' +
+    '<button type="button" class="btn danger" title="حذف" onclick="this.parentNode.remove(); tpDraftSave()">✕</button>';
+  box.appendChild(row);
+  if (center) selSet(row.querySelector('.tp-mc'), tpFindCenter(center, period));
+  if (period) row.querySelector('.tp-mp').value = period;
+}
+function tpMoreGet() {
+  return [...document.querySelectorAll('#tpMore .tp-mrow')].map(r => ({ center: r.querySelector('.tp-mc').value, period: r.querySelector('.tp-mp').value })).filter(x => x.center);
+}
+function tpMoreSet(v) {
+  const box = document.getElementById('tpMore'); if (!box) return;
+  box.innerHTML = '';
+  (Array.isArray(v) ? v : String(v || '').split('؛').map(x => x.trim()).filter(Boolean).map(x => {
+    const per = /مسائ/.test(x) && /صباح/.test(x) ? 'الصباحية والمسائية' : /مسائ/.test(x) ? 'المسائية' : /صباح/.test(x) ? 'الصباحية' : '';
+    return { center: cpName(x), period: per };
+  })).forEach(x => tpMoreAdd(x.center, x.period));
+}
+/* ---------- مسودة النموذج: كل ما تكتبه المعلمة يُحفظ في جهازها حتى تحفظ البيانات ---------- */
+const tpDraftKey = () => 'tp_draft_' + (localStorage.getItem('tch_phone') || '');
+let tpDraftT = 0, tpDraftOff = false;
+function tpCollect() {
+  const data = {};
+  TP_KEYS.forEach(f => { const el = document.getElementById('tp_' + f.k); if (el) data[f.k] = el.value.trim(); });
+  data.more = tpMoreGet();
+  return data;
+}
+function tpDraftSave() {
+  if (tpDraftOff) return;
+  clearTimeout(tpDraftT);
+  tpDraftT = setTimeout(() => { try { localStorage.setItem(tpDraftKey(), JSON.stringify({ d: tpCollect(), t: Date.now() })); } catch (e) {} }, 400);
+}
+function tpDraftClear() { clearTimeout(tpDraftT); try { localStorage.removeItem(tpDraftKey()); } catch (e) {} const b = document.getElementById('tpDraftNote'); if (b) b.remove(); }
+function tpApply(p) {
+  tpDraftOff = true;
+  TP_KEYS.forEach(f => { const el = document.getElementById('tp_' + f.k); if (el && !f.center) el.value = p[f.k] || ''; });
+  selSet('tp_center', p.center ? tpFindCenter(p.center, p.period) : '');
+  if (p.period) document.getElementById('tp_period').value = p.period;
+  tpMoreSet(p.more);
+  tpDraftOff = false;
 }
 async function tpOpenMine() {
   tShow('profView');
   const box = document.getElementById('tpForm');
-  if (!box.dataset.built) { box.innerHTML = tpFormHtml(); box.dataset.built = '1'; }
+  if (!box.dataset.built) { box.innerHTML = tpFormHtml(); box.dataset.built = '1'; box.addEventListener('input', tpDraftSave); box.addEventListener('change', tpDraftSave); }
+  const oldNote = document.getElementById('tpDraftNote'); if (oldNote) oldNote.remove();
   document.getElementById('tpAt').textContent = 'جارِ التحميل...';
   document.getElementById('tpSaveBtn').disabled = true;
   try {
@@ -134,12 +196,20 @@ async function tpOpenMine() {
     const p = TP_ME || { name: out.name };
     p.phone = out.phone;
     if (!p.cat && out.cat) p.cat = out.cat;   // فئة التدريس من سجل المعلمات (إن وُجدت)
-    const cfull = p.center ? (TP_CENTERS.find(c => cpName(c).replace(/\s+/g, '') === p.center.replace(/\s+/g, '') && (!p.period || !cpPer(c) || c.indexOf(p.period) > -1)) ||
-      TP_CENTERS.find(c => cpName(c).replace(/\s+/g, '') === p.center.replace(/\s+/g, '')) || p.center) : '';
     document.getElementById('tp_center').innerHTML = centerOpts(TP_CENTERS, 'اختاري المركز', null);
-    TP_KEYS.forEach(f => { const el = document.getElementById('tp_' + f.k); if (el && !f.center) el.value = p[f.k] || ''; });
-    selSet('tp_center', cfull);
+    tpApply(p);
     if (!document.getElementById('tp_nat').value && !TP_ME) document.getElementById('tp_nat').value = 'سعودية';
+    // مسودة لم تُحفظ (أحدث من آخر حفظ): تُعاد كما كُتبت
+    let dr = null; try { dr = JSON.parse(localStorage.getItem(tpDraftKey()) || 'null'); } catch (e) {}
+    const savedAt = TP_ME && TP_ME.at ? new Date(TP_ME.at.replace(' ', 'T') + ':00+03:00').getTime() : 0;
+    if (dr && dr.d && dr.t > savedAt) {
+      tpApply(Object.assign({}, dr.d, { phone: out.phone }));
+      const n = document.createElement('div');
+      n.id = 'tpDraftNote'; n.className = 'tp-draft';
+      n.innerHTML = '<span>✔ استُعيد ما كتبتِه سابقاً ولم يُحفظ بعد</span><button type="button" class="btn light">تجاهل المسودة</button>';
+      n.querySelector('button').onclick = () => { tpDraftClear(); tpApply(p); };
+      box.parentNode.insertBefore(n, box);
+    }
     tpAtRender();
   } catch (e) {
     document.getElementById('tpAt').textContent = '';
@@ -151,8 +221,7 @@ function tpAtRender() {
   const b = document.getElementById('tpNewBadge'); if (b) b.classList.toggle('hidden', !!TP_ME);
 }
 async function tpSaveMine(btn) {
-  const data = {};
-  TP_KEYS.forEach(f => { const el = document.getElementById('tp_' + f.k); if (el) data[f.k] = el.value.trim(); });
+  const data = tpCollect();
   const miss = TP_KEYS.find(f => f.req && !data[f.k]);
   if (miss) { toast('أكملي خانة «' + miss.l + '»', false); const el = document.getElementById('tp_' + miss.k); if (el) el.focus(); return; }
   const nid = data.nid.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/\D/g, '');
@@ -162,8 +231,9 @@ async function tpSaveMine(btn) {
   try {
     const out = await tApi('t_prof_save', { data });
     TP_ME = out.data; if (TME) TME.prof = true;
+    tpDraftClear();
     tpAtRender();
-    toast('تم حفظ بياناتكِ، وتظهر الآن لمديرة مركزكِ ومشرفاتكِ');
+    toast('تم حفظ بياناتكِ');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (e) { toast(e.message, false); }
   finally { setBtnBusy(btn, false); }
@@ -271,7 +341,7 @@ function tpRenderList() {
   if (!L.length) { box.innerHTML = '<p class="empty">لا توجد نتائج</p>'; return; }
   if (!TP_CTX.byCenter) { box.innerHTML = L.map(tpCard).join(''); return; }
   const groups = {};
-  L.forEach(p => { const g = p.center + (p.period ? ' - الفترة ' + p.period : ''); (groups[g] = groups[g] || []).push(p); });
+  L.forEach(p => { const c = p.gc || p.center, per = p.gc ? p.gp : p.period, g = c + (per ? ' - الفترة ' + per : ''); (groups[g] = groups[g] || []).push(p); });
   box.innerHTML = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'ar')).map(g => '<div class="tp-gh"><span>' + esc(g) + '</span><small>' + tpD(groups[g].length) + '</small></div>' + groups[g].map(tpCard).join('')).join('');
 }
 // يُبنى داخل عنصر الصفحة: أدوات البحث والتحميل + القائمة

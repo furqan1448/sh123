@@ -20,7 +20,8 @@
 .mg-stats b{display:block;font-size:26px;color:#fff;line-height:1.1}
 .mg-stats span{font-size:13.5px;color:#f1dde0;font-weight:700}
 @media(max-width:760px){.mg-stats{grid-template-columns:repeat(2,1fr)}}
-.mg-seg{display:flex;background:#efe5e7;border-radius:14px;padding:5px;gap:5px;margin-bottom:12px;max-width:420px}
+.mg-seg{display:flex;background:#efe5e7;border-radius:14px;padding:5px;gap:5px;margin-bottom:12px;max-width:620px}
+@media(max-width:520px){.mg-seg button{padding:9px 4px;font-size:13.5px;gap:5px}.mg-seg button svg{width:17px;height:17px}}
 .mg-seg button{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:10px;padding:10px;background:transparent;font:inherit;font-weight:800;color:var(--muted);cursor:pointer}
 .mg-seg button svg{width:20px;height:20px}
 .mg-seg button.on{background:#fff;color:var(--primary);box-shadow:0 2px 8px rgba(0,0,0,.08)}
@@ -120,9 +121,11 @@
     <div class="mg-seg" id="mgSeg">
       <button class="on" data-p="sum" onclick="mgPane('sum')">الملخص</button>
       <button data-p="ach" onclick="mgPane('ach')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>الإنجازات</button>
+      <button data-p="tch" id="mgSegTch" onclick="mgPane('tch')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3.5 19c.7-3 2.8-4.8 5.5-4.8s4.8 1.8 5.5 4.8"/><path d="M15 6h5.5"/><path d="M15 9.5h5.5"/><path d="M16.5 13h4"/></svg>بيانات المعلمات</button>
     </div>
     <div class="mg-stats" id="mgStats"></div>
     <div id="mgPaneAch" class="hidden"><div id="achBody"></div></div>
+    <div id="mgPaneTch" class="hidden"><div class="card"><h2>بيانات المعلمات</h2><p class="rp-hint" id="mgTchHint">اضغطي على اسم المعلمة لعرض استمارة بياناتها، ثم حفظها PDF أو Excel.</p><div id="tpBox"></div></div></div>
     <div id="mgPaneSum">
 
     <div class="card">
@@ -191,6 +194,7 @@
 <script src="tabyan.js"></script>
 <script src="tajweed.js"></script>
 <script src="final.js"></script>
+<script src="doc-xlsx.js"></script>
 <script src="export.js"></script>
 <script src="idari-print.js"></script>
 <script src="sighar-print.js"></script>
@@ -199,5 +203,6 @@
 <script>window.MN_NO_UI = 1;</script>
 <script src="minutes.js"></script>
 <script src="manage.js"></script>
+<script src="teacher-profile.js"></script>
 </body>
 </html>

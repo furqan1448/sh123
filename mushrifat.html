@@ -56,7 +56,7 @@
     <button class="back" onclick="show('homeView')">← رجوع</button>
     <div class="card">
       <h2>بيانات المعلمات</h2>
-      <p class="rp-hint">تظهر هنا تلقائياً بيانات معلمات «المراكز المشرفة عليها» بعد أن تعبّئها كل معلمة من أيقونة «بياناتي الشخصية» في صفحة المعلمات. اضغطي على اسم المعلمة لعرض استمارة بياناتها، ثم حفظها PDF أو Excel.</p>
+      <p class="rp-hint">اضغطي على اسم المعلمة لعرض استمارة بياناتها، ثم حفظها PDF أو Excel.</p>
       <div id="tpBox"></div>
     </div>
   </div>
@@ -238,14 +238,14 @@
         <div><label for="evDate">التاريخ</label><input id="evDate" type="date" onchange="evDateChange()"></div>
       </div>
       <details class="ev-extra">
-        <summary>بيانات إضافية</summary>
+        <summary>بيانات المعلمة</summary>
         <div class="row2">
           <div><label for="evDay">اليوم</label><select id="evDay"></select></div>
           <div><label for="evVisitNo">رقم الزيارة</label><input id="evVisitNo" inputmode="numeric"></div>
         </div>
         <div class="row2">
           <div><label for="evQual">المؤهل</label><select id="evQual"></select></div>
-          <div><label for="evCat">الفئة</label><select id="evCat"></select></div>
+          <div><label for="evCat">فئة التدريس</label><select id="evCat"></select></div>
         </div>
         <label for="evLesson">عنوان الدرس</label>
         <input id="evLesson">
@@ -345,7 +345,7 @@
         <div><label for="efDate">التاريخ</label><input id="efDate" type="date" onchange="efDateChange()"></div>
       </div>
       <details class="ev-extra">
-        <summary>بيانات إضافية</summary>
+        <summary>بيانات المعلمة</summary>
         <div class="row2">
           <div><label for="efDay">اليوم</label><select id="efDay"></select></div>
           <div><label for="efVisitNo">رقم الزيارة</label><input id="efVisitNo" inputmode="numeric"></div>
@@ -355,7 +355,7 @@
           <div><label for="efQual">المؤهل في القرآن</label><select id="efQual"></select></div>
         </div>
         <div class="row2">
-          <div><label for="efCat">الفئة</label><select id="efCat"></select></div>
+          <div><label for="efCat">فئة التدريس</label><select id="efCat"></select></div>
           <div><label for="efGroups">عدد المجموعات</label><input id="efGroups" inputmode="numeric"></div>
         </div>
         <div class="row2">
@@ -363,12 +363,12 @@
           <div><label for="efPresent">العدد الحاضر</label><input id="efPresent" inputmode="numeric"></div>
         </div>
         <div class="row2">
-          <div><label for="efCat2">الفئة الثانية (إن وُجدت)</label><select id="efCat2"></select></div>
+          <div class="hidden"><label for="efCat2">الفئة الثانية (إن وُجدت)</label><select id="efCat2"></select></div>
           <div><label for="efYears">سنوات الخبرة</label><input id="efYears" inputmode="numeric"></div>
         </div>
         <div class="row2">
-          <div><label for="efTotal2">العدد الكلي (للفئة الثانية)</label><input id="efTotal2" inputmode="numeric"></div>
-          <div><label for="efPresent2">العدد الحاضر (للفئة الثانية)</label><input id="efPresent2" inputmode="numeric"></div>
+          <div class="hidden"><label for="efTotal2">العدد الكلي (للفئة الثانية)</label><input id="efTotal2" inputmode="numeric"></div>
+          <div class="hidden"><label for="efPresent2">العدد الحاضر (للفئة الثانية)</label><input id="efPresent2" inputmode="numeric"></div>
         </div>
         <label for="efLesson">عنوان الدرس</label>
         <input id="efLesson">
@@ -417,7 +417,7 @@
         <div><label for="tbDate">التاريخ</label><input id="tbDate" type="date" onchange="tbDateChange()"></div>
       </div>
       <details class="ev-extra">
-        <summary>بيانات إضافية</summary>
+        <summary>بيانات المعلمة</summary>
         <div class="row2">
           <div><label for="tbDay">اليوم</label><select id="tbDay"></select></div>
           <div><label for="tbKind">نوعها</label><input id="tbKind"></div>
@@ -427,7 +427,7 @@
           <div><label for="tbYears">سنوات الخبرة</label><input id="tbYears" inputmode="numeric"></div>
         </div>
         <div class="row2">
-          <div><label for="tbCat">الفئة</label><select id="tbCat"></select></div>
+          <div><label for="tbCat">فئة التدريس</label><select id="tbCat"></select></div>
           <div><label for="tbGroups">عدد المجموعات</label><input id="tbGroups" inputmode="numeric"></div>
         </div>
         <div class="row2">
@@ -435,12 +435,12 @@
           <div><label for="tbPresent">العدد الحاضر</label><input id="tbPresent" inputmode="numeric"></div>
         </div>
         <div class="row2">
-          <div><label for="tbCat2">الفئة الثانية (إن وُجدت)</label><select id="tbCat2"></select></div>
+          <div class="hidden"><label for="tbCat2">الفئة الثانية (إن وُجدت)</label><select id="tbCat2"></select></div>
           <div><label for="tbSupervisor">اسم المشرفة</label><input id="tbSupervisor"></div>
         </div>
         <div class="row2">
-          <div><label for="tbTotal2">العدد الكلي (للفئة الثانية)</label><input id="tbTotal2" inputmode="numeric"></div>
-          <div><label for="tbPresent2">العدد الحاضر (للفئة الثانية)</label><input id="tbPresent2" inputmode="numeric"></div>
+          <div class="hidden"><label for="tbTotal2">العدد الكلي (للفئة الثانية)</label><input id="tbTotal2" inputmode="numeric"></div>
+          <div class="hidden"><label for="tbPresent2">العدد الحاضر (للفئة الثانية)</label><input id="tbPresent2" inputmode="numeric"></div>
         </div>
         <label for="tbLesson">عنوان الدرس</label>
         <input id="tbLesson">
@@ -489,7 +489,7 @@
         <div><label for="tjDate">التاريخ</label><input id="tjDate" type="date" onchange="tjDateChange()"></div>
       </div>
       <details class="ev-extra">
-        <summary>بيانات إضافية</summary>
+        <summary>بيانات المعلمة</summary>
         <div class="row2">
           <div><label for="tjDay">اليوم</label><select id="tjDay"></select></div>
           <div><label for="tjKind">نوعها</label><input id="tjKind"></div>
@@ -499,7 +499,7 @@
           <div><label for="tjYears">سنوات الخبرة</label><input id="tjYears" inputmode="numeric"></div>
         </div>
         <div class="row2">
-          <div><label for="tjCat">الفئة</label><select id="tjCat"></select></div>
+          <div><label for="tjCat">فئة التدريس</label><select id="tjCat"></select></div>
           <div><label for="tjGroups">عدد المجموعات</label><input id="tjGroups" inputmode="numeric"></div>
         </div>
         <div class="row2">
@@ -507,12 +507,12 @@
           <div><label for="tjPresent">العدد الحاضر</label><input id="tjPresent" inputmode="numeric"></div>
         </div>
         <div class="row2">
-          <div><label for="tjCat2">الفئة الثانية (إن وُجدت)</label><select id="tjCat2"></select></div>
+          <div class="hidden"><label for="tjCat2">الفئة الثانية (إن وُجدت)</label><select id="tjCat2"></select></div>
           <div><label for="tjSupervisor">اسم المشرفة</label><input id="tjSupervisor"></div>
         </div>
         <div class="row2">
-          <div><label for="tjTotal2">العدد الكلي (للفئة الثانية)</label><input id="tjTotal2" inputmode="numeric"></div>
-          <div><label for="tjPresent2">العدد الحاضر (للفئة الثانية)</label><input id="tjPresent2" inputmode="numeric"></div>
+          <div class="hidden"><label for="tjTotal2">العدد الكلي (للفئة الثانية)</label><input id="tjTotal2" inputmode="numeric"></div>
+          <div class="hidden"><label for="tjPresent2">العدد الحاضر (للفئة الثانية)</label><input id="tjPresent2" inputmode="numeric"></div>
         </div>
         <label for="tjLesson">عنوان الدرس</label>
         <input id="tjLesson">
@@ -671,6 +671,7 @@
 <script src="teacher-profile.js"></script>
 <script>function tpOpenSup() { show('tpView'); tpLoadView('tpBox', () => api('tchProfiles'), { byCenter: 1, title: 'بيانات معلمات المراكز المشرفة عليها', who: mcMyName(), whoLabel: 'المشرفة: ' }); }</script>
 <script src="attach.js"></script>
+<script src="tch-import.js"></script>
 <script>
 const DAYS = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 const IDARI_UNIT = 'وحدة الإشراف الإداري';

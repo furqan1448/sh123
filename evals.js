@@ -289,7 +289,7 @@ function evOpenForm(type) {
     evBind();
     document.getElementById('evPeriod').innerHTML = evOpts(EV.lists.period, 'اختاري الفترة');
     document.getElementById('evQual').innerHTML = evOpts(EV.lists.qual, 'اختاري المؤهل');
-    document.getElementById('evCat').innerHTML = evOpts(EV.lists.cat, 'اختاري الفئة');
+    document.getElementById('evCat').innerHTML = evOpts(EV.lists.cat, 'اختاري فئة التدريس');
     document.getElementById('evDay').innerHTML = evOpts(EV.lists.day, 'اختاري اليوم');
     evPad = makeSigWidget('evSigW', { saved: true });
     evBuilt = true;
@@ -568,7 +568,7 @@ function evView(i) {
   const f = (l, v) => v ? '<div><b>' + l + ':</b> ' + esc(v) + '</div>' : '';
   document.getElementById('evModalBody').innerHTML =
     '<h2>' + esc(r.center) + ' - ' + esc(r.teacher) + '</h2>' +
-    '<div class="ev-info">' + f('نوع الاستمارة', EV_TYPES[r.formType === 'multi' ? 'multi' : 'single']) + f('الفترة', r.period) + f('اليوم', r.day) + f('التاريخ', r.date) + f('الفئة', r.cat) + f('المؤهل', r.qual) +
+    '<div class="ev-info">' + f('نوع الاستمارة', EV_TYPES[r.formType === 'multi' ? 'multi' : 'single']) + f('الفترة', r.period) + f('اليوم', r.day) + f('التاريخ', r.date) + f('فئة التدريس', r.cat) + f('المؤهل', r.qual) +
     f('عنوان الدرس', r.lesson) + f('سنوات الخبرة', r.years) + f('العدد الكلي', r.total) + f('العدد الحاضر', r.present) +
     f('رقم الزيارة', r.visitNo) + f('اسم المشرفة', r.supervisor) + '</div>' +
     '<div class="tbl-wrap"><table style="min-width:560px"><thead><tr><th>م</th><th>البند</th><th>التنفيذ</th><th>الدرجة</th><th>سبب الخصم</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
@@ -639,3 +639,41 @@ function sendWire(p) {
   show();
 }
 ['ev', 'ef', 'tb', 'tj'].forEach(sendWire);
+
+/* ---------- الحفظ التلقائي للمسودة أثناء التعبئة (دون زر) ----------
+   كل ما يُكتب في الاستمارة يُحفظ مسودة تلقائياً بعد ثانيتين من التوقف عن الكتابة (على الجهاز وعلى الخادم)،
+   فتجدها المشرفة في «المسودات» أعلى صفحة الاستمارات إن خرجت قبل الحفظ. لا يشمل التعديل على استمارة محفوظة. */
+let draftAutoT = null;
+function draftHasContent(view) {
+  const pf = draftPrefix(view), t = document.getElementById(pf + 'Teacher');
+  if (t && t.value.trim()) return true;
+  return draftFields(view).some(el => el.dataset && el.dataset.f === 's' && String(el.value).trim());
+}
+function draftAuto(view) {
+  if (EDIT) return;
+  const v = document.getElementById(view);
+  if (!v || v.classList.contains('hidden') || !draftHasContent(view)) return;
+  const pf = draftPrefix(view), g = id => (document.getElementById(pf + id) || {}).value || '';
+  let sig = '';
+  try { sig = EV_PADS()[view].draftData(); } catch (e) {}
+  const rec = {
+    id: CUR_DRAFT || ('d' + Date.now()), ft: draftCurType(view), at: new Date().toISOString(),
+    teacher: g('Teacher').trim(), center: g('Center'), date: g('Date'),
+    vals: draftFields(view).map(el => el.value), sig
+  };
+  const list = draftsGet(), k = list.findIndex(d => d.id === rec.id);
+  if (k > -1) list[k] = rec; else list.unshift(rec);
+  if (!draftsPut(list)) { rec.sig = ''; if (!draftsPut(list)) return; }
+  CUR_DRAFT = rec.id;
+  draftPush(rec);
+  renderDrafts();
+}
+['evalFormView', 'tbFormView', 'tjFormView', 'evfFormView'].forEach(view => {
+  const v = document.getElementById(view); if (!v) return;
+  const on = () => { clearTimeout(draftAutoT); draftAutoT = setTimeout(() => draftAuto(view), 2000); };
+  v.addEventListener('input', on, true);
+  v.addEventListener('change', on, true);
+  v.addEventListener('pointerup', e => { if (e.target.closest('canvas, .sigw')) on(); }, true);   // التوقيع
+});
+// قبل إغلاق الصفحة: حفظ أخير فوري
+window.addEventListener('pagehide', () => { ['evalFormView', 'tbFormView', 'tjFormView', 'evfFormView'].forEach(v => { try { draftAuto(v); } catch (e) {} }); });

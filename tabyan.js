@@ -101,8 +101,8 @@ function tbOpenForm(fin) {
     document.getElementById('tbPeriod').innerHTML = evOpts(TB.lists.period, 'اختاري الفترة');
     document.getElementById('tbQual').innerHTML = evOpts(TB.lists.qual, 'اختاري المؤهل');
     document.getElementById('tbDay').innerHTML = evOpts(TB.lists.day, 'اختاري اليوم');
-    document.getElementById('tbCat').innerHTML = evOpts(TB.lists.cat, 'اختاري الفئة');
-    document.getElementById('tbCat2').innerHTML = evOpts(TB.lists.cat, 'اختاري الفئة');
+    document.getElementById('tbCat').innerHTML = evOpts(TB.lists.cat, 'اختاري فئة التدريس');
+    document.getElementById('tbCat2').innerHTML = evOpts(TB.lists.cat, 'اختاري فئة التدريس');
     tbPad = makeSigWidget('tbSigW', { saved: true });
     tbBuilt = true;
   }
@@ -191,7 +191,7 @@ function tbView(r) {
   document.getElementById('evModalBody').innerHTML =
     '<h2>' + esc(r.center) + ' - ' + esc(r.teacher) + '</h2>' +
     '<div class="ev-info">' + f('نوع الاستمارة', r.formType === 'f_tabyan' ? 'مادة التبيان (النهائي)' : 'مادة التبيان') + f('الفترة', r.period) + f('اليوم', r.day) + f('التاريخ', r.date) +
-    f('نوعها', ex.kind) + f('الفئة', r.cat) + f('العدد الكلي', r.total) + f('العدد الحاضر', r.present) +
+    f('نوعها', ex.kind) + f('فئة التدريس', r.cat) + f('العدد الكلي', r.total) + f('العدد الحاضر', r.present) +
     f('الفئة الثانية', ex.cat2) + f('العدد الكلي (2)', ex.total2) + f('العدد الحاضر (2)', ex.present2) +
     f('عدد المجموعات', ex.groups) + f('المؤهل في القرآن', r.qual) + f('سنوات الخبرة', r.years) +
     f('عنوان الدرس', r.lesson) + f('اسم المشرفة', r.supervisor) + '</div>' +

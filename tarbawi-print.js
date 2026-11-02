@@ -67,7 +67,7 @@ function tvDocHtml(r, sigs, lhUrl) {
   // بيانات رأس الاستمارة: ثلاث خانات في كل صف (الفارغ لا يظهر)
   const F = [['اسم المركز', r.center], ['الفترة', r.period], ['اسم المعلمة', r.teacher],
     ['رقم الزيارة', idDigits(r.visitNo || '')], ['اليوم', r.day], ['التاريخ', r.date ? tvHijri(r.date) : ''],
-    ['عنوان الدرس', r.lesson], ['نوعها', ex.kind], ['الفئة', r.cat], ['العدد الكلي', idDigits(r.total || '')], ['العدد الحاضر', idDigits(r.present || '')],
+    ['عنوان الدرس', r.lesson], ['نوعها', ex.kind], ['فئة التدريس', r.cat], ['العدد الكلي', idDigits(r.total || '')], ['العدد الحاضر', idDigits(r.present || '')],
     ['الفئة الثانية', ex.cat2], ['العدد الكلي (٢)', idDigits(ex.total2 || '')], ['العدد الحاضر (٢)', idDigits(ex.present2 || '')],
     ['عدد المجموعات', idDigits(ex.groups || '')], ['المؤهل', r.qual], ['سنوات الخبرة', idDigits(r.years || '')]];
   const cells = F.filter(x => String(x[1] || '').trim()).map(x => x[0] + ': ' + m(x[0] === 'التاريخ' ? x[1] : esc(x[1])));
