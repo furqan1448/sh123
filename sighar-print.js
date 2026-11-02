@@ -209,10 +209,11 @@ async function sgView(rec) {
   m.classList.remove('hidden');
   let sigs = {};
   try { sigs = await sgLoadSigs(rec); } catch (e) {}
-  b.innerHTML = '<div class="ex-bar"><button class="btn light" id="sgVPdf">تحميل PDF</button><button class="btn light" id="sgVShare">مشاركة</button></div>' +
+  b.innerHTML = '<div class="ex-bar"><button class="btn light" id="sgVPdf">تحميل PDF</button>' + (typeof dxBar !== 'undefined' && typeof sgXlsx === 'function' ? '<button class="btn light" id="sgVXls">' + (typeof DX_ICO_XLS !== 'undefined' ? DX_ICO_XLS : '') + 'حفظ Excel</button>' : '') + '<button class="btn light" id="sgVShare">مشاركة</button></div>' +
     '<style>' + sgAllCss() + '</style><div class="id-scroll sg-fit">' + sgDocHtml(rec, sigs) + '</div>';
   document.getElementById('sgVPdf').onclick = e => sgPdf(rec, e.currentTarget, sigs);
   document.getElementById('sgVShare').onclick = e => sgShare(rec, e.currentTarget, sigs);
+  const xb = document.getElementById('sgVXls'); if (xb) xb.onclick = e => sgXlsx(rec, e.currentTarget, sigs);
   sgFitBox(b.querySelector('.sg-fit'));
 }
 // تصغير التقرير ليناسب عرض الشاشة (الجوال) دون تمرير أفقي

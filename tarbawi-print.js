@@ -127,10 +127,11 @@ async function tvView(r) {
   m.classList.remove('hidden');
   const sigs = await tvLoadSigs(r);
   const rec = tvRec(r);
-  b.innerHTML = '<div class="ex-bar"><button class="btn light" id="tvVPdf">تحميل PDF</button><button class="btn light" id="tvVShare">مشاركة</button></div>' +
+  b.innerHTML = '<div class="ex-bar"><button class="btn light" id="tvVPdf">تحميل PDF</button>' + (typeof exRun === 'function' && typeof exFormModel === 'function' ? '<button class="btn light" id="tvVXls">' + (typeof DX_ICO_XLS !== 'undefined' ? DX_ICO_XLS : '') + 'حفظ Excel</button>' : '') + '<button class="btn light" id="tvVShare">مشاركة</button></div>' +
     '<style>' + sgAllCss() + '</style><div class="id-scroll sg-fit">' + tvDocHtml(r, sigs) + '</div>';
   document.getElementById('tvVPdf').onclick = e => sgPdf(rec, e.currentTarget, sigs);
   document.getElementById('tvVShare').onclick = e => sgShare(rec, e.currentTarget, sigs);
+  const xb = document.getElementById('tvVXls'); if (xb) xb.onclick = e => { const i = (typeof evRows !== 'undefined' ? evRows : []).indexOf(r); if (i > -1 && typeof exRow === 'function') exRow(i, e.currentTarget); else exRun(exFormModel(r), e.currentTarget); };
   sgFitBox(b.querySelector('.sg-fit'));
 }
 

@@ -471,11 +471,12 @@ async function idView(rec) {
   m.classList.remove('hidden');
   let sigs = {};
   try { sigs = await idLoadSigs(rec); } catch (e) {}
-  b.innerHTML = '<div class="ex-bar"><button class="btn light" id="idVPdf">تحميل PDF</button><button class="btn light" id="idVShare">مشاركة</button>' +
+  b.innerHTML = '<div class="ex-bar"><button class="btn light" id="idVPdf">تحميل PDF</button>' + (typeof dxBar !== 'undefined' && typeof idXlsx === 'function' ? '<button class="btn light" id="idVXls">' + (typeof DX_ICO_XLS !== 'undefined' ? DX_ICO_XLS : '') + 'حفظ Excel</button>' : '') + '<button class="btn light" id="idVShare">مشاركة</button>' +
     (rec.kind === 'visit' && typeof idSendMgr === 'function' && document.getElementById('idariPage') ? '<button class="btn id-wa" id="idVSend">📲 إرسال للمديرة</button>' : '') + '</div>' +
     '<style>' + ID_CSS + '</style><div class="id-scroll">' + idDocHtml(rec, sigs) + '</div>';
   document.getElementById('idVPdf').onclick = e => idPdf(rec, e.currentTarget, sigs);
   document.getElementById('idVShare').onclick = e => idShare(rec, e.currentTarget, sigs);
+  const xb = document.getElementById('idVXls'); if (xb) xb.onclick = e => idXlsx(rec, e.currentTarget, sigs);
   const sb = document.getElementById('idVSend');
   if (sb) sb.onclick = e => idSendMgr(rec, e.currentTarget, sigs);
 }

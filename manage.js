@@ -116,14 +116,14 @@ async function exFetchSigs(items) {
 idSigFetch = items => mgApi('getSigs', { items, mgr: true }).then(o => o.data || {});
 const mgIdari = () => (MG && MG.idari) || [];
 function mgIdOpen(id) { const r = mgIdari().find(x => x.id === id); if (r) idView(r); }
-function mgIdDo(id, btn, what) { const r = mgIdari().find(x => x.id === id); if (!r) return; what === 'pdf' ? idPdf(r, btn) : what === 'share' ? idShare(r, btn) : idPrint(r, btn); }
+function mgIdDo(id, btn, what) { const r = mgIdari().find(x => x.id === id); if (!r) return; what === 'xlsx' ? idXlsx(r, btn) : what === 'pdf' ? idPdf(r, btn) : what === 'share' ? idShare(r, btn) : idPrint(r, btn); }
 
 // تقارير وحدة تحفيظ الصغار (sighar-print.js): التواقيع بدخول مديرة الوحدة
 sgSigFetch = items => mgApi('getSigs', { items, mgr: true }).then(o => o.data || {});
 const mgSgh = () => (MG && MG.sgh) || [];
 // محاضر الاجتماعات (minutes.js): عرض و PDF ومن اطّلعت
 const mgMinById = id => ((MG && MG.minutes) || []).find(x => x.id === id);
-function mgMinDo(id, btn, what) { const r = mgMinById(id); if (!r) return; what === 'pdf' ? sgPdf(r, btn) : sgView(r); }
+function mgMinDo(id, btn, what) { const r = mgMinById(id); if (!r) return; what === 'xlsx' ? sgXlsx(r, btn) : what === 'pdf' ? sgPdf(r, btn) : sgView(r); }
 function mgMinAcks(id) {
   const r = mgMinById(id); if (!r) return;
   const tg = (r.data && r.data.target) || {}, acks = r.acks || [];
@@ -135,7 +135,7 @@ function mgMinAcks(id) {
 }
 const arDigitsN = n => idDigits(n);
 function mgSgOpen(id) { const r = mgSgh().find(x => x.id === id); if (r) sgView(r); }
-function mgSgDo(id, btn, what) { const r = mgSgh().find(x => x.id === id); if (!r) return; what === 'pdf' ? sgPdf(r, btn) : what === 'share' ? sgShare(r, btn) : sgPrint(r, btn); }
+function mgSgDo(id, btn, what) { const r = mgSgh().find(x => x.id === id); if (!r) return; what === 'xlsx' ? sgXlsx(r, btn) : what === 'pdf' ? sgPdf(r, btn) : what === 'share' ? sgShare(r, btn) : sgPrint(r, btn); }
 
 const MG_FT = { single: 'بدون تعدد', multi: 'تعدد المجموعات', tabyan: 'التبيان', tj_multi: 'التجويد - تعدد المجموعات', tj_single: 'التجويد - بدون تعدد',
   f_multi: 'القرآن النهائي - تعدد المجموعات', f_single: 'القرآن النهائي - بدون تعدد', f_tabyan: 'التبيان النهائي', f_tj_single: 'التجويد النهائي - بدون تعدد', f_tj_multi: 'التجويد النهائي - تعدد المجموعات' };
@@ -353,7 +353,7 @@ function mgRender() {
     head = '<tr><th>المشرفة</th><th>النموذج</th><th>المركز / الفصل</th><th>التاريخ</th><th></th></tr>';
     body = L.slice(0, MG_LIMIT).map(x => '<tr><td>' + who(x) + '</td><td>' + esc(ID_KINDS[x.kind] || '') + '</td><td>' + esc(x.center || [x.sem, x.year].filter(Boolean).join(' ') || '—') +
       '</td><td>' + esc(idDayName(x)) + ' ' + idHDate(x) + '</td><td style="white-space:nowrap">' + b('عرض', 'mgIdOpen(\'' + esc(x.id) + '\')') +
-      b('PDF', 'mgIdDo(\'' + esc(x.id) + '\', this, \'pdf\')') + b('مشاركة', 'mgIdDo(\'' + esc(x.id) + '\', this, \'share\')') + '</td></tr>').join('');
+      b('PDF', 'mgIdDo(\'' + esc(x.id) + '\', this, \'pdf\')') + b('Excel', 'mgIdDo(\'' + esc(x.id) + '\', this, \'xlsx\')') + b('مشاركة', 'mgIdDo(\'' + esc(x.id) + '\', this, \'share\')') + '</td></tr>').join('');
   } else if (mgTab === 'rpt') {
     const L = rpts.filter(mine); n = L.length;
     const b = (t, fn) => '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="' + fn + '">' + t + '</button> ';
@@ -367,7 +367,7 @@ function mgRender() {
     body = L.slice(0, MG_LIMIT).map(x => { const tg = (x.data && x.data.target) || {}, cnt = tg.all ? null : (tg.ids || []).length;
       return '<tr><td>' + who(x) + '</td><td>' + esc(idDigits(x.no)) + '</td><td>' + esc(x.dayName || '') + ' ' + esc(idDigits(x.hijri || '')) + '</td><td>' + esc(x.center || '—') + '</td><td>' +
         (tg.all ? 'كل المعلمات' : idDigits(cnt) + ' معلمة') + '</td><td>' + idDigits((x.acks || []).length) + (cnt != null ? ' من ' + idDigits(cnt) : '') + '</td><td style="white-space:nowrap">' +
-        b('من اطّلعت', 'mgMinAcks(\'' + esc(x.id) + '\')') + b('عرض', 'mgMinDo(\'' + esc(x.id) + '\', this, \'view\')') + b('PDF', 'mgMinDo(\'' + esc(x.id) + '\', this, \'pdf\')') + '</td></tr>'; }).join('');
+        b('من اطّلعت', 'mgMinAcks(\'' + esc(x.id) + '\')') + b('عرض', 'mgMinDo(\'' + esc(x.id) + '\', this, \'view\')') + b('PDF', 'mgMinDo(\'' + esc(x.id) + '\', this, \'pdf\')') + b('Excel', 'mgMinDo(\'' + esc(x.id) + '\', this, \'xlsx\')') + '</td></tr>'; }).join('');
   } else if (mgTab === 'sgh') {
     const L = sgs.filter(mine).filter(x => !mgSub || mgSgKind(x) === mgSub); n = L.length;
     const b = (t, fn) => '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="' + fn + '">' + t + '</button> ';
@@ -377,7 +377,7 @@ function mgRender() {
     body = L.slice(0, MG_LIMIT).map(x => '<tr><td>' + who(x) + '</td><td>' + (isSum(x) ? 'خلاصة التقارير التعليمية' : x.kind === 'stf' ? esc(x.formName || 'إجراء موظفة') : x.kind === 'eval' ? 'استمارة ' + esc(x.formName || '') + (x.grade ? ' — ' + esc(x.grade) : '') : 'تقرير زيارة') + '</td><td>' +
       (isSum(x) ? arDigitsN((x.data && x.data.rows || []).length) + ' معلمات' : esc(x.teacher)) + '</td><td>' + (isSum(x) ? esc([x.sem, x.year].filter(Boolean).join(' ')) : esc(x.center)) + '</td><td>' + esc(x.period) + '</td><td>' + esc(x.lesson || '—') +
       '</td><td>' + esc((x.data && x.data.dayName) || x.day) + ' ' + idHDate(x) + '</td><td>' + esc(idDigits(x.visitNo)) + '</td><td>' + tSt(x) + '</td><td style="white-space:nowrap">' + b('عرض', 'mgSgOpen(\'' + esc(x.id) + '\')') +
-      b('PDF', 'mgSgDo(\'' + esc(x.id) + '\', this, \'pdf\')') + b('مشاركة', 'mgSgDo(\'' + esc(x.id) + '\', this, \'share\')') + '</td></tr>').join('');
+      b('PDF', 'mgSgDo(\'' + esc(x.id) + '\', this, \'pdf\')') + b('Excel', 'mgSgDo(\'' + esc(x.id) + '\', this, \'xlsx\')') + b('مشاركة', 'mgSgDo(\'' + esc(x.id) + '\', this, \'share\')') + '</td></tr>').join('');
   } else if (mgTab === 'all') {
     // جميع المستندات في جدول واحد (الأحدث أولاً)
     const b = (t, fn) => '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="' + fn + '">' + t + '</button> ';
@@ -386,13 +386,13 @@ function mgRender() {
     const all = [];
     vs.filter(mine).forEach(x => all.push({ x, t: 'كشف الخروج', c: esc(x.center || '—'), d: esc(x.date || '') + ' ' + esc(x.day || ''), k: String(x.at || x.date || ''), act: mgSigCell(x) }));
     mgEvList().forEach(([r, i]) => all.push({ x: r, t: (MG_FT[r.formType] || 'استمارة') + ' (' + mgFinalLbl(r) + ')', c: esc(r.center || '') + (r.teacher ? ' — ' + esc(r.teacher) : ''), d: esc(r.date || ''), k: String(r.at || r.date || ''),
-      act: b('عرض', 'evView(' + i + ')') + b('PDF', 'pdfRow(' + i + ', this)') }));
+      act: b('عرض', 'evView(' + i + ')') + b('PDF', 'pdfRow(' + i + ', this)') + b('Excel', 'exRow(' + i + ', this)') }));
     ids.filter(mine).forEach(x => all.push({ x, t: ID_KINDS[x.kind] || 'نموذج', c: esc(x.center || [x.sem, x.year].filter(Boolean).join(' ') || '—'), d: esc(idDayName(x)) + ' ' + idHDate(x), k: String(x.date || x.at || ''),
-      act: b('عرض', 'mgIdOpen(\'' + esc(x.id) + '\')') + b('PDF', 'mgIdDo(\'' + esc(x.id) + '\', this, \'pdf\')') }));
+      act: b('عرض', 'mgIdOpen(\'' + esc(x.id) + '\')') + b('PDF', 'mgIdDo(\'' + esc(x.id) + '\', this, \'pdf\')') + b('Excel', 'mgIdDo(\'' + esc(x.id) + '\', this, \'xlsx\')') }));
     sgs.filter(mine).forEach(x => all.push({ x, t: sgName(x), c: esc(x.center || '') + (x.teacher ? ' — ' + esc(x.teacher) : ''), d: hd(x), k: String(x.date || x.at || ''),
-      act: b('عرض', 'mgSgOpen(\'' + esc(x.id) + '\')') + b('PDF', 'mgSgDo(\'' + esc(x.id) + '\', this, \'pdf\')') }));
+      act: b('عرض', 'mgSgOpen(\'' + esc(x.id) + '\')') + b('PDF', 'mgSgDo(\'' + esc(x.id) + '\', this, \'pdf\')') + b('Excel', 'mgSgDo(\'' + esc(x.id) + '\', this, \'xlsx\')') }));
     mins.filter(mine).forEach(x => all.push({ x, t: 'محضر اجتماع رقم ( ' + esc(idDigits(x.no)) + ' )', c: esc(x.center || '—'), d: esc(x.dayName || '') + ' ' + esc(idDigits(x.hijri || '')), k: String(x.at || ''),
-      act: b('عرض', 'mgMinDo(\'' + esc(x.id) + '\', this, \'view\')') + b('PDF', 'mgMinDo(\'' + esc(x.id) + '\', this, \'pdf\')') }));
+      act: b('عرض', 'mgMinDo(\'' + esc(x.id) + '\', this, \'view\')') + b('PDF', 'mgMinDo(\'' + esc(x.id) + '\', this, \'pdf\')') + b('Excel', 'mgMinDo(\'' + esc(x.id) + '\', this, \'xlsx\')') }));
     rpts.filter(mine).forEach(x => all.push({ x, t: 'خلاصة التقارير', c: esc(x.title || ''), d: esc(x.at || ''), k: String(x.at || ''),
       act: b('عرض', 'mgRptDo(\'' + esc(x.id) + '\', this, \'view\')') + b('PDF', 'mgRptDo(\'' + esc(x.id) + '\', this, \'pdf\')') + b('Excel', 'mgRptDo(\'' + esc(x.id) + '\', this, \'xlsx\')') }));
     fs.filter(mine).forEach(x => all.push({ x, t: 'مرفق', c: esc(x.title || ''), d: esc(x.at || ''), k: String(x.at || ''), act: mgLink(x.url, 'فتح') }));
