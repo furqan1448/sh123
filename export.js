@@ -278,7 +278,7 @@ async function exBuildXlsx(m, imgBuf, ExcelJS) {
 
   if (m.rows) {            // سجل (جدول واحد)
     m.cols.forEach((c, i) => { const cell = ws.getCell(row, i + 1); cell.value = c; style(cell, { bold: true, color: T.head.color, fill: T.head.fill, h: 'center' }); });
-    ws.getRow(row).height = 26;
+    ws.getRow(row).height = m.headH || 26;
     ws.views = [{ rightToLeft: true, showGridLines: false, state: 'frozen', ySplit: row }];
     row++;
     m.rows.forEach((rw, ri) => {
@@ -286,8 +286,9 @@ async function exBuildXlsx(m, imgBuf, ExcelJS) {
         const cell = ws.getCell(row, i + 1); cell.value = v;
         const isGrade = (m.gradeCols || []).indexOf(i) > -1 && v;
         style(cell, isGrade ? (T.gradeFill ? { bold: true, color: 'FFFFFF', fill: exGradeColor(v) || '777777', h: 'center' } : { bold: true, color: exGradeColor(v) || '222222', h: 'center' })
-          : { h: i < 3 && typeof v !== 'number' ? 'right' : 'center', fill: ri % 2 && T.zebra ? T.zebra : undefined });
+          : { h: (m.rightCols ? m.rightCols.indexOf(i) > -1 : i < 3) && typeof v !== 'number' ? 'right' : 'center', fill: ri % 2 && T.zebra ? T.zebra : undefined });
       });
+      if (m.autoH) ws.getRow(row).height = Math.max(T.rowH || 20, ...rw.map((v, i) => lines(v == null ? '' : v, (m.widths[i] || 10) * 1.15) * 15 + 6));   // ارتفاع الصف حسب طول النص
       row++;
     });
     if (!m.rows.length) { merged(row, 1, n, 'لا توجد بيانات', { h: 'center' }); row++; }

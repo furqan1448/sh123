@@ -258,7 +258,8 @@ function route_(r) {
     case 'teacherPhone': return { ok: true, phone: teacherPhoneById_(r.tid) };   // جوال المعلمة لتنبيهها في واتساب بعد إرسال التقرير
     case 'teacherDir': return { ok: true, data: certRows_(false).map(t => ({ id: t.id, name: t.name })) };
     case 'tchProfiles': return tpForSup_(r.username);
-    case 'tpLookup': return tpLookup_(r);   // استيراد بيانات المعلمة في الاستمارات   // بيانات المعلمات في المراكز المشرفة عليها
+    case 'tpLookup': return tpLookup_(r);
+    case 'getMgrEvals': return { ok: true, data: meForSup_() };   // تقييمات المديرات للمعلمات (خلاصة التقارير)   // استيراد بيانات المعلمة في الاستمارات   // بيانات المعلمات في المراكز المشرفة عليها
     case 'getReports': return { ok: true, data: getReportsFor_(r.username) };
     case 'getReport': return { ok: true, data: getReport_(r) };
     case 'saveReport': return withLock_(() => saveReport_(r));
@@ -1783,7 +1784,7 @@ function tpLookup_(r) {
     }
   }
   if (!p) return { ok: true, data: null };
-  const pick = {}; ['tid', 'name', 'phone', 'center', 'period', 'more', 'qual', 'major', 'qq', 'exp', 'cat', 'hifz', 'ijaza'].forEach(f => pick[f] = p[f] || '');
+  const pick = {}; ['tid', 'name', 'phone', 'center', 'period', 'more', 'qual', 'major', 'qq', 'exp', 'cat', 'hifz', 'ijaza', 'nat', 'skills'].forEach(f => pick[f] = p[f] || '');
   return { ok: true, data: pick };
 }
 // لصفحة إدارة الوحدات: كل معلمة مع الوحدات التي تتبعها (حسب «المراكز المشرفة عليها» لمشرفات كل وحدة، عدا الإشراف الإداري)
@@ -1798,6 +1799,73 @@ function tpForManage_(users, myc) {
   });   // كل معلمة سجّلت بياناتها تظهر في إدارة الوحدات
 }
 
+
+
+/* ============ استمارة تقييم المديرة للمعلمة (أيقونة «إدارة المراكز») ============
+   ورقة «تقييم المديرة للمعلمات» تُنشأ تلقائياً. البنود والدرجات في عمود «البيانات»، وتوقيع المديرة في ورقة التواقيع (الرقم|mgr).
+   تجلب المشرفة درجة المديرة في «خلاصة التقارير» (تقييم المديرة في القرآن). */
+const ME_SHEET = 'تقييم المديرة للمعلمات';
+const ME_HEADERS = ['الرقم', 'المركز', 'الفترة', 'اسم المعلمة', 'Teacher ID', 'التاريخ', 'الدرجة من 100', 'المعدل', 'اسم المديرة', 'البيانات', 'وقت التسجيل'];
+const ME_MAX = [2, 5, 6, 5, 4, 5, 3, 6, 5, 2, 5, 6, 7, 4, 3, 4, 4, 4, 3, 3, 3, 3, 1, 1, 2, 1, 2, 1];   // درجات البنود كما في ملف الإكسل (المجموع 100)
+function meSheet_() {
+  const ss = ss_();
+  let sh = ss.getSheetByName(ME_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(ME_SHEET);
+    sh.getRange(1, 1, 1, ME_HEADERS.length).setValues([ME_HEADERS]);
+    styleHeader_(sh, ME_HEADERS.length);
+    sh.setFrozenRows(1); sh.setRightToLeft(true);
+    sh.setColumnWidths(1, ME_HEADERS.length, 130); sh.setColumnWidth(10, 380);
+  }
+  return sh;
+}
+function meRows_() {
+  const sh = ss_().getSheetByName(ME_SHEET);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, ME_HEADERS.length).getDisplayValues().map((r, i) => {
+    let data = {}; try { data = JSON.parse(r[9] || '{}'); } catch (e) {}
+    return { row: i + 2, id: r[0], center: r[1], period: r[2], teacher: r[3], tid: r[4], date: r[5], total: r[6], avg: r[7], mgrName: r[8], data: data, at: r[10] };
+  }).filter(x => x.id).reverse();
+}
+const meOut_ = x => { const o = Object.assign({}, x); delete o.row; return o; };
+function meSave_(acc, r) {
+  const s = (v, n) => String(v == null ? '' : v).replace(/[\r\n]+/g, ' ').trim().slice(0, n || 200);
+  const num = v => { v = String(v == null ? '' : v).replace(/[٠-٩]/g, x => '٠١٢٣٤٥٦٧٨٩'.indexOf(x)).replace(/[٫,]/g, '.').trim(); return v === '' ? '' : (isFinite(+v) ? String(+v) : ''); };
+  const d = r.data && typeof r.data === 'object' ? r.data : {};
+  const teacher = s(r.teacher, 120);
+  if (!teacher) throw new Error('اختاري اسم المعلمة');
+  const items = ME_MAX.map((mx, i) => { const x = (Array.isArray(d.items) ? d.items[i] : null) || {}; let v = num(x.s); if (v !== '' && (+v < 0 || +v > mx)) throw new Error('درجة البند ' + (i + 1) + ' من 0 إلى ' + mx); return { s: v, n: s(x.n, 300) }; });
+  if (items.every(x => x.s === '')) throw new Error('أدخلي درجات البنود');
+  const total = Math.round(items.reduce((a, x) => a + (+x.s || 0), 0) * 100) / 100;
+  const f = {}; ['visitNo', 'kind', 'years', 'qq', 'present', 'cnt', 'cat', 'day', 'lesson', 'hd', 'hm', 'hy'].forEach(k => f[k] = s(d.f && d.f[k], 120));
+  const data = { f: f, items: items };
+  const sig = String(r.signature || '');
+  const sh = meSheet_();
+  let id = s(r.id, 60), row = 0, old = null;
+  if (id) { old = meRows_().find(x => x.id === id); if (!old || old.center !== acc.name) throw new Error('الاستمارة غير موجودة'); row = old.row; }
+  else { id = Utilities.getUuid(); row = sh.getLastRow() + 1; }
+  if (sig.indexOf('data:image/') === 0) { if (sig.length > 49000) throw new Error('صورة التوقيع كبيرة'); sigPut_(id + '|mgr', sig); data.sig = '1'; }
+  else if (sig === 'keep' && old && old.data.sig) data.sig = '1';
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(r.date || '')) ? String(r.date) : Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd');
+  sh.getRange(row, 1, 1, ME_HEADERS.length).setNumberFormat('@').setValues([[id, acc.name, s(r.period, 30), teacher, s(r.tid, 40), date, String(total),
+    String(Math.round(total / 5 * 100) / 100), s(r.mgrName, 120), JSON.stringify(data), nowStr_()]]);
+  return { ok: true, id: id, total: total };
+}
+function meDel_(acc, r) {
+  const x = meRows_().find(y => y.id === String(r.id || '') && y.center === acc.name);
+  if (!x) throw new Error('الاستمارة غير موجودة');
+  meSheet_().deleteRow(x.row); sigDel_(x.id + '|mgr');
+  return { ok: true };
+}
+// أسماء المعلمات للقائمة المنسدلة عند المديرة: معلمات مركزها أولاً (من «بياناتي الشخصية») ثم سجل المعلمات
+function meTeachers_(acc) {
+  const mine = tpForCenter_(acc).map(p => ({ name: p.name, tid: p.tid, mine: 1 }));
+  const seen = {}; mine.forEach(x => seen[x.tid] = 1);
+  let reg = []; try { reg = certRows_(false).filter(t => !seen[t.id]).map(t => ({ name: t.name, tid: t.id })); } catch (e) {}
+  return mine.concat(reg.sort((a, b) => a.name.localeCompare(b.name, 'ar')));
+}
+// للمشرفة: تقييمات المديرات (لجلب درجة المديرة في «خلاصة التقارير»)
+function meForSup_() { return meRows_().map(x => ({ id: x.id, center: x.center, period: x.period, teacher: x.teacher, tid: x.tid, date: x.date, total: x.total, at: x.at })); }
 
 
 /* ============ وحدة تحفيظ الصغار: استمارات تقييم الأداء الوظيفي ============
@@ -2233,7 +2301,14 @@ function centerRoute_(r) {
     if (r.action === 'c_file') { const x = outRows_().find(y => y.id === String(r.id || '') && y.to === 'c' && y.center === acc.name); if (!x) throw new Error('هذا النموذج لا يخص مركزكم'); return outFile_(x, r.fmt); }
     if (r.action === 'c_done') return withLock_(() => centerDone_(acc, r));
     if (r.action === 'c_sups') return { ok: true, data: listNames_('users', IDARI_UNIT).map(x => ({ u: x.u, n: x.n })) };   // مشرفات الإشراف الإداري
-    if (r.action === 'c_teachers') return { ok: true, data: tpForCenter_(acc) };   // بيانات معلمات المركز
+    if (r.action === 'c_teachers') return { ok: true, data: tpForCenter_(acc) };
+    // استمارة تقييم المديرة للمعلمة
+    if (r.action === 'c_me_list') return { ok: true, data: meRows_().filter(x => x.center === acc.name).map(meOut_) };
+    if (r.action === 'c_me_save') return withLock_(() => meSave_(acc, r));
+    if (r.action === 'c_me_del') return withLock_(() => meDel_(acc, r));
+    if (r.action === 'c_me_sig') { const x = meRows_().find(y => y.id === String(r.id || '') && y.center === acc.name); if (!x) throw new Error('غير موجود'); return { ok: true, data: sigGet_(x.id + '|mgr') }; }
+    if (r.action === 'c_me_teachers') return { ok: true, data: meTeachers_(acc) };
+    if (r.action === 'c_tplookup') { const o = tpLookup_({ username: '', tid: r.tid, name: r.name }); return o; }   // بيانات معلمات المركز
     if (r.action === 'c_hasr') return { ok: true, data: hasrFor_(x => x.center === acc.name) };
     if (r.action === 'c_hasr_save') return withLock_(() => hasrSave_(acc, r));
     if (r.action === 'c_hasr_del') return withLock_(() => hasrDel_(acc, r));

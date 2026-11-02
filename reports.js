@@ -1,8 +1,8 @@
 /* ===== خلاصة التقارير — واجهة المشرفات ===== */
-const RP_EDU = ['ثانوي', 'جامعي', 'دبلوم', 'دكتوراة', 'ماجستير', 'متوسط'];
+const RP_EDU = ['ابتدائي', 'متوسط', 'ثانوي', 'دبلوم', 'جامعي', 'ماجستير', 'دكتوراة'];
 const RP_QQ = ['مجازة', 'خاتمة', 'حافظة', 'دورات حفظ', 'خريجة دبلوم عالي إعداد المعلمات', 'خريجة دبلوم متوسط لتأهيل المعلمات',
   'خريجة تأهيل معلمات', 'خريجة دورة تأهيل منتهي بالتوظيف', 'اختبار مكتب', '-'];
-const RP_CATS = ['أمهات', 'أمهات - متعلمات', 'أمهات - ناشئة', 'متعلمات', 'متعلمات - ناشئة', 'ناشئة'];
+const RP_CATS = ['أمهات', 'متعلمات', 'ناشئة', 'أمهات ومتعلمات', 'متعلمات وناشئة', 'أمهات وناشئة', 'جميع الفئات'];
 const RP_RATES = ['ممتاز', 'جيد جداً', 'جيد', 'مقبول', 'ضعيف'];
 const RP_GRADES = ['ممتاز', 'جيد جداً', 'جيد', 'مقبول', 'ضعيف', 'لم تجتاز'];
 const RP_SUBJ = { none: '', tajweed: 'التجويد', tabyan: 'التبيان' };
@@ -10,7 +10,7 @@ const RP_SUBJ_MAX = { tajweed: 100, tabyan: 40 };
 
 const RP_FIELDS = [
   { k: 'center', l: 'اسم المركز', t: 'center' },
-  { k: 'name', l: 'اسم المعلمة', t: 'text' },
+  { k: 'name', l: 'اسم المعلمة', t: 'tname' },
   { k: 'edu', l: 'المؤهل العلمي', t: 'sel', o: RP_EDU },
   { k: 'qq', l: 'المؤهل في القرآن', t: 'sel', o: RP_QQ },
   { k: 'parts', l: 'مقدار حفظها بالأجزاء', t: 'num' },
@@ -230,6 +230,13 @@ async function rpFetchEvals() {
       g.list[kind].push(r);
       if (!g.info || String(r.date) >= String(g.info.date)) { g.info = r; g.name = r.teacher; }
     });
+    // تقييمات المديرات (استمارة تقييم المعلمة في «إدارة المراكز»)
+    let MGE = [];
+    try { MGE = ((await api('getMgrEvals')).data || []).filter(x => (!from || String(x.date) >= from) && (!to || String(x.date) <= to) &&
+      (!samePeriod || !x.period || x.period === RP.meta.period)); } catch (e) {}
+    const mgBy = {};
+    MGE.forEach(x => { const k = evNameKey(x.teacher); if (k) (mgBy[k] = mgBy[k] || []).push(x); });
+    Object.keys(mgBy).forEach(k => { if (!groups[k]) groups[k] = { name: mgBy[k][0].teacher, list: { q: [], tabyan: [], tajweed: [] }, info: { center: mgBy[k][0].center, date: '' } }; });
     const keys = Object.keys(groups);
     if (!keys.length) { toast('لا توجد استمارات مطابقة للخيارات المحددة', false); return; }
 
@@ -250,6 +257,7 @@ async function rpFetchEvals() {
     const m = RP.meta;
     if (!m.quran) m.quran = true;
     if (m.subject === 'none' && (nTj || nTb)) m.subject = nTb > nTj ? 'tabyan' : 'tajweed';
+    if (Object.keys(mgBy).length) m.manager = true;   // وُجد تقييم من المديرة
     if (nTj && nTb) toast('وُجدت درجات التبيان والتجويد معًا؛ اعتُمدت درجات ' + RP_SUBJ[m.subject] + ' فقط في هذا النموذج', false);
 
     if (RP.rows.length === 1 && !RP.rows[0].name.trim()) RP.rows = [];
@@ -264,9 +272,16 @@ async function rpFetchEvals() {
       const q = pick(g.list.q, 'q'), s = m.subject !== 'none' ? pick(g.list[m.subject], 'raw') : { v: null, note: '' };
       if (q.v !== null) row.q = String(q.v);
       if (s.v !== null) row.s = String(s.v);
+      let mg = { v: null, note: '' };
+      if (mgBy[k]) {   // درجة المديرة: الأحدث، أو المتوسط عند اختيار «متوسط الاستمارات»
+        const L = mgBy[k].slice().sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.at).localeCompare(String(b.at)));
+        const vals = L.map(x => rpNum(x.total)).filter(x => x !== null);
+        if (vals.length) mg = src === 'avg' ? { v: Math.round(vals.reduce((a, b) => a + b, 0) / vals.length * 100) / 100, note: 'متوسط ' + vals.length } : { v: vals[vals.length - 1], note: String(L[L.length - 1].date) };
+        if (mg.v !== null) row.m = String(mg.v);
+      }
       const lastQ = g.list.q.length ? g.list.q[g.list.q.length - 1] : null;
       if (lastQ && lastQ.recs) fill('notes', lastQ.recs);
-      row.src = [q.note ? 'القرآن: ' + q.note : '', s.note ? RP_SUBJ[m.subject] + ': ' + s.note : ''].filter(Boolean).join(' • ');
+      row.src = [q.note ? 'القرآن: ' + q.note : '', s.note ? RP_SUBJ[m.subject] + ': ' + s.note : '', mg.note ? 'المديرة: ' + mg.note : ''].filter(Boolean).join(' • ');
     });
     RP.open = -1;
     rpShowMetaControls();
@@ -319,6 +334,8 @@ function rpFieldHtml(i, f) {
     if (v && opts.indexOf(v) < 0) opts = opts.concat([v]);
     inp = '<select' + attr + '>' + (f.t === 'center' ? centerOpts(opts, opts.length ? '—' : NO_CENTERS, v) :
       '<option value="">—</option>' + opts.map(o => '<option' + (o === v ? ' selected' : '') + '>' + esc(o) + '</option>').join('')) + '</select>';
+  } else if (f.t === 'tname') {   // اسم المعلمة: قائمة منسدلة بأسماء المعلمات (مع إمكانية الكتابة للبحث)
+    inp = '<input list="teacherList" autocomplete="off" placeholder="اختاري من القائمة"' + attr + ' value="' + esc(v) + '">';
   } else if (f.t === 'area') {
     inp = '<textarea rows="2"' + attr + '>' + esc(v) + '</textarea>';
   } else if (f.t === 'num') {
@@ -326,7 +343,7 @@ function rpFieldHtml(i, f) {
   } else {
     inp = '<input' + attr + ' value="' + esc(v) + '">';
   }
-  const wide = f.t === 'area' ? ' rp-wide' : '';
+  const wide = f.t === 'area' ? ' rp-wide' : f.t === 'tname' || f.k === 'qq' || f.t === 'center' ? ' rp-w2' : '';
   return '<div class="rp-f' + wide + '"><label for="' + id + '">' + esc(f.l) + '</label>' + inp + '</div>';
 }
 function rpScoreFields(i) {
@@ -398,6 +415,27 @@ document.addEventListener('input', e => {
   if (t.dataset.k === 'name') document.getElementById('rpTitle' + i).textContent = t.value || 'معلمة جديدة';
   document.getElementById('rpChip' + i).innerHTML = rpChip(i);
   rpSummary();
+});
+
+// عند اختيار اسم المعلمة: تُعبّأ الخانات الفارغة من «بياناتي الشخصية» (إن سجّلت المعلمة بياناتها)
+const RP_EDU_MAP = { 'بكالوريوس': 'جامعي', 'دكتوراه': 'دكتوراة' };
+const RP_QQ_MAP = { 'دبلوم عالي': 'خريجة دبلوم عالي إعداد المعلمات', 'دبلوم متوسط': 'خريجة دبلوم متوسط لتأهيل المعلمات', 'دبلوم تأهيل منتهي بالتوظيف': 'خريجة دورة تأهيل منتهي بالتوظيف' };
+document.addEventListener('change', async e => {
+  const t = e.target;
+  if (!t.dataset || t.dataset.k !== 'name' || !t.closest('#rpCards') || typeof tiLookup !== 'function') return;
+  const i = +t.dataset.i, name = t.value.trim(); if (!name) return;
+  const p = await tiLookup(name);
+  const r = RP.rows[i]; if (!p || !r || String(r.name).trim() !== name) return;
+  const put = (k, v, list) => { if (!v || String(r[k] || '').trim()) return; if (list && list.indexOf(v) < 0) return; r[k] = String(v); };
+  const C = centersForMe(), cn = tiNorm(cpName(p.center || ''));
+  const per = /مسائ/.test(p.period) && !/صباح/.test(p.period) ? 'pm' : /صباح/.test(p.period) && !/مسائ/.test(p.period) ? 'am' : '';
+  put('center', C.find(c => tiNorm(cpName(c)) === cn && (!per || cpPer(c) === per)) || C.find(c => tiNorm(cpName(c)) === cn));
+  put('edu', RP_EDU_MAP[p.qual] || p.qual, RP_EDU);
+  put('qq', RP_QQ_MAP[p.qq] || p.qq, RP_QQ);
+  put('parts', p.hifz); put('nat', p.nat); put('years', String(p.exp || '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
+  put('cat', p.cat, RP_CATS); put('skills', p.skills);
+  if (String(r.src || '').indexOf('بياناتي الشخصية') < 0) r.src = (r.src ? r.src + ' • ' : '') + 'بيانات المعلمة من «بياناتي الشخصية»';
+  rpRender();
 });
 
 /* ---------- الملخص والمعاينة ---------- */
@@ -482,128 +520,25 @@ async function saveReport() {
 /* ---------- التصدير إلى Excel (بالكليشة نفسها المستخدمة في بقية الملفات) ---------- */
 function rpColLetter(n) { let s = ''; while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); } return s; }
 
+// ملف Excel بنفس تنسيق الاستمارات الأسبوعية (الكليشة، العنوان العنابي، رأس الجدول الوردي) وبأعمدة مضغوطة واضحة
 async function exportReport() {
   rpReadMeta();
   const err = rpValidate();
   if (err) return toast(err, false);
-  const btn = document.getElementById('rpXlsBtn');
-  setBtnBusy(btn, true, 'جارِ التجهيز...');
-  try {
-    await exLoad();
-    if (!exLetterBuf) {
-      const resp = await fetch(EX_LETTERHEAD);
-      if (!resp.ok) throw new Error('تعذّر تحميل الكليشة (letterhead.jpg)');
-      exLetterBuf = await resp.arrayBuffer();
-    }
-    const m = RP.meta, cols = rpLayout(m), w = rpWeights(m), N = cols.length;
-    const wb = new ExcelJS.Workbook();
-    wb.creator = 'جمعية فرقان لتحفيظ القرآن الكريم';
-    const ws = wb.addWorksheet('تقييم معلمات المركز', {
-      views: [{ rightToLeft: true, showGridLines: false }],
-      pageSetup: { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.5, header: 0.2, footer: 0.2 } }
-    });
-    const FONT = 'Arial', MAROON = 'FF953734', LIGHT = 'FFF2DBDB';   // ألوان استمارة الإكسل الأصلية للجمعية
-    const thin = { style: 'thin', color: { argb: 'FF000000' } };
-    const border = { top: thin, left: thin, bottom: thin, right: thin };
-    cols.forEach((c, i) => ws.getColumn(i + 1).width = c.width);
-
-    // الكليشة في أعلى الملف
-    const pxW = cols.reduce((a, c) => a + Math.round(c.width * 7 + 5), 0);
-    const imgH = Math.round(pxW * EX_LETTER_RATIO), HR = 4;
-    for (let i = 1; i <= HR; i++) ws.getRow(i).height = (imgH * 0.75) / HR;
-    ws.addImage(wb.addImage({ buffer: exLetterBuf, extension: 'jpeg' }), { tl: { col: 0, row: 0 }, ext: { width: pxW, height: imgH } });
-
-    const bar = (row, text, size, fill, color) => {
-      ws.mergeCells(row, 1, row, N);
-      const c = ws.getCell(row, 1);
-      c.value = text;
-      c.font = { name: FONT, size, bold: true, color: { argb: color || 'FF222222' } };
-      c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true, readingOrder: 'rtl' };
-      if (fill) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
-      ws.getRow(row).height = size + 16;
-    };
-    const T = HR + 2;
-    bar(T, 'خلاصة تقارير الإشراف (تقييم المعلمات)', 16, null, MAROON);
-    bar(T + 1, rpModeTitle(m), 12, LIGHT, 'FF000000');
-    bar(T + 2, 'الفترة: ' + m.period + '     الفصل الدراسي: ' + m.semester + '     لعام ' + m.year + 'هـ     المشرفة: ' + m.supervisor, 11, null);
-
-    const H1 = T + 4, H2 = H1 + 1, D0 = H2 + 1;
-    let c0 = 1;
-    while (c0 <= N) {
-      const col = cols[c0 - 1];
-      if (!col.g) {
-        ws.mergeCells(H1, c0, H2, c0);
-        ws.getCell(H1, c0).value = col.label;
-        c0++;
-      } else {
-        let c1 = c0;
-        while (c1 < N && cols[c1].g === col.g) c1++;
-        ws.mergeCells(H1, c0, H1, c1);
-        ws.getCell(H1, c0).value = col.g;
-        for (let k = c0; k <= c1; k++) ws.getCell(H2, k).value = cols[k - 1].label;
-        c0 = c1 + 1;
-      }
-    }
-    for (let r = H1; r <= H2; r++) for (let k = 1; k <= N; k++) {
-      const c = ws.getCell(r, k);
-      c.font = { name: FONT, size: 10, bold: true, color: { argb: 'FF000000' } };
-      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: r === H1 ? 'FFF2DBDB' : 'FFD9D9D9' } };
-      c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true, readingOrder: 'rtl' };
-      c.border = border;
-    }
-    ws.getRow(H1).height = 22; ws.getRow(H2).height = 48;
-    ws.views = [{ rightToLeft: true, showGridLines: false, state: 'frozen', ySplit: H2 }];
-
-    const L = {};
-    cols.forEach((c, i) => { if (c.role) L[c.role] = rpColLetter(i + 1); });
-    const gradeF = ref => 'IF(' + ref + '="","",IF(' + ref + '>=90,"ممتاز",IF(' + ref + '>=80,"جيد جداً",IF(' + ref + '>=70,"جيد",IF(' + ref + '>=60,"مقبول",IF(' + ref + '>=50,"ضعيف","لم تجتاز"))))))';
-    const calcs = RP.rows.map(r => rpCalc(r, m));
-    RP.rows.forEach((r, i) => {
-      const n = D0 + i, cv = calcs[i];
-      cols.forEach((col, ci) => {
-        const cell = ws.getCell(n, ci + 1);
-        const val = rpCellValue(col, r, i, m, cv);
-        let f = null;
-        if (col.role === 'qw') f = 'IF(' + L.q + n + '="","",' + L.q + n + '*' + w.q + '/100)';
-        else if (col.role === 'sw') f = 'IF(' + L.s + n + '="","",' + L.s + n + '/' + RP_SUBJ_MAX[m.subject] + '*' + w.s + ')';
-        else if (col.role === 'mw') f = 'IF(' + L.m + n + '="","",' + L.m + n + '*' + w.m + '/100)';
-        else if (col.role === 'total') {
-          const parts = [L.qw, w.s ? L.sw : null, w.m ? L.mw : null].filter(Boolean).map(x => x + n);
-          f = 'IF(COUNT(' + parts.join(',') + ')<' + parts.length + ',"",ROUND(' + parts.join('+') + ',2))';
-        } else if (col.role === 'grade') f = gradeF((L.total || L.q) + n);
-        if (f) cell.value = { formula: f, result: val === null ? '' : val };
-        else cell.value = (val === null || val === '') ? null : val;
-        cell.font = { name: FONT, size: 10, bold: col.role === 'grade' || col.role === 'total' };
-        cell.alignment = { horizontal: ['skills', 'improve', 'notes'].includes(col.k) ? 'right' : 'center', vertical: 'middle', wrapText: true, readingOrder: 'rtl' };
-        cell.border = border;
-        if (col.num) cell.numFmt = '0.##';
-      });
-      ws.getRow(n).height = 34;
-    });
-
-    const last = D0 + RP.rows.length + 1;
-    ws.mergeCells(last, 1, last, N);
-    const done = calcs.filter(c => c.total !== null);
-    const avg = done.length ? Math.round(done.reduce((a, c) => a + c.total, 0) / done.length * 100) / 100 : null;
-    const sc = ws.getCell(last, 1);
-    sc.value = 'عدد المعلمات: ' + RP.rows.length + (m.quran && avg !== null ? '     متوسط المجموع: ' + avg : '');
-    sc.font = { name: FONT, size: 11, bold: true, color: { argb: MAROON } };
-    sc.alignment = { horizontal: 'right', vertical: 'middle', readingOrder: 'rtl' };
-
-    const dv = (k, list) => {
-      const ci = cols.findIndex(c => c.k === k);
-      if (ci < 0) return;
-      const Lt = rpColLetter(ci + 1);
-      for (let n = D0; n < D0 + RP.rows.length + 40; n++)
-        ws.getCell(Lt + n).dataValidation = { type: 'list', allowBlank: true, formulae: ['"' + list.join(',') + '"'] };
-    };
-    dv('edu', RP_EDU); dv('cat', RP_CATS); dv('ach', RP_RATES); dv('beh', RP_RATES);
-
-    const buf = await wb.xlsx.writeBuffer();
-    exSave(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-      'خلاصة تقارير الإشراف - ' + exSafe(m.supervisor || 'مشرفة') + ' - ' + m.semester + ' ' + m.year + '.xlsx');
-    toast('تم التحميل');
-  } catch (e) { toast(e.message || 'تعذّر التحميل', false); }
-  finally { setBtnBusy(btn, false); }
+  const m = RP.meta, cols = rpLayout(m), w = rpWeights(m);
+  const calcs = RP.rows.map(r => rpCalc(r, m));
+  const done = calcs.filter(c => c.total !== null);
+  const avg = done.length ? Math.round(done.reduce((a, c) => a + c.total, 0) / done.length * 100) / 100 : null;
+  const W = { idx: 5, sup: 13, center: 15, name: 20, edu: 10, qq: 17, parts: 8, nat: 9, years: 8, skills: 22, improve: 22, cat: 12, cnt: 7, ach: 10, beh: 10, notes: 26 };
+  const widths = cols.map(c => W[c.k] || W[c.role] || (c.role === 'grade' ? 10 : 10));
+  const short = c => c.label.replace('تقييم المشرفة في ', 'تقييم ').replace('معدل تقييم المشرفة في ', 'معدل ').replace('المستوى العام لسلوك الدارسات', 'سلوك الدارسات')
+    .replace('التقدير العام لتحصيلهن', 'تحصيل الدارسات').replace('مقدار حفظها بالأجزاء', 'الحفظ (أجزاء)').replace('عدد سنوات الخبرة', 'سنوات الخبرة');
+  const rows = RP.rows.map((r, i) => cols.map(c => { let v = rpCellValue(c, r, i, m, calcs[i]); if (c.k === 'center' && v && typeof cpName === 'function') v = cpName(v); return v === null || v === undefined ? '' : (typeof v === 'number' ? Math.round(v * 100) / 100 : String(v)); }));
+  const info = [['المشرفة', m.supervisor], ['الفترة', m.period + '   —   الفصل الدراسي: ' + m.semester + '   —   العام: ' + m.year + 'هـ'], ['نوع التقييم', rpModeTitle(m) + (m.quran && (w.s || w.m) ? '  (الأوزان: القرآن ' + w.q + '%' + (w.s ? '، ' + RP_SUBJ[m.subject] + ' ' + w.s + '%' : '') + (w.m ? '، المديرة ' + w.m + '%' : '') + ')' : '')],
+    ['عدد المعلمات', String(RP.rows.length) + (m.quran && avg !== null ? '   —   متوسط المجموع: ' + avg : '')]];
+  const gi = cols.findIndex(c => c.role === 'grade');
+  await exRun({ title: 'خلاصة تقارير الإشراف (تقييم المعلمات)', file: 'خلاصة تقارير الإشراف - ' + exSafe(m.supervisor || 'مشرفة') + ' - ' + m.semester + ' ' + m.year,
+    landscape: true, info, cols: cols.map(short), widths, rows, gradeCols: gi > -1 ? [gi] : [], autoH: true, headH: 40,
+    rightCols: cols.map((c, i) => ['name', 'center', 'skills', 'improve', 'notes', 'qq'].indexOf(c.k) > -1 ? i : -1).filter(i => i > -1) }, document.getElementById('rpXlsBtn'));
 }
 function printReport() { rpReadMeta(); rpSummary(); window.print(); }

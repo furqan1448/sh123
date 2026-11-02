@@ -19,6 +19,16 @@
 .ev-tdata label{font-size:13px;margin:8px 0 4px}
 .ev-tdata input,.ev-tdata select{padding:7px 10px;font-size:14px;min-height:0;height:38px}
 @media(max-width:700px){.ev-tdata{grid-template-columns:1fr 1fr}}
+/* خلاصة التقارير: خانات صغيرة متقاربة */
+#reportEditView .rp-grid{grid-template-columns:repeat(4,1fr);gap:0 10px}
+#reportEditView .rp-f.rp-w2{grid-column:span 2}
+#reportEditView label{font-size:13px;margin:8px 0 4px}
+#reportEditView input:not([type=checkbox]),#reportEditView select{padding:7px 10px;font-size:14px;height:38px}
+#reportEditView textarea{padding:7px 10px;font-size:14px;min-height:0}
+#reportEditView h2{margin-bottom:6px}
+#reportEditView .rp-head{padding:9px 12px}
+#reportEditView .rp-scores{padding:2px 10px 10px}
+@media(max-width:700px){#reportEditView .rp-grid{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
@@ -583,16 +593,12 @@
 
     <div class="card">
       <h2>بيانات الخلاصة</h2>
-      <label for="rpSup">اسم المشرفة</label>
-      <input id="rpSup" onchange="rpMetaChanged()" placeholder="اسم المشرفة">
-      <div class="row2">
-        <div><label for="rpPeriod">الفترة</label>
-          <select id="rpPeriod" onchange="rpMetaChanged()"><option>صباحية</option><option>مسائية</option></select></div>
-        <div><label for="rpSem">الفصل الدراسي</label>
-          <select id="rpSem" onchange="rpMetaChanged()"><option>الأول</option><option>الثاني</option><option>الثالث</option></select></div>
+      <div class="rp-grid">
+        <div class="rp-f"><label for="rpSup">اسم المشرفة</label><input id="rpSup" onchange="rpMetaChanged()" placeholder="اسم المشرفة"></div>
+        <div class="rp-f"><label for="rpPeriod">الفترة</label><select id="rpPeriod" onchange="rpMetaChanged()"><option>صباحية</option><option>مسائية</option></select></div>
+        <div class="rp-f"><label for="rpSem">الفصل الدراسي</label><select id="rpSem" onchange="rpMetaChanged()"><option>الأول</option><option>الثاني</option><option>الثالث</option></select></div>
+        <div class="rp-f"><label for="rpYear">العام الهجري</label><input id="rpYear" inputmode="numeric" maxlength="4" onchange="rpMetaChanged()" placeholder="1447"></div>
       </div>
-      <label for="rpYear">العام الهجري</label>
-      <input id="rpYear" inputmode="numeric" maxlength="4" onchange="rpMetaChanged()" placeholder="1447">
 
       <h2 style="margin-top:20px">نوع التقييم</h2>
       <label class="check"><input type="checkbox" id="rpQuran" onchange="rpMetaChanged()"><span>يوجد تقييم من المشرفة في القرآن</span></label>

@@ -6,7 +6,7 @@ const C_NAME = 'ctr_name', C_PW = 'ctr_pw', C_CACHE = 'ctr_reports', C_SIGNER = 
 let CREP = [], CIN = [], cCur = null, cSigsCur = {}, CME = null, inCur = null, inFile = null;
 
 function cShow(id) {
-  ['loginView', 'homeView', 'reportsView', 'signView', 'inView', 'hsListView', 'hsForm', 'hsDocView', 'tpView'].forEach(v => $(v).classList.add('hidden'));
+  ['loginView', 'homeView', 'reportsView', 'signView', 'inView', 'hsListView', 'hsForm', 'hsDocView', 'tpView', 'meListView', 'meForm', 'meDocView'].forEach(v => { const el = $(v); if (el) el.classList.add('hidden'); });
   $(id).classList.remove('hidden');
   window.scrollTo(0, 0);
   setTimeout(() => SIG_WIDGETS.forEach(w => w.resize()), 60);

@@ -243,7 +243,13 @@ function evMore(btn) {
 // تعبئة البنود الفارغة فقط بالدرجة الكاملة (للتعديل بعدها حسب الحاجة)
 function evFillMax() {
   let c = 0;
-  document.querySelectorAll('#evSections input[data-f="s"]').forEach(i => { if (i.value === '') { i.value = i.max; c++; } });
+  document.querySelectorAll('#evSections input[data-f="s"]').forEach(i => {
+    if (i.value !== '') return;
+    i.value = i.max; c++;
+    // التنفيذ «نفذ» للبند الذي عُبّئ بالدرجة الكاملة (إن لم يُختر له تنفيذ)
+    const e = document.querySelector('#evSections select[data-f="e"][data-i="' + i.dataset.i + '"]');
+    if (e && !e.value) { e.value = 'نفذ'; e.dispatchEvent(new Event('change', { bubbles: true })); }
+  });
   evCalc();
   toast(c ? 'تمت تعبئة ' + c + ' بند بالدرجة الكاملة، عدّلي ما يلزم' : 'كل البنود معبأة');
 }
