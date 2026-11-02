@@ -166,10 +166,11 @@ function doPost(e) {
       out = { ok: true, data: listNames_(req.kind, req.unit, req.exclude) };
     } else if (req.action === 'feedback') {   // نموذج ملاحظات التجربة في صفحة «دليل المنظومة» (بدون تسجيل دخول)
       out = withLock_(() => feedbackSave_(req));
-    } else if (req.action === 'getManage' || (req.action === 'getSigs' && req.mgr)) {   // صفحة إدارة الوحدات لها دخول مستقل (ورقة «مديرات الوحدات»)
+    } else if (req.action === 'getManage' || req.action === 'mgrReport' || (req.action === 'getSigs' && req.mgr)) {   // صفحة إدارة الوحدات لها دخول مستقل (ورقة «مديرات الوحدات»)
       const mgr = mgrAuth_(req.username, req.password);
       if (!mgr) out = { ok: false, error: 'الاسم أو كلمة المرور غير صحيحة' };
       else if (req.action === 'getSigs') out = { ok: true, data: getSigs_(req.items) };   // توقيعات الاستمارات لملف الإكسل
+      else if (req.action === 'mgrReport') out = mgrReport_(mgr, req.id);   // خلاصة التقارير كاملة (للعرض والتحميل)
       else out = getManage_(mgr);
     } else if (String(req.action || '').indexOf('c_') === 0) {   // أيقونة «المراكز»: دخول باسم المركز وكلمة مروره
       out = centerRoute_(req);
@@ -2204,6 +2205,18 @@ function getReport_(r) {
   let d = {};
   try { d = JSON.parse(json || '{}'); } catch (e) { throw new Error('تعذّرت قراءة بيانات الخلاصة'); }
   return { id: id, meta: d.meta || {}, rows: d.rows || [] };
+}
+// خلاصة كاملة لمديرة الوحدة (ضمن وحدتها، أو كل الوحدات للمديرة العامة)
+function mgrReport_(me, id) {
+  const sh = ss_().getSheetByName(SHEET.RPT), row = sh ? rptRow_(sh, String(id || '')) : 0;
+  if (!row) throw new Error('الخلاصة غير موجودة');
+  const head = sh.getRange(row, 1, 1, 10).getDisplayValues()[0];
+  const all = [ALL_UNITS, 'جميع الوحدات', 'كل الوحدات'].indexOf(me.unit) > -1;
+  if (!all && (head[9] || DEFAULT_UNIT) !== me.unit) throw new Error('هذه الخلاصة لوحدة أخرى');
+  const n = Math.max(1, sh.getLastColumn() - RPT_DATA_COL + 1);
+  let d = {};
+  try { d = JSON.parse(sh.getRange(row, RPT_DATA_COL, 1, n).getValues()[0].map(String).join('') || '{}'); } catch (e) { throw new Error('تعذّرت قراءة بيانات الخلاصة'); }
+  return { ok: true, data: { id: String(id), meta: d.meta || {}, rows: d.rows || [] } };
 }
 function saveReport_(r) {
   const me = profileOf_(r.username), rep = r.report && typeof r.report === 'object' ? r.report : {};

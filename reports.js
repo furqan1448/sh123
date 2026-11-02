@@ -526,12 +526,15 @@ async function exportReport() {
   rpReadMeta();
   const err = rpValidate();
   if (err) return toast(err, false);
-  const btn = document.getElementById('rpXlsBtn');
-  setBtnBusy(btn, true, 'جارِ التجهيز...');
+  rpXlsx(RP, document.getElementById('rpXlsBtn'));
+}
+// ملف Excel لخلاصة (تُستخدم أيضاً في صفحة إدارة الوحدات)
+async function rpXlsx(R, btn) {
+  if (btn) setBtnBusy(btn, true, 'جارِ التجهيز...');
   try {
     await exLoad();
     if (!exLetterBuf) { const resp = await fetch(EX_LETTERHEAD); if (!resp.ok) throw new Error('تعذّر تحميل الكليشة'); exLetterBuf = await resp.arrayBuffer(); }
-    const m = RP.meta, w = rpWeights(m), calcs = RP.rows.map(r => rpCalc(r, m));
+    const m = R.meta, w = rpWeights(m), calcs = R.rows.map(r => rpCalc(r, m));
     const T = EX_THEME, FONT = T.font;
     const weighted = m.quran && !!(w.s || w.m);
     // أعمدة جدول الدرجات
@@ -576,13 +579,13 @@ async function exportReport() {
     merged(kv([['المشرفة', m.supervisor], ['الفترة', m.period], ['الفصل الدراسي', m.semester], ['العام', m.year + 'هـ']]), {}, 20);
     merged(kv([['نوع التقييم', rpModeTitle(m)], ['الأوزان', weighted ? 'القرآن ' + w.q + '%' + (w.s ? '، ' + RP_SUBJ[m.subject] + ' ' + w.s + '%' : '') + (w.m ? '، المديرة ' + w.m + '%' : '') : '']]), {}, 20);
     const done = calcs.filter(c => c.total !== null), avg = done.length ? Math.round(done.reduce((a, c) => a + c.total, 0) / done.length * 100) / 100 : null;
-    merged(kv([['عدد المعلمات', RP.rows.length], ['متوسط المجموع', m.quran && avg !== null ? avg : '']]), {}, 20);
+    merged(kv([['عدد المعلمات', R.rows.length], ['متوسط المجموع', m.quran && avg !== null ? avg : '']]), {}, 20);
     row++;
     // جدول الدرجات
     C.forEach((c, k) => { const x = ws.getCell(row, k + 1); x.value = c.l; x.font = { name: FONT, size: T.size - 1, bold: true }; x.fill = fill(T.head.fill);
       x.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true, readingOrder: 'rtl' }; x.border = border; if (c.avg) x.fill = fill('F5E6C4'); });
     ws.getRow(row).height = 44; row++;
-    RP.rows.forEach((r, i) => {
+    R.rows.forEach((r, i) => {
       let h = 20;
       C.forEach((c, k) => {
         let v = c.v(r, i); if (v === null || v === undefined) v = ''; if (typeof v === 'number') v = Math.round(v * 100) / 100;
@@ -598,7 +601,7 @@ async function exportReport() {
     row++;
     // بطاقة لكل معلمة
     merged('تفاصيل المعلمات', { bold: true, size: T.size, color: T.title.color, h: 'center' }, 24);
-    RP.rows.forEach((r, i) => {
+    R.rows.forEach((r, i) => {
       merged((i + 1) + '. ' + (r.name || '') + (r.center ? '  —  ' + cpName(r.center) : ''), { bold: true, fill: T.sec.fill, border: 1 }, 22);
       const L = [
         [['المؤهل العلمي', r.edu], ['المؤهل في القرآن', r.qq], ['الحفظ', r.parts ? r.parts + ' جزءاً' : ''], ['الجنسية', r.nat], ['سنوات الخبرة', r.years]],
@@ -613,6 +616,89 @@ async function exportReport() {
     exSave(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 'خلاصة تقارير الإشراف - ' + exSafe(m.supervisor || 'مشرفة') + ' - ' + m.semester + ' ' + m.year + '.xlsx');
     toast('تم التحميل');
   } catch (e) { toast(e.message || 'تعذّر التحميل', false); }
-  finally { setBtnBusy(btn, false); }
+  finally { if (btn) setBtnBusy(btn, false); }
+}
+/* ---------- PDF للخلاصة بنفس ترتيب ملف Excel (صفحات A4 طولية بالكليشة) ---------- */
+const RP_PDF_CSS = `
+.im-page.rpp{width:794px;height:1123px;overflow:hidden;position:relative;background:#fff}
+.im-page.rpp .idc-body{padding:0 30px}
+.im-page.rpp .idc-title{font-size:23px;margin:10px 0 8px}
+.im-page.rpp .rp-ml{font-size:13px;margin:0 0 4px;line-height:1.7}
+.im-page.rpp .rp-ml b{color:#953734}
+.im-page.rpp table{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:8px}
+.im-page.rpp th{background:#f2dbdb !important;color:#000;border:1px solid #000;font-size:11.5px;padding:4px 3px;font-weight:800;line-height:1.3;white-space:normal !important;position:static !important}
+.im-page.rpp th.av{background:#f5e6c4 !important}
+.im-page.rpp td{border:1px solid #000;font-size:12px;padding:3px 4px;height:28px;text-align:center}
+.im-page.rpp td.r{text-align:right}
+.im-page.rpp td.av{background:#fbf3e0}
+.im-page.rpp td.n{background:#f2f2f2}
+.im-page.rpp .rpx-card{border:1px solid #000;margin-top:10px}
+.im-page.rpp .rpx-card .h{background:#d9d9d9;font-weight:800;padding:4px 8px;font-size:13px;border-bottom:1px solid #000}
+.im-page.rpp .rpx-card .l{padding:3px 8px;font-size:12px;border-bottom:1px solid #ccc;line-height:1.6}
+.im-page.rpp .rpx-card .l:last-child{border-bottom:0}
+.im-page.rpp .rpx-card .l b{color:#953734}
+.im-page.rpp .rp-sec{text-align:center;color:#953734;font-weight:800;margin:14px 0 2px;font-size:15px}
+.im-page.rpp .rp-pg{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:11px;color:#777}
+`;
+function rpDocPages(R) {
+  const m = R.meta, w = rpWeights(m), calcs = R.rows.map(r => rpCalc(r, m)), weighted = m.quran && !!(w.s || w.m);
+  const D = v => idDigits(v == null ? '' : (typeof v === 'number' ? Math.round(v * 100) / 100 : v));
+  const C = [['م', 26, (r, i) => D(i + 1), 'n'], ['اسم المعلمة', 150, r => esc(r.name), 'r'], ['المركز', 100, r => esc(cpName(r.center || '')), 'r']];
+  if (m.quran) {
+    C.push(['تقييم القرآن (من ١٠٠)', 54, (r, i) => D(calcs[i].q)]);
+    if (weighted) C.push(['معدل القرآن (' + D(w.q) + '٪)', 54, (r, i) => D(calcs[i].qw), 'av']);
+    if (w.s) { C.push(['تقييم ' + RP_SUBJ[m.subject] + ' (من ' + D(RP_SUBJ_MAX[m.subject]) + ')', 54, (r, i) => D(calcs[i].s)]); C.push(['معدل ' + RP_SUBJ[m.subject] + ' (' + D(w.s) + '٪)', 54, (r, i) => D(calcs[i].sw), 'av']); }
+    if (w.m) { C.push(['تقييم المديرة (من ١٠٠)', 54, (r, i) => D(calcs[i].m)]); C.push(['معدل المديرة (' + D(w.m) + '٪)', 54, (r, i) => D(calcs[i].mw), 'av']); }
+    if (weighted) C.push(['المجموع (١٠٠)', 52, (r, i) => '<b>' + D(calcs[i].total) + '</b>']);
+    C.push(['التقدير', 60, (r, i) => { const g = weighted ? calcs[i].grade : (calcs[i].q === null ? '' : rpGrade(calcs[i].q)); return g ? '<b style="color:#' + (exGradeColor(g) || '222222') + '">' + g + '</b>' : ''; }]);
+  } else C.push(['فئة الدارسات', 90, r => esc(r.cat)], ['العدد', 50, r => D(r.cnt)]);
+  const done = calcs.filter(c => c.total !== null), avg = done.length ? Math.round(done.reduce((a, c) => a + c.total, 0) / done.length * 100) / 100 : null;
+  const head = '<img class="idc-lh" src="' + ID_LETTERHEAD + '" width="2000" height="351" alt="">';
+  const meta = '<div class="rp-ml"><b>المشرفة:</b> ' + esc(m.supervisor) + ' &nbsp;&nbsp; <b>الفترة:</b> ' + esc(m.period) + ' &nbsp;&nbsp; <b>الفصل الدراسي:</b> ' + esc(m.semester) + ' &nbsp;&nbsp; <b>العام:</b> ' + D(m.year) + 'هـ</div>' +
+    '<div class="rp-ml"><b>نوع التقييم:</b> ' + esc(rpModeTitle(m)) + (weighted ? ' &nbsp;&nbsp; <b>الأوزان:</b> القرآن ' + D(w.q) + '٪' + (w.s ? '، ' + RP_SUBJ[m.subject] + ' ' + D(w.s) + '٪' : '') + (w.m ? '، المديرة ' + D(w.m) + '٪' : '') : '') + '</div>' +
+    '<div class="rp-ml"><b>عدد المعلمات:</b> ' + D(R.rows.length) + (m.quran && avg !== null ? ' &nbsp;&nbsp; <b>متوسط المجموع:</b> ' + D(avg) : '') + '</div>';
+  const thead = '<tr>' + C.map(c => '<th' + (c[3] === 'av' ? ' class="av"' : '') + '>' + c[0] + '</th>').join('') + '</tr>';
+  const colg = '<colgroup>' + C.map(c => '<col style="width:' + c[1] + 'px">').join('') + '</colgroup>';
+  const tr = (r, i) => '<tr>' + C.map(c => '<td' + (c[3] ? ' class="' + c[3] + '"' : '') + '>' + c[2](r, i) + '</td>').join('') + '</tr>';
+  const card = (r, i) => {
+    const L = [[['المؤهل العلمي', r.edu], ['المؤهل في القرآن', r.qq], ['الحفظ', r.parts ? D(r.parts) + ' جزءاً' : ''], ['الجنسية', r.nat], ['سنوات الخبرة', D(r.years)]],
+      [['فئة الدارسات', r.cat], ['العدد', D(r.cnt)], ['تحصيل الدارسات', r.ach], ['سلوك الدارسات', r.beh]],
+      [['مهارات تمتلكها المعلمة', r.skills]], [['نقاط تحتاج إلى تحسين', r.improve]], [['التوصيات والملاحظات', r.notes]]]
+      .map(p => p.filter(x => String(x[1] || '').trim())).filter(p => p.length);
+    return '<div class="rpx-card"><div class="h">' + D(i + 1) + '. ' + esc(r.name || '') + (r.center ? ' — ' + esc(cpName(r.center)) : '') + '</div>' +
+      L.map(p => '<div class="l">' + p.map(x => '<b>' + x[0] + ':</b> ' + esc(x[1])).join(' &nbsp;&nbsp;&nbsp; ') + '</div>').join('') + '</div>';
+  };
+  // تقسيم الصفحات: جدول الدرجات ثم بطاقات المعلمات (تقدير الارتفاع)
+  const pages = [], HMAX = 1123 - 230 - 40;
+  let cur = '<div class="idc-title">خلاصة تقارير الإشراف (تقييم المعلمات)</div>' + meta, h = 130, inTable = false;
+  const flush = () => { if (inTable) { cur += '</table>'; inTable = false; } pages.push(cur); cur = ''; h = 0; };
+  const add = (html, hh, tbl) => {
+    if (h + hh > HMAX) { flush(); }
+    if (tbl && !inTable) { cur += '<table>' + colg + thead; inTable = true; h += 44; }
+    if (!tbl && inTable) { cur += '</table>'; inTable = false; }
+    cur += html; h += hh;
+  };
+  R.rows.forEach((r, i) => add(tr(r, i), Math.max(30, Math.ceil(String(r.name || '').length / 22) * 18 + 12), true));
+  add('<div class="rp-sec">تفاصيل المعلمات</div>', 34, false);
+  R.rows.forEach((r, i) => {
+    const t = [r.edu, r.qq, r.parts, r.nat, r.years].join('').length + [r.cat, r.cnt, r.ach, r.beh].join('').length;
+    const lines = 1 + (t ? 2 : 0) + ['skills', 'improve', 'notes'].reduce((a, k) => a + (r[k] ? Math.ceil(String(r[k]).length / 95) : 0), 0);
+    add(card(r, i), 34 + lines * 22, false);
+  });
+  flush();
+  return pages.map((p, i) => '<div class="im-page rpp">' + head + '<div class="idc-body">' + p + '</div>' + (pages.length > 1 ? '<div class="rp-pg">صفحة ' + D(i + 1) + ' من ' + D(pages.length) + '</div>' : '') + '</div>');
+}
+const rpFileName = R => 'خلاصة تقارير الإشراف - ' + exSafe(R.meta.supervisor || 'مشرفة') + ' - ' + R.meta.semester + ' ' + R.meta.year;
+async function rpPdf(R, btn) {
+  if (btn) setBtnBusy(btn, true, 'جارِ التجهيز...');
+  try { idSaveBlob(await idPagesPdf(rpDocPages(R), RP_PDF_CSS, true), rpFileName(R) + '.pdf'); toast('تم التحميل'); }
+  catch (e) { toast(e.message || 'تعذّر تحميل PDF', false); }
+  finally { if (btn) setBtnBusy(btn, false); }
+}
+async function exportReportPdf() {
+  rpReadMeta();
+  const err = rpValidate();
+  if (err) return toast(err, false);
+  rpPdf(RP, document.getElementById('rpPdfBtn'));
 }
 function printReport() { rpReadMeta(); rpSummary(); window.print(); }

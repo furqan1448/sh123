@@ -181,6 +181,61 @@ function mgPick(key) {
   document.getElementById('mgSup').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+// توقيع المديرة في كشف الخروج: يظهر مباشرة كصورة (يُجلب بالخلفية)
+const MG_SIG = {};
+function mgSigCell(x) {
+  if (!x.signature) return '—';
+  if (MG_SIG[x.id]) return '<img class="mg-sig" src="' + MG_SIG[x.id] + '" alt="توقيع">';
+  return '<img class="mg-sig" data-sid="' + esc(x.id) + '" data-surl="' + esc(x.signature) + '" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">';
+}
+let mgSigBusy = false;
+async function mgSigLoad() {
+  if (mgSigBusy) return;
+  const els = [...document.querySelectorAll('img.mg-sig[data-sid]')];
+  const items = [...new Map(els.map(e => [e.dataset.sid, { id: e.dataset.sid, url: e.dataset.surl }])).values()].filter(x => !MG_SIG[x.id] && MG_SIG[x.id] !== '').slice(0, 60);
+  if (!items.length) return;
+  mgSigBusy = true;
+  try {
+    const map = (await mgApi('getSigs', { items, mgr: true })).data || {};
+    items.forEach(x => { MG_SIG[x.id] = map[x.id] || ''; });
+    document.querySelectorAll('img.mg-sig[data-sid]').forEach(e => { const d = MG_SIG[e.dataset.sid]; if (d) { e.src = d; e.removeAttribute('data-sid'); } else if (d === '') e.replaceWith(document.createTextNode('—')); });
+  } catch (e) {}
+  mgSigBusy = false;
+  if (document.querySelector('img.mg-sig[data-sid]') && items.length === 60) mgSigLoad();
+}
+// خلاصات التقارير: عرض وتحميل PDF أو Excel (reports.js)
+const MG_RPT = {};
+async function mgRptGet(id) {
+  if (!MG_RPT[id]) MG_RPT[id] = (await mgApi('mgrReport', { id })).data;
+  return MG_RPT[id];
+}
+async function mgRptDo(id, btn, what) {
+  const t = btn && btn.textContent;
+  if (btn) setBtnBusy(btn, true, '...');
+  let R = null;
+  try { R = await mgRptGet(id); } catch (e) { toast(e.message || 'تعذّر جلب الخلاصة', false); }
+  if (btn) { setBtnBusy(btn, false); btn.textContent = t; }
+  if (!R) return;
+  if (what === 'pdf') return rpPdf(R, btn);
+  if (what === 'xlsx') return rpXlsx(R, btn);
+  // عرض: نافذة فوق الصفحة فيها الخلاصة بصفحاتها، مع الحفظ PDF أو Excel
+  let ov = document.getElementById('mgDocOv');
+  if (!ov) {
+    ov = document.createElement('div'); ov.id = 'mgDocOv';
+    ov.innerHTML = '<div class="mg-ov-in"><div class="mg-ov-bar"><button class="btn light" id="mgOvClose">✕ إغلاق</button><span id="mgOvBtns" class="ex-bar" style="margin:0;flex:1"></span></div><div id="mgOvDoc"></div></div>';
+    document.body.appendChild(ov);
+    ov.querySelector('#mgOvClose').onclick = () => { ov.classList.add('hidden'); document.body.style.overflow = ''; };
+  }
+  ov.classList.remove('hidden'); document.body.style.overflow = 'hidden';
+  $('mgOvBtns').innerHTML = dxBar('mgOvPdf', 'mgOvXls');
+  $('mgOvPdf').onclick = e => rpPdf(R, e.currentTarget);
+  $('mgOvXls').onclick = e => rpXlsx(R, e.currentTarget);
+  const box = $('mgOvDoc');
+  box.innerHTML = '<div class="mg-ov-fit"><div class="mg-ov-pages"><style>' + ID_CSS + RP_PDF_CSS + '.idoc .im-page + .im-page{margin-top:16px}</style><div class="idoc ptdoc" style="width:794px;padding:0">' + rpDocPages(R).join('') + '</div></div></div>';
+  const fit = () => { const w = box.clientWidth, inn = box.querySelector('.mg-ov-pages'), k = Math.min(1, (w - 4) / 794);
+    inn.style.transform = 'scale(' + k + ')'; inn.style.right = Math.max(0, (w - 794 * k) / 2) + 'px'; box.querySelector('.mg-ov-fit').style.height = Math.ceil(inn.offsetHeight * k) + 'px'; };
+  fit(); setTimeout(fit, 300);
+}
 const mgLink = (url, txt) => /^https?:\/\//i.test(url || '') ? '<a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(txt) + '</a>' : '—';
 
 let mgKnown = {}, mgSupSel = '*', mgFrom = '', mgTo = '', mgUnitSel = '';
@@ -282,7 +337,7 @@ function mgRender() {
     const L = vs.filter(mine); n = L.length;
     head = '<tr><th>المشرفة</th><th>المركز</th><th>نوع الزيارة</th><th>التاريخ</th><th>الحالة</th><th>التوقيع</th></tr>';
     body = L.slice(0, MG_LIMIT).map(x => '<tr><td>' + who(x) + '</td><td>' + esc(x.center || '—') + '</td><td>' + esc(x.type || '—') + '</td><td>' +
-      esc(x.date) + ' ' + esc(x.day) + '</td><td>' + esc(x.status) + '</td><td>' + mgLink(x.signature, 'عرض') + '</td></tr>').join('');
+      esc(x.date) + ' ' + esc(x.day) + '</td><td>' + esc(x.status) + '</td><td>' + mgSigCell(x) + '</td></tr>').join('');
   } else if (mgTab === 'evals') {
     const L = mgEvList(); n = L.length;
     head = '<tr><th>المشرفة</th><th>المركز</th><th>المعلمة</th><th>النوع</th><th>التاريخ</th><th>الدرجة من 100</th><th>الموزونة</th><th>التقدير</th><th></th></tr>';
@@ -301,8 +356,10 @@ function mgRender() {
       b('PDF', 'mgIdDo(\'' + esc(x.id) + '\', this, \'pdf\')') + b('مشاركة', 'mgIdDo(\'' + esc(x.id) + '\', this, \'share\')') + '</td></tr>').join('');
   } else if (mgTab === 'rpt') {
     const L = rpts.filter(mine); n = L.length;
-    head = '<tr><th>المشرفة</th><th>الخلاصة</th><th>الفترة</th><th>الفصل</th><th>العام</th><th>عدد المعلمات</th><th>آخر حفظ</th></tr>';
-    body = L.slice(0, MG_LIMIT).map(x => '<tr><td>' + who(x) + '</td><td>' + esc(x.title) + '</td><td>' + esc(x.period) + '</td><td>' + esc(x.semester) + '</td><td>' + esc(x.year) + '</td><td>' + esc(x.count) + '</td><td>' + esc(x.at) + '</td></tr>').join('');
+    const b = (t, fn) => '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="' + fn + '">' + t + '</button> ';
+    head = '<tr><th>المشرفة</th><th>الخلاصة</th><th>الفترة</th><th>الفصل</th><th>العام</th><th>عدد المعلمات</th><th>آخر حفظ</th><th></th></tr>';
+    body = L.slice(0, MG_LIMIT).map(x => '<tr><td>' + who(x) + '</td><td>' + esc(x.title) + '</td><td>' + esc(x.period) + '</td><td>' + esc(x.semester) + '</td><td>' + esc(x.year) + '</td><td>' + esc(x.count) + '</td><td>' + esc(x.at) + '</td><td style="white-space:nowrap">' +
+      b('عرض', 'mgRptDo(\'' + esc(x.id) + '\', this, \'view\')') + b('PDF', 'mgRptDo(\'' + esc(x.id) + '\', this, \'pdf\')') + b('Excel', 'mgRptDo(\'' + esc(x.id) + '\', this, \'xlsx\')') + '</td></tr>').join('');
   } else if (mgTab === 'min') {
     const L = mins.filter(mine); n = L.length;
     const b = (t, fn) => '<button class="btn light" style="padding:6px 12px;font-size:13px" onclick="' + fn + '">' + t + '</button> ';
@@ -327,7 +384,7 @@ function mgRender() {
     const hd = x => x.data && x.data.hy ? idHDate(x) : '';
     const sgName = x => x.kind === 'sum' ? 'خلاصة التقارير التعليمية' : x.kind === 'stf' ? (x.formName || 'إجراء موظفة') : x.kind === 'eval' ? 'استمارة ' + (x.formName || '') : 'تقرير زيارة';
     const all = [];
-    vs.filter(mine).forEach(x => all.push({ x, t: 'كشف الخروج', c: esc(x.center || '—'), d: esc(x.date || '') + ' ' + esc(x.day || ''), k: String(x.at || x.date || ''), act: mgLink(x.signature, 'التوقيع') }));
+    vs.filter(mine).forEach(x => all.push({ x, t: 'كشف الخروج', c: esc(x.center || '—'), d: esc(x.date || '') + ' ' + esc(x.day || ''), k: String(x.at || x.date || ''), act: mgSigCell(x) }));
     mgEvList().forEach(([r, i]) => all.push({ x: r, t: (MG_FT[r.formType] || 'استمارة') + ' (' + mgFinalLbl(r) + ')', c: esc(r.center || '') + (r.teacher ? ' — ' + esc(r.teacher) : ''), d: esc(r.date || ''), k: String(r.at || r.date || ''),
       act: b('عرض', 'evView(' + i + ')') + b('PDF', 'pdfRow(' + i + ', this)') }));
     ids.filter(mine).forEach(x => all.push({ x, t: ID_KINDS[x.kind] || 'نموذج', c: esc(x.center || [x.sem, x.year].filter(Boolean).join(' ') || '—'), d: esc(idDayName(x)) + ' ' + idHDate(x), k: String(x.date || x.at || ''),
@@ -336,7 +393,8 @@ function mgRender() {
       act: b('عرض', 'mgSgOpen(\'' + esc(x.id) + '\')') + b('PDF', 'mgSgDo(\'' + esc(x.id) + '\', this, \'pdf\')') }));
     mins.filter(mine).forEach(x => all.push({ x, t: 'محضر اجتماع رقم ( ' + esc(idDigits(x.no)) + ' )', c: esc(x.center || '—'), d: esc(x.dayName || '') + ' ' + esc(idDigits(x.hijri || '')), k: String(x.at || ''),
       act: b('عرض', 'mgMinDo(\'' + esc(x.id) + '\', this, \'view\')') + b('PDF', 'mgMinDo(\'' + esc(x.id) + '\', this, \'pdf\')') }));
-    rpts.filter(mine).forEach(x => all.push({ x, t: 'خلاصة التقارير', c: esc(x.title || ''), d: esc(x.at || ''), k: String(x.at || ''), act: '' }));
+    rpts.filter(mine).forEach(x => all.push({ x, t: 'خلاصة التقارير', c: esc(x.title || ''), d: esc(x.at || ''), k: String(x.at || ''),
+      act: b('عرض', 'mgRptDo(\'' + esc(x.id) + '\', this, \'view\')') + b('PDF', 'mgRptDo(\'' + esc(x.id) + '\', this, \'pdf\')') + b('Excel', 'mgRptDo(\'' + esc(x.id) + '\', this, \'xlsx\')') }));
     fs.filter(mine).forEach(x => all.push({ x, t: 'مرفق', c: esc(x.title || ''), d: esc(x.at || ''), k: String(x.at || ''), act: mgLink(x.url, 'فتح') }));
     all.sort((a, z) => z.k.localeCompare(a.k));
     n = all.length;
@@ -351,6 +409,7 @@ function mgRender() {
   document.getElementById('mgBar').innerHTML = bar;
   document.getElementById('mgHead').innerHTML = head;
   document.getElementById('mgBody').innerHTML = body || '<tr><td colspan="9" class="empty">لا توجد سجلات</td></tr>';
+  mgSigLoad();
   if (n > MG_LIMIT) document.getElementById('mgBody').insertAdjacentHTML('beforeend', '<tr><td colspan="6" class="empty">يظهر أحدث ' + MG_LIMIT + ' سجل من ' + n + '، استخدمي التاريخ لتضييق العرض</td></tr>');
 }
 
