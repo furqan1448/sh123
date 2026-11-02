@@ -535,13 +535,17 @@ async function exportReport() {
     const T = EX_THEME, FONT = T.font;
     const weighted = m.quran && !!(w.s || w.m);
     // أعمدة جدول الدرجات
-    const C = [{ l: 'م', w: 5, v: (r, i) => i + 1 }, { l: 'اسم المعلمة', w: 26, v: r => r.name, right: 1 }, { l: 'المركز', w: 17, v: r => cpName(r.center || ''), right: 1 }];
+    const C = [{ l: 'م', w: 4, v: (r, i) => i + 1 }, { l: 'اسم المعلمة', w: 22, v: r => r.name, right: 1 }, { l: 'المركز', w: 14, v: r => cpName(r.center || ''), right: 1 }];
     if (m.quran) {
-      C.push({ l: 'تقييم القرآن' + (weighted ? ' (' + w.q + '%)' : ''), w: 11, v: (r, i) => calcs[i].q });
-      if (w.s) C.push({ l: 'تقييم ' + RP_SUBJ[m.subject] + ' (من ' + RP_SUBJ_MAX[m.subject] + ')', w: 11, v: (r, i) => calcs[i].s });
-      if (w.m) C.push({ l: 'تقييم المديرة', w: 11, v: (r, i) => calcs[i].m });
-      if (weighted) C.push({ l: 'المجموع (100)', w: 10, v: (r, i) => calcs[i].total, b: 1 });
-      C.push({ l: 'التقدير', w: 11, v: (r, i) => weighted ? calcs[i].grade : (calcs[i].q === null ? '' : rpGrade(calcs[i].q)), b: 1, grade: 1 });
+      // لكل تقييم: الدرجة ثم معدلها حسب الوزن (ليتضح حساب المجموع)
+      C.push({ l: 'تقييم القرآن (من 100)', w: 9, v: (r, i) => calcs[i].q });
+      if (weighted) C.push({ l: 'معدل القرآن (' + w.q + '%)', w: 9, v: (r, i) => calcs[i].qw, avg: 1 });
+      if (w.s) { C.push({ l: 'تقييم ' + RP_SUBJ[m.subject] + ' (من ' + RP_SUBJ_MAX[m.subject] + ')', w: 9, v: (r, i) => calcs[i].s });
+        C.push({ l: 'معدل ' + RP_SUBJ[m.subject] + ' (' + w.s + '%)', w: 9, v: (r, i) => calcs[i].sw, avg: 1 }); }
+      if (w.m) { C.push({ l: 'تقييم المديرة (من 100)', w: 9, v: (r, i) => calcs[i].m });
+        C.push({ l: 'معدل المديرة (' + w.m + '%)', w: 9, v: (r, i) => calcs[i].mw, avg: 1 }); }
+      if (weighted) C.push({ l: 'المجموع (100)', w: 9, v: (r, i) => calcs[i].total, b: 1 });
+      C.push({ l: 'التقدير', w: 10, v: (r, i) => weighted ? calcs[i].grade : (calcs[i].q === null ? '' : rpGrade(calcs[i].q)), b: 1, grade: 1 });
     } else C.push({ l: 'فئة الدارسات', w: 14, v: r => r.cat }, { l: 'العدد', w: 8, v: r => r.cnt });
     const N = C.length;
     const wb = new ExcelJS.Workbook(); wb.creator = 'جمعية فرقان لتحفيظ القرآن الكريم';
@@ -576,8 +580,8 @@ async function exportReport() {
     row++;
     // جدول الدرجات
     C.forEach((c, k) => { const x = ws.getCell(row, k + 1); x.value = c.l; x.font = { name: FONT, size: T.size - 1, bold: true }; x.fill = fill(T.head.fill);
-      x.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true, readingOrder: 'rtl' }; x.border = border; });
-    ws.getRow(row).height = 32; row++;
+      x.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true, readingOrder: 'rtl' }; x.border = border; if (c.avg) x.fill = fill('F5E6C4'); });
+    ws.getRow(row).height = 44; row++;
     RP.rows.forEach((r, i) => {
       let h = 20;
       C.forEach((c, k) => {
@@ -586,7 +590,7 @@ async function exportReport() {
         const gc = c.grade && v ? exGradeColor(v) : '';
         x.font = { name: FONT, size: T.size - 1, bold: !!c.b, color: { argb: 'FF' + (gc || '222222') } };
         x.alignment = { horizontal: c.right ? 'right' : 'center', vertical: 'middle', wrapText: true, readingOrder: 'rtl' };
-        x.border = border; if (k === 0) x.fill = fill(T.num);
+        x.border = border; if (k === 0) x.fill = fill(T.num); if (c.avg) x.fill = fill('FBF3E0');
         h = Math.max(h, lines(v, c.w) * 15 + 5);
       });
       ws.getRow(row).height = h; row++;
