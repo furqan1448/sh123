@@ -277,7 +277,7 @@ async function scSend(btn) {
     const wa = scWa(out.tPhone), title = def.title(rec);
     const msg = 'السلام عليكم ورحمة الله وبركاته\nالأستاذة/ ' + tch.name + ' المحترمة\nنفيدكِ بأنه أُرسل إليكِ «' + title + '»، وهو بانتظار ' +
       (mode === 'sign' ? 'اطّلاعكِ وتوقيعكِ' : 'اطّلاعكِ') + '.\n' + (note ? 'ملاحظة: ' + note + '\n' : '') +
-      'يُرجى الدخول إلى منظومة مشرفات ← أيقونة «المعلمات» برقم جوالكِ وكلمة المرور:\n' + new URL('teachers.html', location.href).href + '\n' +
+      'يُرجى الدخول إلى منظومة مكتب إشراف الداخل ← أيقونة «المعلمات» برقم جوالكِ وكلمة المرور:\n' + new URL('teachers.html', location.href).href + '\n' +
       (typeof myName === 'function' && myName() ? 'المشرفة: ' + myName() + '\n' : '') + 'جمعية فرقان';
     document.getElementById('scFormBox').classList.add('hidden');
     const done = document.getElementById('scDone');

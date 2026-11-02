@@ -1,5 +1,5 @@
 /**
- * منظومة مشرفات مكتب إشراف الداخل — Code.gs
+ * منظومة مكتب إشراف الداخل — Code.gs
  * الصقيه في Apps Script المرتبط بقوقل شيت، ثم شغّلي setup() مرة واحدة، ثم انشري كـ Web App.
  */
 
@@ -155,7 +155,7 @@ function folder_() {
 
 /* ============ API ============ */
 function doGet() {
-  return json_({ ok: true, msg: 'منظومة مشرفات تعمل' });
+  return json_({ ok: true, msg: 'منظومة مكتب إشراف الداخل تعمل' });
 }
 
 function doPost(e) {
