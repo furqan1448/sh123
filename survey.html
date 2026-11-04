@@ -29,6 +29,14 @@
   .sv-done .ok{width:70px;height:70px;border-radius:50%;background:#e4f4ec;color:#1f7a45;font-size:38px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
   .sv-done h2{justify-content:center}
   .sv-draft{background:#eef8f1;border:1.5px solid #9fd3b2;color:#1f6b40;border-radius:12px;padding:8px 12px;font-size:13.5px;font-weight:700;margin-bottom:12px}
+  .sv-note{background:#fdf3f4;border:1.5px solid #e7c3c8;border-inline-start:5px solid var(--primary);color:var(--primary);border-radius:12px;padding:11px 14px;font-size:15px;font-weight:700;line-height:1.8;margin-bottom:12px}
+  .sv-drop{display:flex;align-items:center;justify-content:center;gap:8px;border:2px dashed var(--primary);border-radius:14px;padding:16px 12px;margin:0 0 8px;cursor:pointer;background:#fffafa;color:var(--primary);font-weight:700;font-size:15px;text-align:center}
+  .sv-drop small{display:block;color:#777;font-weight:500;font-size:12.5px;margin-top:3px}
+  .sv-files{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+  .sv-file{display:flex;align-items:center;gap:8px;border:1.5px solid var(--line);border-radius:10px;padding:7px 10px;background:#fff;font-size:14px}
+  .sv-file .n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr;text-align:right}
+  .sv-file .s{color:#777;font-size:12.5px;flex:none}
+  .sv-file button{flex:none;border:0;background:#f3e6e8;color:#b3261e;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;font-weight:800}
 </style>
 </head>
 <body>
@@ -76,6 +84,18 @@
     </div>
 
     <div class="card">
+      <h2>المرفقات</h2>
+      <div class="sv-note">في حال نقص بيانات المعلمات أو المديرات، يُرجى إرفاق الاسم الرباعي ورقم الجوال.</div>
+      <label>إرفاق ملفات (اختياري)</label>
+      <label class="sv-drop" for="svFiles"><span>📎 اختاري ملفاً أو أكثر<small>Excel أو PDF أو Word أو صورة — حتى 5 ملفات، وحجم الملف الواحد لا يتجاوز 10 ميجابايت</small></span></label>
+      <input type="file" id="svFiles" multiple hidden accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,image/*">
+      <div id="svFileList" class="sv-files"></div>
+      <label for="svDrive">أو ضعي رابط Google Drive (اختياري)</label>
+      <input id="svDrive" type="url" dir="ltr" inputmode="url" placeholder="https://drive.google.com/...">
+      <p class="rp-hint" style="margin:6px 0 0">تأكدي أن الرابط مُتاح لمن لديه الرابط حتى يمكن فتحه.</p>
+    </div>
+
+    <div class="card">
       <h2>التأكد من الربط بين إدارة المراكز والوحدات</h2>
       <p class="rp-hint" style="margin-top:0">اختاري لكل بند ما ينطبق، واكتبي الملاحظة إن وُجدت. البنود التي لا تخصكِ اختاري لها «لم أجرّبه».</p>
       <div id="svLinks"></div>
@@ -115,16 +135,37 @@ svQ('svLinks').innerHTML = SV_LINKS.map((t, i) => '<div class="sv-item"><div cla
 function svCollect() {
   const pick = n => { const x = document.querySelector('input[name="' + n + '"]:checked'); return x ? x.value : ''; };
   return { name: svQ('svName').value.trim(), unit: svQ('svUnit').value, role: svQ('svRole').value.trim(), rate: pick('svRate'),
-    parts: [...document.querySelectorAll('#svParts input:checked')].map(x => x.value), notes: svQ('svNotes').value.trim(), ideas: svQ('svIdeas').value.trim(),
+    parts: [...document.querySelectorAll('#svParts input:checked')].map(x => x.value), notes: svQ('svNotes').value.trim(), ideas: svQ('svIdeas').value.trim(), drive: svQ('svDrive').value.trim(),
     links: SV_LINKS.map((_, i) => ({ s: pick('svL' + i), n: svQ('svLN' + i).value.trim() })) };
 }
 function svApply(d) {
   svQ('svName').value = d.name || ''; svQ('svUnit').value = d.unit || ''; svQ('svRole').value = d.role || '';
   const set = (n, v) => document.querySelectorAll('input[name="' + n + '"]').forEach(x => { x.checked = x.value === v; });
-  set('svRate', d.rate); svQ('svNotes').value = d.notes || ''; svQ('svIdeas').value = d.ideas || '';
+  set('svRate', d.rate); svQ('svNotes').value = d.notes || ''; svQ('svIdeas').value = d.ideas || ''; svQ('svDrive').value = d.drive || '';
   document.querySelectorAll('#svParts input').forEach(x => { x.checked = (d.parts || []).indexOf(x.value) > -1; });
   (d.links || []).forEach((l, i) => { set('svL' + i, l.s); if (svQ('svLN' + i)) svQ('svLN' + i).value = l.n || ''; });
 }
+// المرفقات: الملفات المختارة تُرسل مع الاستبانة وتُحفظ في Google Drive
+const SV_MAX_FILES = 5, SV_MAX_SIZE = 10 * 1024 * 1024, SV_MAX_TOTAL = 20 * 1024 * 1024;
+let svFiles = [];
+const svSize = b => b < 1024 * 1024 ? Math.max(1, Math.round(b / 1024)) + ' ك.ب' : (b / 1024 / 1024).toFixed(1) + ' م.ب';
+const svEsc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function svRenderFiles() {
+  svQ('svFileList').innerHTML = svFiles.map((f, i) => '<div class="sv-file"><span>📄</span><span class="n" title="' + svEsc(f.name) + '">' + svEsc(f.name) +
+    '</span><span class="s">' + svSize(f.size) + '</span><button type="button" title="حذف" onclick="svRemoveFile(' + i + ')">✕</button></div>').join('');
+}
+function svRemoveFile(i) { svFiles.splice(i, 1); svRenderFiles(); }
+svQ('svFiles').addEventListener('change', e => {
+  for (const f of e.target.files) {
+    if (svFiles.length >= SV_MAX_FILES) { toast('الحد الأعلى ' + SV_MAX_FILES + ' ملفات', false); break; }
+    if (f.size > SV_MAX_SIZE) { toast('الملف «' + f.name + '» أكبر من 10 ميجابايت، ضعيه في Drive وأرفقي الرابط', false); continue; }
+    if (svFiles.reduce((a, x) => a + x.size, 0) + f.size > SV_MAX_TOTAL) { toast('مجموع الملفات تجاوز 20 ميجابايت، أرفقي الباقي برابط Drive', false); break; }
+    if (!svFiles.some(x => x.name === f.name && x.size === f.size)) svFiles.push(f);
+  }
+  e.target.value = ''; svRenderFiles();
+});
+const svB64 = f => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1] || ''); r.onerror = () => no(new Error('تعذّرت قراءة الملف «' + f.name + '»')); r.readAsDataURL(f); });
+
 // مسودة: ما يُكتب يُحفظ في الجهاز حتى الإرسال
 const SV_KEY = 'sv_draft';
 let svT = 0;
@@ -138,19 +179,23 @@ async function svSubmit(btn) {
   if (!d.unit) { svQ('svUnit').focus(); return toast('اختاري الوحدة أو الجهة', false); }
   if (!d.rate) return toast('اختاري التقييم العام', false);
   if (!d.notes) { svQ('svNotes').focus(); return toast('اكتبي الملاحظات والتعديلات المطلوبة', false); }
-  setBtnBusy(btn, true, 'جارِ الإرسال...');
+  if (d.drive && !/^https?:\/\/\S+$/i.test(d.drive)) { svQ('svDrive').focus(); return toast('رابط Drive غير صحيح، يجب أن يبدأ بـ https://', false); }
+  setBtnBusy(btn, true, svFiles.length ? 'جارِ رفع المرفقات...' : 'جارِ الإرسال...');
   try {
+    d.files = [];
+    for (const f of svFiles) d.files.push({ name: f.name, mime: f.type || 'application/octet-stream', data: await svB64(f) });
     const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(Object.assign({ action: 'survey', device: /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'جوال' : 'حاسب' }, d)) });
     const out = await res.json();
     if (!out.ok) throw new Error(out.error || 'تعذّر الإرسال');
     try { localStorage.removeItem(SV_KEY); } catch (e) {}
+    svFiles = []; svRenderFiles();
     svQ('svForm').classList.add('hidden'); svQ('svThanks').classList.remove('hidden'); window.scrollTo(0, 0);
   } catch (e) { toast(e.message || 'تعذّر الإرسال، تأكدي من الإنترنت', false); }
   finally { setBtnBusy(btn, false); }
 }
 function svAgain() {
-  svApply({}); svQ('svDraft').classList.add('hidden');
+  svApply({}); svFiles = []; svRenderFiles(); svQ('svDraft').classList.add('hidden');
   svQ('svThanks').classList.add('hidden'); svQ('svForm').classList.remove('hidden'); window.scrollTo(0, 0);
 }
 </script>
