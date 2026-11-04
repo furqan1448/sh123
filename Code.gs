@@ -262,14 +262,12 @@ function route_(r) {
     case 'addFile': return withLock_(() => addFile_(r));
     case 'deleteFile': return withLock_(() => deleteFile_(r.id));
     case 'getEvals': return { ok: true, data: getEvals_() };
-    case 'getEvalsBundle': return { ok: true, data: getEvalsCached_(), drafts: getDrafts_(r.username) };   // طلب واحد: الاستمارات + المسودات
-    case 'getDrafts': return { ok: true, data: getDrafts_(r.username) };
-    case 'saveDraft': return withLock_(() => saveDraft_(r));
-    case 'deleteDraft': return withLock_(() => deleteDraft_(r));
+    case 'getEvalsBundle': return { ok: true, data: getEvalsCached_() };   // المسودات صارت على جهاز المشرفة فقط
+    case 'getDrafts': return { ok: true, data: [] };   // المسودات لا تُحفظ في الشيت
+    case 'saveDraft': case 'deleteDraft': return { ok: true };
     // مسودات كل النماذج (autosave.js): تظهر للمشرفة من أي جهاز
-    case 'adList': return { ok: true, data: adList_(r) };
-    case 'adSave': return withLock_(() => adSave_(r));
-    case 'adDel': return withLock_(() => adDel_(r));
+    case 'adList': return { ok: true, data: [] };   // مسودات النماذج على الجهاز فقط
+    case 'adSave': case 'adDel': return { ok: true };
     case 'addEval': return withLock_(() => addEval_(r));
     case 'updateEval': return withLock_(() => updateEval_(r));
     case 'deleteEval': return withLock_(() => { const o = deleteById_(SHEET.EVALS, r.id, true, EVAL_URL_COL); sigDel_(r.id); evalsBump_(); return o; });
@@ -354,7 +352,7 @@ function usersRows_(fresh) {
     const u = norm_(r[c.user]);
     return [u.toLowerCase(), norm_(r[c.pw]), (c.name > -1 && norm_(r[c.name])) || u, (c.unit > -1 && norm_(r[c.unit])) || DEFAULT_UNIT, u];
   });
-  try { cache.put('users_v3', JSON.stringify(rows), 120); } catch (e) {}
+  try { cache.put('users_v3', JSON.stringify(rows), 600); } catch (e) {}
   return rows;
 }
 function checkAuth_(user, pw) {

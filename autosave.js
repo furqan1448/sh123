@@ -2,7 +2,7 @@
    كل ما يُكتب في النموذج يُحفظ في الجهاز أثناء الكتابة. إذا انقطع الإنترنت أو خرجت المشرفة أو أُغلق المتصفح
    ثم فتحت النموذج من جديد، يرجع كل ما كتبته كما هو. تُحذف المسودة تلقائياً بعد الحفظ الناجح.
    (التواقيع المرسومة لا تُحفظ في المسودة، وتُعاد قبل الحفظ.)
-   والمسودة تُحفظ في الخادم أيضاً (ورقة «مسودات النماذج»)، فتظهر للمشرفة من أي جهاز تدخل منه. */
+   والمسودة تُحفظ في هذا الجهاز فقط، ولا تُرسل إلى قوقل شيت (لتخفيف الشيت وتسريع الموقع). */
 const AD = (function () {
   const forms = {};      // viewId → { key(), collect(), apply(draft), label }
   const PFX = 'ad_';
@@ -15,7 +15,7 @@ const AD = (function () {
   const sk = (viewId, id) => viewId + '|' + (id || 'new');
   const pend = {};   // مسودات لم تُرسل للخادم بعد: مفتاح الخادم ← { local, t }
   let pushTimer = 0;
-  const canApi = () => typeof api === 'function' && typeof getPw === 'function' && getPw() && user();
+  const canApi = () => false;   // لا مزامنة مع الخادم: المسودات على الجهاز فقط
   function push() {
     clearTimeout(pushTimer);
     if (!canApi()) return;
@@ -62,7 +62,6 @@ const AD = (function () {
     });
   }
   // المزامنة تبدأ بعد الدخول (بلا تعديل صفحات الدخول): نتحقق كل ثانيتين حتى تتم
-  setInterval(() => { if (canApi() && syncedUser !== user()) sync(); }, 2000);
 
   function banner(viewId, show, at) {
     const view = document.getElementById(viewId); if (!view) return;
