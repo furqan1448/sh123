@@ -226,7 +226,10 @@ function surveySave_(r) {
   if (!unit) throw new Error('اختاري الوحدة أو الجهة');
   if (!notes) throw new Error('اكتبي الملاحظات');
   const head = ['وقت الإرسال', 'الاسم', 'الوحدة / الجهة', 'الصفة', 'التقييم العام', 'الأجزاء التي جُرّبت', 'الملاحظات والتعديلات المطلوبة', 'اقتراحات إضافية']
-    .concat(SV_LINKS.reduce((a, t, i) => a.concat(['الربط ' + (i + 1) + ': ' + t, 'ملاحظة الربط ' + (i + 1)]), [])).concat(['الجهاز']);
+    .concat(SV_LINKS.reduce((a, t, i) => a.concat(['الربط ' + (i + 1) + ': ' + t, 'ملاحظة الربط ' + (i + 1)]), [])).concat(['الجهاز', 'رابط Google Drive', 'الملفات المرفقة']);
+  const drive = cut(r.drive, 1000);
+  if (drive && !/^https?:\/\/\S+$/i.test(drive)) throw new Error('رابط Drive غير صحيح');
+  const files = (Array.isArray(r.files) ? r.files : []).slice(0, 5);
   const ss = ss_();
   let sh = ss.getSheetByName(SV_SHEET);
   if (!sh) {
@@ -235,14 +238,31 @@ function surveySave_(r) {
     styleHeader_(sh, head.length);
     sh.setFrozenRows(1); sh.setRightToLeft(true);
     sh.setColumnWidths(1, head.length, 140); sh.setColumnWidth(7, 420);
+  } else if (sh.getLastColumn() < head.length) {   // ورقة قديمة: إضافة عمودي الرابط والمرفقات
+    sh.getRange(1, 1, 1, head.length).setValues([head]);
+    styleHeader_(sh, head.length);
+  }
+  // حفظ الملفات المرفقة في مجلد «مرفقات استبانة التجربة» داخل مجلد المنظومة
+  let urls = [];
+  if (files.length) {
+    const root = folder_(), it = root.getFoldersByName('مرفقات استبانة التجربة');
+    const dir = it.hasNext() ? it.next() : root.createFolder('مرفقات استبانة التجربة');
+    const stamp = Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH-mm');
+    urls = files.filter(f => f && f.data).map(f => {
+      const fname = (name + ' - ' + stamp + ' - ' + cut(f.name, 120)).replace(/[\\/:*?"<>|]+/g, '_');
+      const file = dir.createFile(Utilities.newBlob(Utilities.base64Decode(f.data), cut(f.mime, 100) || 'application/octet-stream', fname));
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      return file.getUrl();
+    });
   }
   const L = Array.isArray(r.links) ? r.links : [];
   const row = [Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd HH:mm'), name, unit, cut(r.role, 80), cut(r.rate, 30),
     (Array.isArray(r.parts) ? r.parts : []).map(x => cut(x, 60)).join('، '), notes, cut(r.ideas, 3000)]
-    .concat(SV_LINKS.reduce((a, _, i) => a.concat([cut(L[i] && L[i].s, 20), cut(L[i] && L[i].n, 500)]), [])).concat([cut(r.device, 20)]);
+    .concat(SV_LINKS.reduce((a, _, i) => a.concat([cut(L[i] && L[i].s, 20), cut(L[i] && L[i].n, 500)]), [])).concat([cut(r.device, 20), drive, urls.join('\n')]);
   const at = sh.getLastRow() + 1;
   sh.getRange(at, 1, 1, row.length).setNumberFormat('@').setValues([row]);
   sh.getRange(at, 7).setWrap(true);
+  sh.getRange(at, row.length).setWrap(true);
   return { ok: true };
 }
 
