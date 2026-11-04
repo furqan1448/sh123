@@ -54,8 +54,9 @@ async function mgApi(action, data) {
 }
 
 async function doLogin() {
-  const un = $('un').value.trim(), pw = $('pw').value.trim();
-  if (!un) return toast('أدخلي الاسم', false);
+  const un = $('un').value.trim().toLowerCase(), pw = $('pw').value.trim();
+  if (!un) return toast('أدخلي البريد الإلكتروني', false);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(un)) return toast('أدخلي بريدًا إلكترونيًا صحيحًا', false);
   if (!pw) return toast('أدخلي كلمة المرور', false);
   const btn = $('loginBtn');
   localStorage.setItem(MG_USER, un); localStorage.setItem(MG_PW, pw);
@@ -73,7 +74,6 @@ async function doLogin() {
 function logout() {
   localStorage.removeItem(MG_USER); localStorage.removeItem(MG_PW);
   MG = null; $('un').value = ''; $('pw').value = '';
-  loadLoginNames('managers', 'un');
   show('loginView');
 }
 
@@ -91,7 +91,6 @@ async function mgLoad() {
 }
 
 (function init() {
-  loadLoginNames('managers', 'un');
   if (localStorage.getItem(MG_USER) && localStorage.getItem(MG_PW)) { show('manageView'); mgLoad(); }
 })();
 

@@ -70,13 +70,13 @@ function setup() {
   // مديرات الوحدات (دخول مستقل لصفحة «إدارة الوحدات»: الاسم + كلمة المرور + الوحدة)
   const ms = getOrCreate_(ss, SHEET.MANAGERS);
   if (ms.getLastRow() === 0) {
-    ms.getRange(1, 1, 1, 3).setValues([['الاسم', 'كلمة المرور', 'الوحدة']]);
-    ms.getRange(2, 1, 1, 3).setNumberFormat('@').setValues([['مديرة الوحدة', '1234', DEFAULT_UNIT]]);
+    ms.getRange(1, 1, 1, 4).setValues([['الاسم', 'كلمة المرور', 'الوحدة', 'البريد الإلكتروني']]);
+    ms.getRange(2, 1, 1, 4).setNumberFormat('@').setValues([['مديرة الوحدة', '1234', DEFAULT_UNIT, '']]);
   }
-  [['الاسم', 1], ['كلمة المرور', 2], ['الوحدة', 3]].forEach(h => { if (!ms.getRange(1, h[1]).getValue()) ms.getRange(1, h[1]).setValue(h[0]); });
-  styleHeader_(ms, 3);
-  ms.getRange('A2:C200').setNumberFormat('@');
-  ms.setColumnWidth(1, 200); ms.setColumnWidth(2, 200); ms.setColumnWidth(3, 240);
+  [['الاسم', 1], ['كلمة المرور', 2], ['الوحدة', 3], ['البريد الإلكتروني', 4]].forEach(h => { if (!ms.getRange(1, h[1]).getValue()) ms.getRange(1, h[1]).setValue(h[0]); });
+  styleHeader_(ms, 4);
+  ms.getRange('A2:D200').setNumberFormat('@');
+  ms.setColumnWidth(1, 200); ms.setColumnWidth(2, 200); ms.setColumnWidth(3, 240); ms.setColumnWidth(4, 260);
 
   // القوائم (المصدر للقوائم المنسدلة)
   const ls = getOrCreate_(ss, SHEET.LISTS);
@@ -170,7 +170,7 @@ function doPost(e) {
       out = withLock_(() => feedbackSave_(req));
     } else if (req.action === 'getManage' || req.action === 'mgrReport' || (req.action === 'getSigs' && req.mgr)) {   // صفحة إدارة الوحدات لها دخول مستقل (ورقة «مديرات الوحدات»)
       const mgr = mgrAuth_(req.username, req.password);
-      if (!mgr) out = { ok: false, error: 'الاسم أو كلمة المرور غير صحيحة' };
+      if (!mgr) out = { ok: false, error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' };
       else if (req.action === 'getSigs') out = { ok: true, data: getSigs_(req.items) };   // توقيعات الاستمارات لملف الإكسل
       else if (req.action === 'mgrReport') out = mgrReport_(mgr, req.id);   // خلاصة التقارير كاملة (للعرض والتحميل)
       else out = getManage_(mgr);
@@ -1044,7 +1044,7 @@ function fixVisitValidation() {
 
 
 /* ============ إدارة الوحدات (دخول مستقل لمديرات الوحدات) ============ */
-// ورقة «مديرات الوحدات»: الاسم | كلمة المرور | الوحدة. كل مديرة ترى مشرفات وحدتها وما سجّلنه. وحدة «الكل» ترى كل الوحدات.
+// ورقة «مديرات الوحدات»: الاسم | كلمة المرور | الوحدة | البريد الإلكتروني (الدخول بالبريد). كل مديرة ترى مشرفات وحدتها وما سجّلنه. وحدة «الكل» ترى كل الوحدات.
 // أسماء القائمة المنسدلة في شاشة الدخول: kind = 'users' (المشرفات) أو 'managers' (مديرات الوحدات)
 // unit = أسماء هذه الوحدة فقط، exclude = إخفاء أسماء هذه الوحدة (للمشرفات فقط)
 function listNames_(kind, unit, exclude) {
@@ -1075,14 +1075,19 @@ function listNames_(kind, unit, exclude) {
   return out;
 }
 
+// الدخول بالبريد الإلكتروني (العمود الرابع «البريد الإلكتروني») وكلمة المرور، ويبقى الدخول بالاسم مقبولًا للجلسات السابقة
 function mgrAuth_(name, pw) {
   const n = norm_(name).toLowerCase(), p = norm_(pw);
   if (!n || !p) return null;
   const sh = ss_().getSheetByName(SHEET.MANAGERS);
   if (!sh) throw new Error('شغّلي setup() أولاً');
-  const rows = sh.getDataRange().getDisplayValues().slice(1);
+  const all = sh.getDataRange().getDisplayValues();
+  let ec = all[0].findIndex(h => norm_(h).indexOf('البريد') > -1);
+  if (ec < 0) { ec = Math.max(3, all[0].length); sh.getRange(1, ec + 1).setValue('البريد الإلكتروني').setFontWeight('bold'); }   // إضافة العمود تلقائيًا
+  const rows = all.slice(1);
   for (let i = 0; i < rows.length; i++) {
-    if (norm_(rows[i][0]).toLowerCase() === n && norm_(rows[i][1]) === p) {
+    const em = norm_(rows[i][ec]).toLowerCase();
+    if ((em === n || norm_(rows[i][0]).toLowerCase() === n) && norm_(rows[i][1]) === p) {
       return { name: norm_(rows[i][0]), unit: norm_(rows[i][2]) || DEFAULT_UNIT };
     }
   }
