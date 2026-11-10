@@ -77,7 +77,8 @@ function tApply(out) {
   TIN = out.inbox || [];
   try { localStorage.setItem(T_CACHE, JSON.stringify({ name: out.teacher.name, me: out.teacher, data: TREP, minutes: TMIN, files: TFILES, inbox: TIN })); } catch (e) {}
   tMinRender(); tFilesRender();
-  $('tHello').textContent = 'مرحباً ' + out.teacher.name;
+  $('tHello').textContent = out.teacher.name ? 'مرحباً ' + out.teacher.name : 'مرحباً بكِ';
+  if (typeof tAcctRender === 'function') tAcctRender(out.teacher);
   const nb = $('tpNewBadge'); if (nb) nb.classList.toggle('hidden', !!(out.teacher && out.teacher.prof));   // «جديد» حتى تعبّئ بياناتها
   tRender();
 }
@@ -393,7 +394,7 @@ async function inDone(btn) {
   if (!localStorage.getItem(T_PHONE) || !localStorage.getItem(T_PW)) return;
   try {
     const c = JSON.parse(localStorage.getItem(T_CACHE) || 'null');
-    if (c) { TREP = c.data || []; TIN = c.inbox || []; TME = c.me || null; TMIN = c.minutes || []; TFILES = c.files || []; $('tHello').textContent = 'مرحباً ' + c.name; $('tpNewBadge').classList.toggle('hidden', !!(c.me && c.me.prof)); tRender(); tMinRender(); tFilesRender(); }
+    if (c) { TREP = c.data || []; TIN = c.inbox || []; TME = c.me || null; TMIN = c.minutes || []; TFILES = c.files || []; $('tHello').textContent = c.name ? 'مرحباً ' + c.name : 'مرحباً بكِ'; $('tpNewBadge').classList.toggle('hidden', !!(c.me && c.me.prof)); tRender(); tMinRender(); tFilesRender(); }
   } catch (e) {}
   tShow('homeView');
   tLoad();

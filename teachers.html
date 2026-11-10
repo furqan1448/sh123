@@ -31,6 +31,9 @@
   .tile{position:relative}
   .tile.soon{opacity:.82}
   .soon-tag{position:absolute;top:10px;left:10px;background:#f6f0e4;color:#8a6a1f;border:1px solid #e3d3a8;border-radius:20px;padding:1px 10px;font-size:12px;font-weight:700}
+  .ac-badge{display:inline-block;border-radius:20px;padding:2px 14px;font-size:13.5px;font-weight:800;background:#fbf3e0;color:#8a6a1f;border:1px solid #e3d3a8}
+  .ac-sum{line-height:2;font-size:15px;margin:10px 0}
+  .ac-sum b{color:var(--primary)}
   .su-hint{font-size:13px;color:var(--muted);margin-top:4px;line-height:1.7}
   .t-tbadge{position:absolute;top:10px;left:10px;background:#c0392b;color:#fff;border-radius:20px;min-width:24px;padding:1px 8px;font-size:13px;font-weight:800}
   /* الشهادة: نفس تنسيق موقع الشهادات */
@@ -73,25 +76,17 @@
     <p style="margin-top:12px;text-align:center"><a class="lnk" href="index.html">الرئيسية</a></p>
   </div>
 
-  <!-- إنشاء حساب جديد (لمن ليس لها تسجيل سابق) -->
+  <!-- إنشاء حساب جديد (لمن ليس لها تسجيل سابق): الجوال + الكود فقط -->
   <div id="signupView" class="hidden">
     <button class="back" onclick="tShow('loginView')">← رجوع</button>
-    <div class="card" style="max-width:520px;margin:0 auto">
+    <div class="card" style="max-width:420px;margin:0 auto">
       <h2>إنشاء حساب جديد</h2>
-      <div class="tp-note">يُنشأ الحساب برقم الجوال وكود من ٤ أرقام أو حروف تختارينه بنفسكِ، وتُسجَّل بياناتكِ تلقائياً لدى الإدارة. استخدمي الجوال والكود عند الدخول.</div>
+      <div class="tp-note">أنشئي حسابكِ برقم الجوال وكود من ٤ أرقام أو حروف تختارينه بنفسكِ، ثم ادخلي به وسجّلي بياناتكِ.</div>
       <label for="suPhone">رقم الجوال <span style="color:#b3261e">*</span></label>
       <input id="suPhone" inputmode="tel" dir="ltr" placeholder="05xxxxxxxx" style="text-align:right" autocomplete="off">
       <label for="suCode">الكود (٤ أرقام أو حروف) <span style="color:#b3261e">*</span></label>
       <input id="suCode" maxlength="4" dir="ltr" placeholder="مثال: 7K2A" style="text-align:right" autocomplete="off">
       <div class="su-hint">احفظي الكود جيداً، فهو كلمة المرور عند الدخول.</div>
-      <label for="suName">الاسم الرباعي <span style="color:#b3261e">*</span></label>
-      <input id="suName" placeholder="الاسم الأول واسم الأب والجد والعائلة" autocomplete="off">
-      <label for="suCat">فئة التدريس <span style="color:#b3261e">*</span></label>
-      <select id="suCat"><option value="">جارِ التحميل...</option></select>
-      <label for="suCenter">اسم المركز <span style="color:#b3261e">*</span></label>
-      <select id="suCenter"><option value="">جارِ التحميل...</option></select>
-      <label for="suPeriod">الفترة <span style="color:#b3261e">*</span></label>
-      <select id="suPeriod"><option value="">جارِ التحميل...</option></select>
       <button id="suBtn" class="btn block" style="margin-top:18px" onclick="tSuSubmit()">إنشاء الحساب</button>
     </div>
   </div>
@@ -99,6 +94,7 @@
   <!-- الرئيسية: أيقونات خدمات المعلمة -->
   <div id="homeView" class="hidden">
     <div class="t-hello" id="tHello" style="text-align:center;margin:4px 0 16px"></div>
+    <div id="acctCard" class="card hidden" style="max-width:560px;margin:0 auto 18px"></div>
     <div class="grid">
       <button class="tile" onclick="tShow('reportsView')"><span class="t-tbadge hidden" id="tileBadge">0</span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V6a2 2 0 0 1 2-2h9l5 5v10.5a.5.5 0 0 1-.5.5H6a2 2 0 0 1-2-2z"/><path d="M14 4v5h5"/><path d="M7.5 16.5c1.2-1.6 2.2-1.6 3 0s1.8 1.6 3 0"/></svg><b>الوارد من المشرفات</b></button>
       <button class="tile" onclick="tpOpenMine()"><span class="tp-new hidden" id="tpNewBadge">جديد</span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="11" r="2.3"/><path d="M5.8 16.2c.6-1.8 1.8-2.7 3.2-2.7s2.6.9 3.2 2.7"/><path d="M14.5 10h3.5"/><path d="M14.5 13.5h3.5"/></svg><b>بياناتي الشخصية</b></button>
@@ -242,8 +238,7 @@
 /* ---------- أيقونة «تسجيل موعد اختبار قياس»: واجهة فقط الآن، وتُستكمل لاحقاً ---------- */
 function tSoon() { toast('هذه الخدمة قيد الإعداد وستتوفر قريباً'); }
 
-/* ---------- إنشاء حساب جديد: الجوال + كود من ٤ أرقام أو حروف + الاسم الرباعي + الفئة + المركز + الفترة ---------- */
-let suLoaded = false;
+/* ---------- إنشاء حساب جديد: الجوال + كود من ٤ أرقام أو حروف فقط، ثم الدخول به ---------- */
 const suDigits = v => String(v || '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
 async function suPost(body) {
   const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) });
@@ -251,44 +246,75 @@ async function suPost(body) {
   if (!out.ok) throw new Error(out.error || 'حدث خطأ');
   return out;
 }
-function suFill(id, first, list) {
-  $(id).innerHTML = '<option value="">' + first + '</option>' + list.map(x => '<option>' + esc(x) + '</option>').join('');
-}
-async function tSuOpen() {
-  tShow('signupView');
-  if (suLoaded) return;
-  try {
-    const o = await suPost({ action: 't_lists' });
-    suFill('suCat', 'اختاري فئة التدريس', o.cats || []);
-    suFill('suCenter', 'اختاري المركز', o.centers || []);
-    suFill('suPeriod', 'اختاري الفترة', o.periods || []);
-    suLoaded = true;
-  } catch (e) { toast('تعذّر تحميل القوائم، حاولي مرة أخرى', false); }
-}
+function tSuOpen() { tShow('signupView'); }
 $('suCode').addEventListener('input', e => { e.target.value = suDigits(e.target.value).replace(/\s+/g, '').toUpperCase(); });
+['suPhone', 'suCode'].forEach(id => $(id).addEventListener('keydown', e => { if (e.key === 'Enter') tSuSubmit(); }));
 async function tSuSubmit() {
-  if (!suLoaded) return toast('جارِ تحميل القوائم، حاولي بعد لحظات', false);
-  const phone = suDigits($('suPhone').value).replace(/\D/g, ''), code = suDigits($('suCode').value).replace(/\s+/g, '').toUpperCase(),
-    name = $('suName').value.replace(/\s+/g, ' ').trim(), cat = $('suCat').value, center = $('suCenter').value, period = $('suPeriod').value;
+  const phone = suDigits($('suPhone').value).replace(/\D/g, ''), code = suDigits($('suCode').value).replace(/\s+/g, '').toUpperCase();
   if (!/^(05\d{8}|5\d{8}|9665\d{8}|009665\d{8})$/.test(phone)) return toast('اكتبي رقم جوال صحيحاً (١٠ أرقام تبدأ بـ 05)', false);
   if (!/^[A-Z0-9\u0621-\u064A]{4}$/.test(code)) return toast('الكود يتكوّن من ٤ أرقام أو حروف بالضبط', false);
-  if (name.split(' ').filter(w => w.length > 1).length < 4) return toast('اكتبي الاسم الرباعي كاملاً', false);
-  if (!cat) return toast('اختاري فئة التدريس', false);
-  if (!center) return toast('اختاري المركز', false);
-  if (!period) return toast('اختاري الفترة', false);
   const btn = $('suBtn');
   setBtnBusy(btn, true, 'جارِ إنشاء الحساب...');
   try {
-    await suPost({ action: 't_signup', phone, code, name, cat, center, period });
+    await suPost({ action: 't_signup', phone, code });
     localStorage.setItem(T_PHONE, phone); localStorage.setItem(T_PW, code);
     const out = await tApi('t_login');
     tApply(out);
     tShow('homeView');
-    toast('تم إنشاء حسابكِ بنجاح');
+    toast('تم إنشاء حسابكِ، سجّلي بياناتكِ ليبدأ التحقق');
   } catch (e) {
     localStorage.removeItem(T_PHONE); localStorage.removeItem(T_PW);
     toast(e.message, false);
   } finally { setBtnBusy(btn, false); }
+}
+
+/* ---------- بطاقة الحساب الجديد في الرئيسية: تسجيل البيانات ثم حالة «جارِ التحقق» ---------- */
+let acLists = null, acEdit = false;
+function acOpts(list, cur) { return list.map(x => '<option' + (x === cur ? ' selected' : '') + '>' + esc(x) + '</option>').join(''); }
+async function tAcctRender(t) {
+  const box = $('acctCard');
+  if (!t || !t.acct) { box.classList.add('hidden'); return; }
+  const a = t.acct, hasData = !!t.name;
+  box.classList.remove('hidden');
+  if (hasData && !acEdit) {
+    const canEdit = a.status === 'جديد' || a.status === 'جارِ التحقق';
+    box.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:0">حالة الحساب</h2><span class="ac-badge">' + esc(a.status) + '</span></div>' +
+      '<div class="tp-note" style="margin-top:12px">بياناتكِ مسجَّلة، وحسابكِ قيد التحقق من الإدارة. ستتواصل معكِ الإدارة عند اكتمال الخطوات.</div>' +
+      '<div class="ac-sum">الاسم: <b>' + esc(t.name) + '</b><br>فئة التدريس: <b>' + esc(t.category || '—') + '</b><br>المركز: <b>' + esc(a.center || '—') + '</b><br>الفترة: <b>' + esc(a.period || '—') + '</b></div>' +
+      (canEdit ? '<button class="btn light" onclick="acEdit=true;tAcctRender(TME)">تعديل البيانات</button>' : '');
+    return;
+  }
+  box.innerHTML = '<h2>سجّلي بيانات حسابكِ</h2><div class="tp-note">أكملي البيانات التالية، وبعد الحفظ يصبح حسابكِ «جارِ التحقق» لدى الإدارة.</div><p class="empty">جارِ تحميل القوائم...</p>';
+  try {
+    if (!acLists) acLists = await tApi('t_acct_lists');
+  } catch (e) {
+    box.innerHTML = '<h2>سجّلي بيانات حسابكِ</h2><p class="empty">تعذّر تحميل القوائم.</p><button class="btn light" onclick="tAcctRender(TME)">إعادة المحاولة</button>';
+    return;
+  }
+  box.innerHTML = '<h2>سجّلي بيانات حسابكِ</h2>' +
+    '<div class="tp-note">أكملي البيانات التالية، وبعد الحفظ يصبح حسابكِ «جارِ التحقق» لدى الإدارة.</div>' +
+    '<label for="acName">الاسم الرباعي <span style="color:#b3261e">*</span></label><input id="acName" placeholder="الاسم الأول واسم الأب والجد والعائلة" autocomplete="off" value="' + esc(t.name || '') + '">' +
+    '<label for="acCat">فئة التدريس <span style="color:#b3261e">*</span></label><select id="acCat"><option value="">اختاري فئة التدريس</option>' + acOpts(acLists.cats || [], t.category || '') + '</select>' +
+    '<label for="acCenter">اسم المركز <span style="color:#b3261e">*</span></label><select id="acCenter"><option value="">اختاري المركز</option>' + acOpts(acLists.centers || [], a.center || '') + '</select>' +
+    '<label for="acPeriod">الفترة <span style="color:#b3261e">*</span></label><select id="acPeriod"><option value="">اختاري الفترة</option>' + acOpts(acLists.periods || [], a.period || '') + '</select>' +
+    '<button id="acBtn" class="btn block" style="margin-top:16px" onclick="tAcctSave()">حفظ البيانات</button>' +
+    (hasData ? '<button class="btn light block" style="margin-top:8px" onclick="acEdit=false;tAcctRender(TME)">إلغاء</button>' : '');
+}
+async function tAcctSave() {
+  const name = $('acName').value.replace(/\s+/g, ' ').trim(), cat = $('acCat').value, center = $('acCenter').value, period = $('acPeriod').value;
+  if (name.split(' ').filter(w => w.length > 1).length < 4) return toast('اكتبي الاسم الرباعي كاملاً', false);
+  if (!cat) return toast('اختاري فئة التدريس', false);
+  if (!center) return toast('اختاري المركز', false);
+  if (!period) return toast('اختاري الفترة', false);
+  const btn = $('acBtn');
+  setBtnBusy(btn, true, 'جارِ الحفظ...');
+  try {
+    await tApi('t_acct_save', { name, cat, center, period });
+    acEdit = false;
+    await tLoad();
+    toast('تم حفظ بياناتكِ، وحسابكِ الآن جارِ التحقق');
+  } catch (e) { toast(e.message, false); }
+  finally { setBtnBusy(btn, false); }
 }
 </script>
 <script src="teacher-profile.js"></script>
