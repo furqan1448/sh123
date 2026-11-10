@@ -29,6 +29,9 @@
   .in-prev img{display:block;width:100%;height:auto;background:#fff;border-bottom:1px solid var(--line)}
   .t-mode{display:inline-block;border-radius:20px;padding:1px 10px;font-size:12px;font-weight:700;background:#fbf3e0;color:#8a6a1f;margin-right:4px}
   .tile{position:relative}
+  .tile.soon{opacity:.82}
+  .soon-tag{position:absolute;top:10px;left:10px;background:#f6f0e4;color:#8a6a1f;border:1px solid #e3d3a8;border-radius:20px;padding:1px 10px;font-size:12px;font-weight:700}
+  .su-hint{font-size:13px;color:var(--muted);margin-top:4px;line-height:1.7}
   .t-tbadge{position:absolute;top:10px;left:10px;background:#c0392b;color:#fff;border-radius:20px;min-width:24px;padding:1px 8px;font-size:13px;font-weight:800}
   /* الشهادة: نفس تنسيق موقع الشهادات */
   .certificate{position:relative;width:min(100%,650px);aspect-ratio:1414/2000;margin:auto;overflow:hidden;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,.12)}
@@ -63,7 +66,34 @@
     </div>
     <button id="tLoginBtn" class="btn block" onclick="tLogin()">دخول</button>
     <p class="rp-hint" style="margin-top:12px;text-align:center"></p>
-    <p style="margin-top:8px;text-align:center"><a class="lnk" href="index.html">الرئيسية</a></p>
+    <div style="border-top:1.5px dashed var(--line);margin-top:14px;padding-top:14px;text-align:center">
+      <div class="su-hint" style="margin:0 0 8px">ليس لكِ تسجيل سابق؟</div>
+      <button type="button" class="btn light block" onclick="tSuOpen()">إنشاء حساب جديد</button>
+    </div>
+    <p style="margin-top:12px;text-align:center"><a class="lnk" href="index.html">الرئيسية</a></p>
+  </div>
+
+  <!-- إنشاء حساب جديد (لمن ليس لها تسجيل سابق) -->
+  <div id="signupView" class="hidden">
+    <button class="back" onclick="tShow('loginView')">← رجوع</button>
+    <div class="card" style="max-width:520px;margin:0 auto">
+      <h2>إنشاء حساب جديد</h2>
+      <div class="tp-note">يُنشأ الحساب برقم الجوال وكود من ٤ أرقام أو حروف تختارينه بنفسكِ، وتُسجَّل بياناتكِ تلقائياً لدى الإدارة. استخدمي الجوال والكود عند الدخول.</div>
+      <label for="suPhone">رقم الجوال <span style="color:#b3261e">*</span></label>
+      <input id="suPhone" inputmode="tel" dir="ltr" placeholder="05xxxxxxxx" style="text-align:right" autocomplete="off">
+      <label for="suCode">الكود (٤ أرقام أو حروف) <span style="color:#b3261e">*</span></label>
+      <input id="suCode" maxlength="4" dir="ltr" placeholder="مثال: 7K2A" style="text-align:right" autocomplete="off">
+      <div class="su-hint">احفظي الكود جيداً، فهو كلمة المرور عند الدخول.</div>
+      <label for="suName">الاسم الرباعي <span style="color:#b3261e">*</span></label>
+      <input id="suName" placeholder="الاسم الأول واسم الأب والجد والعائلة" autocomplete="off">
+      <label for="suCat">فئة التدريس <span style="color:#b3261e">*</span></label>
+      <select id="suCat"><option value="">جارِ التحميل...</option></select>
+      <label for="suCenter">اسم المركز <span style="color:#b3261e">*</span></label>
+      <select id="suCenter"><option value="">جارِ التحميل...</option></select>
+      <label for="suPeriod">الفترة <span style="color:#b3261e">*</span></label>
+      <select id="suPeriod"><option value="">جارِ التحميل...</option></select>
+      <button id="suBtn" class="btn block" style="margin-top:18px" onclick="tSuSubmit()">إنشاء الحساب</button>
+    </div>
   </div>
 
   <!-- الرئيسية: أيقونات خدمات المعلمة -->
@@ -75,6 +105,7 @@
       <button class="tile" onclick="tCertOpen()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="17" height="12" rx="1.5"/><path d="M7 8h10"/><path d="M8.5 11.5h7"/><circle cx="12" cy="17.5" r="2.5"/><path d="M10.6 19.6 10 22l2-1 2 1-.6-2.4"/></svg><b>شهادتي</b></button>
       <button class="tile" onclick="tMinOpen()"><span class="t-tbadge hidden" id="minBadge">0</span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="2.5"/><circle cx="16" cy="8" r="2.5"/><path d="M3.5 18c0-2.8 2-4.5 4.5-4.5s4.5 1.7 4.5 4.5"/><path d="M11.5 18c0-2.8 2-4.5 4.5-4.5s4.5 1.7 4.5 4.5"/><path d="M3 21h18"/></svg><b>محاضر الاجتماعات</b></button>
       <button class="tile" onclick="tFilesOpen()"><span class="t-tbadge hidden" id="filesBadge">0</span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5l-8 8a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L9.7 17.2a1.7 1.7 0 0 1-2.4-2.4L15 7"/></svg><b>المرفقات</b></button>
+      <button class="tile soon" onclick="tSoon()"><span class="soon-tag">قريباً</span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17"/><path d="M8 3v4"/><path d="M16 3v4"/><path d="M8 13.5h3"/><path d="M13.5 13.5h3"/><path d="M8 17h3"/></svg><b>تسجيل موعد اختبار قياس</b></button>
     </div>
     <p style="text-align:center;margin-top:22px"><button class="btn light" onclick="tLogout()">تسجيل الخروج</button></p>
   </div>
@@ -207,6 +238,59 @@
 <script>window.MN_NO_UI = 1;</script>
 <script src="minutes.js"></script>
 <script src="teachers.js"></script>
+<script>
+/* ---------- أيقونة «تسجيل موعد اختبار قياس»: واجهة فقط الآن، وتُستكمل لاحقاً ---------- */
+function tSoon() { toast('هذه الخدمة قيد الإعداد وستتوفر قريباً'); }
+
+/* ---------- إنشاء حساب جديد: الجوال + كود من ٤ أرقام أو حروف + الاسم الرباعي + الفئة + المركز + الفترة ---------- */
+let suLoaded = false;
+const suDigits = v => String(v || '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+async function suPost(body) {
+  const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) });
+  const out = await res.json();
+  if (!out.ok) throw new Error(out.error || 'حدث خطأ');
+  return out;
+}
+function suFill(id, first, list) {
+  $(id).innerHTML = '<option value="">' + first + '</option>' + list.map(x => '<option>' + esc(x) + '</option>').join('');
+}
+async function tSuOpen() {
+  tShow('signupView');
+  if (suLoaded) return;
+  try {
+    const o = await suPost({ action: 't_lists' });
+    suFill('suCat', 'اختاري فئة التدريس', o.cats || []);
+    suFill('suCenter', 'اختاري المركز', o.centers || []);
+    suFill('suPeriod', 'اختاري الفترة', o.periods || []);
+    suLoaded = true;
+  } catch (e) { toast('تعذّر تحميل القوائم، حاولي مرة أخرى', false); }
+}
+$('suCode').addEventListener('input', e => { e.target.value = suDigits(e.target.value).replace(/\s+/g, '').toUpperCase(); });
+async function tSuSubmit() {
+  if (!suLoaded) return toast('جارِ تحميل القوائم، حاولي بعد لحظات', false);
+  const phone = suDigits($('suPhone').value).replace(/\D/g, ''), code = suDigits($('suCode').value).replace(/\s+/g, '').toUpperCase(),
+    name = $('suName').value.replace(/\s+/g, ' ').trim(), cat = $('suCat').value, center = $('suCenter').value, period = $('suPeriod').value;
+  if (!/^(05\d{8}|5\d{8}|9665\d{8}|009665\d{8})$/.test(phone)) return toast('اكتبي رقم جوال صحيحاً (١٠ أرقام تبدأ بـ 05)', false);
+  if (!/^[A-Z0-9\u0621-\u064A]{4}$/.test(code)) return toast('الكود يتكوّن من ٤ أرقام أو حروف بالضبط', false);
+  if (name.split(' ').filter(w => w.length > 1).length < 4) return toast('اكتبي الاسم الرباعي كاملاً', false);
+  if (!cat) return toast('اختاري فئة التدريس', false);
+  if (!center) return toast('اختاري المركز', false);
+  if (!period) return toast('اختاري الفترة', false);
+  const btn = $('suBtn');
+  setBtnBusy(btn, true, 'جارِ إنشاء الحساب...');
+  try {
+    await suPost({ action: 't_signup', phone, code, name, cat, center, period });
+    localStorage.setItem(T_PHONE, phone); localStorage.setItem(T_PW, code);
+    const out = await tApi('t_login');
+    tApply(out);
+    tShow('homeView');
+    toast('تم إنشاء حسابكِ بنجاح');
+  } catch (e) {
+    localStorage.removeItem(T_PHONE); localStorage.removeItem(T_PW);
+    toast(e.message, false);
+  } finally { setBtnBusy(btn, false); }
+}
+</script>
 <script src="teacher-profile.js"></script>
 </body>
 </html>

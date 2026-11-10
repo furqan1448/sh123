@@ -415,7 +415,7 @@ function getLists_(fresh) {
     if (cell(r, cS)) typesSgh.push(cell(r, cS));
   });
   // أسماء المعلمات للقائمة المنسدلة: من «القوائم» + سجل المعلمات (شيت الشهادات)
-  try { certRows_(false).forEach(t => { if (teachers.indexOf(t.name) < 0) teachers.push(t.name); }); } catch (e) {}
+  try { certRows_(false).forEach(t => { if (!t.acct && teachers.indexOf(t.name) < 0) teachers.push(t.name); }); } catch (e) {}   // الحسابات الجديدة لا تظهر هنا قبل اعتماد الإدارة
   teachers.sort((a, b) => a.localeCompare(b, 'ar'));
   const out = { centers: centers, types: types, teachers: teachers, typesIdari: typesIdari, typesSgh: typesSgh };
   try { cache.put('lists_v4', JSON.stringify(out), 120); } catch (e) {}
@@ -1576,7 +1576,7 @@ function pPhone_(v) {
 }
 
 // سجل المعلمات في الكاش 6 ساعات (يُعاد قراءته إن لم توجد المعلمة، مرة كل دقيقة كحد أقصى)
-const CERT_CACHE_KEY = 'cert_v4', CERT_CACHE_TTL = 21600;
+const CERT_CACHE_KEY = 'cert_v5', CERT_CACHE_TTL = 21600;
 function certRowsFresh_() {
   const sh = SpreadsheetApp.openById(CERT_SHEET_ID).getSheets().find(x => x.getName().indexOf('شهادة') !== -1);
   if (!sh) throw new Error('ورقة الشهادات غير موجودة');
@@ -1586,14 +1586,19 @@ function certRowsFresh_() {
   const h = v[hr].map(c => String(c).trim());
   const ix = {}; Object.keys(CERT_COLS).forEach(k => ix[k] = h.indexOf(CERT_COLS[k]));
   if (ix.name < 0 || ix.phone < 0 || ix.id < 0 || ix.pass < 0) throw new Error('أعمدة ناقصة في ورقة الشهادات');
-  return v.slice(hr + 1).map(r => ({ id: String(r[ix.id]).trim(), name: String(r[ix.name]).trim(), phone: pPhone_(r[ix.phone]), pass: String(r[ix.pass]).trim().toUpperCase(),
+  const base = v.slice(hr + 1).map(r => ({ id: String(r[ix.id]).trim(), name: String(r[ix.name]).trim(), phone: pPhone_(r[ix.phone]), pass: String(r[ix.pass]).trim().toUpperCase(),
     cat: ix.cat > -1 ? String(r[ix.cat]).trim() : '' }))
     .filter(t => t.name && t.phone)
     .map(t => { if (!t.id) t.id = 'P-' + t.phone; return t; });   // معلمة جديدة بلا Teacher ID: معرّف ثابت من رقم جوالها
+  // الحسابات المنشأة من صفحة المعلمات (ورقة «حسابات المعلمات الجدد»): تُضاف بعد السجل، ولا تُكرَّر إن وُجد جوالها فيه
+  let extra = [];
+  try { extra = taRows_(); } catch (e) {}
+  const have = {}; base.forEach(t => { have[t.phone] = 1; });
+  return base.concat(extra.filter(t => !have[t.phone]));
 }
 function certCachePut_(rows) {
   try {
-    const s = JSON.stringify(rows.map(t => [t.id, t.name, t.phone, t.pass, t.cat])), CH = 30000, cnt = Math.ceil(s.length / CH);
+    const s = JSON.stringify(rows.map(t => [t.id, t.name, t.phone, t.pass, t.cat, t.acct ? 1 : 0])), CH = 30000, cnt = Math.ceil(s.length / CH);
     if (cnt < 1 || cnt > 60) return;
     const o = {};
     for (let i = 0; i < cnt; i++) o[CERT_CACHE_KEY + '_' + i] = s.substr(i * CH, CH);
@@ -1610,7 +1615,7 @@ function certCacheGet_() {
     const keys = []; for (let i = 0; i < n; i++) keys.push(CERT_CACHE_KEY + '_' + i);
     const parts = c.getAll(keys); let s = '';
     for (let i = 0; i < n; i++) { const p = parts[keys[i]]; if (p == null) return null; s += p; }
-    return JSON.parse(s).map(a => ({ id: a[0], name: a[1], phone: a[2], pass: a[3], cat: a[4] || '' }));
+    return JSON.parse(s).map(a => ({ id: a[0], name: a[1], phone: a[2], pass: a[3], cat: a[4] || '', acct: !!a[5] }));
   } catch (e) { return null; }
 }
 function certRows_(fresh) {
@@ -1664,12 +1669,80 @@ function teacherReports_(t) {
   });
 }
 
+/* ============ إنشاء حساب معلمة جديدة (لمن ليس لها تسجيل سابق في سجل المعلمات) ============
+   تدخل المعلمة: رقم الجوال + كود من ٤ أرقام أو حروف + الاسم الرباعي + فئة التدريس + المركز + الفترة.
+   تُحفظ البيانات تلقائياً في ورقة «حسابات المعلمات الجدد» بهذا الشيت، ويعمل الدخول بها فوراً (الجوال + الكود).
+   لا يُعدَّل شيت الشهادات (سجل المعلمات) إطلاقاً. أعمدة «الحالة» وما بعدها محجوزة لخطوات الإدارة اللاحقة. */
+const TA_SHEET = 'حسابات المعلمات الجدد';
+const TA_COLS = ['وقت التسجيل', 'رقم الجوال', 'الكود', 'Teacher ID', 'الاسم الرباعي', 'فئة التدريس', 'المركز', 'الفترة', 'الحالة'];
+const TA_CATS = ['أمهات', 'متعلمات', 'ناشئة', 'أمهات ومتعلمات', 'متعلمات وناشئة', 'أمهات وناشئة', 'جميع الفئات'];
+const TA_PERIODS = ['الصباحية', 'المسائية', 'الصباحية والمسائية'];
+const TA_STATUS_NEW = 'جديد';
+
+function taSheet_() {
+  const ss = ss_();
+  let sh = ss.getSheetByName(TA_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(TA_SHEET);
+    sh.getRange(1, 1, 1, TA_COLS.length).setValues([TA_COLS]);
+    styleHeader_(sh, TA_COLS.length);
+    sh.setColumnWidths(1, TA_COLS.length, 150);
+    sh.setColumnWidth(5, 240);
+    sh.setColumnWidth(7, 260);
+  }
+  return sh;
+}
+
+// الحسابات المنشأة (للدخول): الجوال + الكود
+function taRows_() {
+  const sh = ss_().getSheetByName(TA_SHEET);
+  if (!sh || sh.getLastRow() < 2) return [];
+  const v = sh.getRange(2, 1, sh.getLastRow() - 1, TA_COLS.length).getDisplayValues();
+  return v.map(r => {
+    const phone = pPhone_(r[1]);
+    return { id: String(r[3]).trim() || (phone ? 'P-' + phone : ''), name: String(r[4]).trim(), phone: phone, pass: String(r[2]).trim().toUpperCase(),
+      cat: String(r[5]).trim(), acct: true };
+  }).filter(t => t.name && t.phone && t.pass);
+}
+
+function taLists_() {
+  return { ok: true, centers: getLists_().centers, cats: TA_CATS, periods: TA_PERIODS };
+}
+
+function taSignup_(r) {
+  const cut = (x, n) => String(x == null ? '' : x).replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
+  const phone = pPhone_(r.phone);
+  if (!phone || phone.indexOf('05') !== 0) throw new Error('رقم الجوال غير صحيح، اكتبي ١٠ أرقام تبدأ بـ 05');
+  const code = norm_(r.code).replace(/\s+/g, '').toUpperCase();
+  if (!/^[A-Z0-9\u0621-\u064A]{4}$/.test(code)) throw new Error('الكود يتكوّن من ٤ أرقام أو حروف بالضبط');
+  const name = cut(r.name, 100);
+  if (name.split(' ').filter(w => w.length > 1).length < 4) throw new Error('اكتبي الاسم الرباعي كاملاً (أربعة أسماء على الأقل)');
+  const cat = cut(r.cat, 60), period = cut(r.period, 40), center = cut(r.center, 150);
+  if (TA_CATS.indexOf(cat) < 0) throw new Error('اختاري فئة التدريس');
+  if (TA_PERIODS.indexOf(period) < 0) throw new Error('اختاري الفترة');
+  if (!center || getLists_().centers.indexOf(center) < 0) throw new Error('اختاري المركز من القائمة');
+
+  // حدّ عام لمنع الإرسال العشوائي المتكرر: ٣٠ حساباً كل ١٠ دقائق
+  const cache = CacheService.getScriptCache(), rk = 'ta_rate', n = Number(cache.get(rk) || 0);
+  if (n >= 30) throw new Error('الطلبات كثيرة حالياً، حاولي بعد قليل');
+
+  if (certRows_(true).some(t => t.phone === phone)) throw new Error('رقم الجوال مسجَّل مسبقاً، سجّلي الدخول بكلمة المرور الخاصة بكِ');
+
+  const sh = taSheet_(), row = [nowStr_(), phone, code, 'P-' + phone, name, cat, center, period, TA_STATUS_NEW];
+  sh.getRange(sh.getLastRow() + 1, 1, 1, row.length).setNumberFormat('@').setValues([row]);
+  cache.put(rk, String(n + 1), 600);
+  try { cache.remove(CERT_CACHE_KEY + '_n'); } catch (e) {}   // ليظهر الحساب في الدخول فوراً
+  return { ok: true };
+}
+
 function teacherRoute_(r) {
   try {
     if (r.action === 't_hint') {   // اسم مختصر للتأكد قبل كتابة كلمة المرور
       const t = teacherByPhone_(r.phone);
       return t ? { ok: true, name: t.name.split(/\s+/).slice(0, 2).join(' ') } : { ok: false, error: 'رقم الجوال غير موجود في سجل المعلمات' };
     }
+    if (r.action === 't_lists') return taLists_();                      // قوائم نموذج إنشاء الحساب (بلا دخول)
+    if (r.action === 't_signup') return withLock_(() => taSignup_(r));   // إنشاء حساب معلمة جديدة (بلا دخول)
     const t = teacherAuth_(r);
     if (r.action === 't_login' || r.action === 't_list') return { ok: true, teacher: { id: t.id, name: t.name, category: t.cat, prof: !!tpGet_(t.id) }, data: teacherReports_(t), minutes: minutesFor_(t), files: filesForTeacher_(t), inbox: teacherInbox_(t) };
     if (r.action === 't_prof') return { ok: true, data: tpGet_(t.id), phone: t.phone, name: t.name, cat: t.cat || '', centers: getLists_().centers };   // بياناتي الشخصية

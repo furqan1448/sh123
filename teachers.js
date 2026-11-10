@@ -6,7 +6,7 @@ let TIN = [], inCur = null, inFile = null;
 let TREP = [], tCur = null, tSigsCur = {}, TME = null, TMIN = [], tMinCur = null, TFILES = [];
 
 function tShow(id) {
-  ['loginView', 'homeView', 'reportsView', 'certView', 'signView', 'minView', 'minDocView', 'filesView', 'inView', 'profView'].forEach(v => $(v).classList.add('hidden'));
+  ['loginView', 'homeView', 'reportsView', 'certView', 'signView', 'minView', 'minDocView', 'filesView', 'inView', 'profView', 'signupView'].forEach(v => $(v).classList.add('hidden'));
   $(id).classList.remove('hidden');
   window.scrollTo(0, 0);
   setTimeout(() => SIG_WIDGETS.forEach(w => w.resize()), 60);
