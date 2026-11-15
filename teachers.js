@@ -159,6 +159,10 @@ function tCertOpen() {
   if (!TME) return toast('جارِ تحميل بياناتكِ، أعيدي المحاولة بعد لحظات', false);
   $('certName').textContent = TME.name || '';
   $('certCat').textContent = TME.category || '';
+  // الحساب الجديد (لم تختبر قياس سابقاً): لا تُعرض شهادة
+  const none = !!TME.acct;
+  $('certNone').classList.toggle('hidden', !none);
+  $('certWrap').classList.toggle('hidden', none);
   tShow('certView');
 }
 function tCertFont() {
